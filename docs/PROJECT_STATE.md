@@ -3,7 +3,7 @@
 **Проект:** ai-curator
 **Дата создания:** 2026-07-29
 **Последнее обновление:** 2026-07-29
-**Статус:** Implementation In Progress — Day 5 Done, Next: Day 6 Admin Console
+**Статус:** Implementation In Progress — Day 5 Done, Next: Day 6 LLM Chat + Admin Console
 
 ---
 
@@ -106,7 +106,7 @@ AI Curator не заменяет преподавателя, не выставл
 8. ✅ Sprint 4.2 Дня 4: RAG pipeline — chunking, embeddings, Chroma, search.
 9. ✅ День 5 IMPLEMENTATION_PLAN: Web UI студента.
 10. ⏳ Подготовить учебные материалы для Knowledge Base AI Curator.
-11. ⏳ День 6 IMPLEMENTATION_PLAN: Admin Console.
+11. ⏳ День 6 IMPLEMENTATION_PLAN: LLM Chat + Admin Console + Logging + Analytics + Audit.
 12. ⏳ Подготовить материалы для портфолио и DEPLOYMENT_GUIDE.md.
 
 ## Open Questions

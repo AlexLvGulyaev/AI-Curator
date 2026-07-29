@@ -277,16 +277,21 @@ flowchart LR
 
 ---
 
-## 8. День 6: Admin Console, Logging, Analytics и Audit
+## 8. День 6: LLM Chat, Admin Console, Logging, Analytics и Audit
 
 ### Цель
 
-Реализовать Admin Console для управления Knowledge Base, AI-конфигурацией, аналитикой и мониторингом.
+Реализовать LLM-оркестратор чата в Backend, интегрировать его с Web UI и создать Admin Console для управления Knowledge Base, AI-конфигурацией, аналитикой и мониторингом.
 
 ### Результат дня
 
 | Артефакт | Признак готовности |
 |----------|-------------------|
+| LLM Chat endpoint | `POST /api/v1/chat` возвращает сформированный LLM-ответ с источниками |
+| Prompt Builder | Промпт собирается из RAG-контекста, LMS-данных и системных инструкций |
+| LLM Adapter | Вызов `gpt-4o-mini` через LangChain внутри Backend |
+| Answer Validator | Проверка наличия источников и границ ответа |
+| Web UI chat обновлён | Web UI использует `POST /api/v1/chat` вместо прямого `/rag/search` |
 | Admin Console собирается | Сборка проходит без ошибок |
 | Управление KB | Можно загрузить документ, указать метаданные, запустить обработку, опубликовать |
 | Версионирование | Можно загрузить новую версию и заменить старую в индексе |
@@ -297,8 +302,18 @@ flowchart LR
 
 ### Задачи
 
-1. Реализовать Admin Console frontend.
-2. Реализовать admin endpoints:
+1. **LLM Chat в Backend:**
+   - Реализовать `src/services/prompt_builder.py` — сборка промпта из RAG-контекста, LMS-данных, роли и difficulty.
+   - Реализовать `src/services/llm_adapter.py` — вызов OpenAI через LangChain `ChatOpenAI`.
+   - Реализовать `src/services/answer_validator.py` — проверка источников и границ.
+   - Реализовать `src/services/orchestrator.py` — классификация запроса, вызов LMS Adapter / RAG Pipeline, сборка ответа.
+   - Реализовать `POST /api/v1/chat` в `src/api/v1/chat.py`.
+2. **Обновить Web UI:**
+   - Переключить `useChat` на `POST /api/v1/chat`.
+   - Добавить рендеринг markdown-ответов.
+   - Сохранять историю диалога в `localStorage`.
+3. **Реализовать Admin Console frontend.**
+4. **Реализовать admin endpoints**:
    - `/api/v1/admin/kb/documents` — CRUD документов;
    - `/api/v1/admin/kb/documents/{id}/process` — обработка;
    - `/api/v1/admin/kb/documents/{id}/publish` — публикация / снятие;
@@ -308,14 +323,16 @@ flowchart LR
    - `/api/v1/admin/monitoring` — мониторинг;
    - `/api/v1/admin/logs` — логи;
    - `/api/v1/admin/audit` — аудит.
-3. Настроить логирование запросов в PostgreSQL.
-4. Реализовать агрегацию аналитики по темам, модулям, курсам.
-5. Реализовать мониторинг состояния компонентов.
-6. Настроить аутентификацию и авторизацию администраторов / методистов.
-7. Развернуть Admin Console на VPS с HTTPS.
+5. Настроить логирование запросов в PostgreSQL.
+6. Реализовать агрегацию аналитики по темам, модулям, курсам.
+7. Реализовать мониторинг состояния компонентов.
+8. Настроить аутентификацию и авторизацию администраторов / методистов.
+9. Развернуть Admin Console и обновлённый Web UI на VPS с HTTPS.
 
 ### Критерий завершения
 
+- [ ] `POST /api/v1/chat` возвращает осмысленный ответ с источниками.
+- [ ] Web UI использует `/api/v1/chat` и отображает markdown-ответы.
 - [ ] Документ загружается и индексируется из Admin Console.
 - [ ] Можно опубликовать / снять с публикации документ.
 - [ ] AI-конфигурация версионируется и применяется.
@@ -421,8 +438,8 @@ flowchart LR
 | Документ | День | Назначение |
 |----------|------|------------|
 | `DEPLOYMENT_GUIDE.md` | День 7 | Source of Truth развёртывания |
-| `docs/API_CONTRACT.md` | День 3–4 | Контракты API |
-| `docs/PROMPT_ARCHITECTURE.md` | День 4–5 | Структура промптов и few-shot примеры |
+| `docs/API_CONTRACT.md` | День 3–6 | Контракты API |
+| `docs/PROMPT_ARCHITECTURE.md` | День 6 | Структура промптов и few-shot примеры |
 | `docs/OPERATIONS.md` | День 6–7 | Эксплуатация, обновление Knowledge Base |
 | `README.md` | День 7 | Актуализация публичного описания |
 
