@@ -3,7 +3,7 @@
 **Проект:** ai-curator
 **Дата создания:** 2026-07-29
 **Последнее обновление:** 2026-07-29
-**Статус:** Approved for Implementation
+**Статус:** Implementation In Progress — Day 1 & 2 Done
 
 ---
 
@@ -56,18 +56,18 @@ AI Curator не заменяет преподавателя, не выставл
 
 | Область | Компетенция / решение | Статус |
 |---------|----------------------|--------|
-| LMS | Moodle | Утверждено |
-| Backend | FastAPI | Предварительно |
-| LLM | OpenAI API | Предварительно |
-| Embeddings | OpenAI API | Предварительно |
-| AI / RAG библиотека | LangChain (внутри Backend) | Предварительно |
-| Операционная база | PostgreSQL | Предварительно |
-| Векторный индекс | Chroma | Предварительно |
-| Хранилище документов KB | Object Storage / файловое хранилище | Предварительно |
-| Web UI студента | React / vanilla (уточняется) | Открытый вопрос |
-| Admin Console | React / vanilla (уточняется) | Открытый вопрос |
-| Контейнеризация | Docker + Docker Compose | Предварительно |
-| Reverse proxy / HTTPS | nginx / Traefik + Let's Encrypt | Предварительно |
+| LMS | Moodle | ✅ Развёрнуто и настроено |
+| Backend | FastAPI | ⏳ День 3 IMPLEMENTATION_PLAN |
+| LLM | OpenAI API | ✅ Ключ добавлен в `.env` |
+| Embeddings | OpenAI API | ✅ Ключ добавлен в `.env` |
+| AI / RAG библиотека | LangChain (внутри Backend) | ⏳ День 4 IMPLEMENTATION_PLAN |
+| Операционная база | PostgreSQL | ⏳ Добавить в Docker Compose |
+| Векторный индекс | Chroma | ⏳ Добавить в Docker Compose |
+| Хранилище документов KB | Файловое хранилище внутри Backend-контейнера | ⏳ Реализовать в День 4 |
+| Web UI студента | React / vanilla (уточняется) | ⏳ День 5 IMPLEMENTATION_PLAN |
+| Admin Console | React / vanilla (уточняется) | ⏳ День 6 IMPLEMENTATION_PLAN |
+| Контейнеризация | Docker + Docker Compose | ✅ LMS развёрнута, Backend предстоит |
+| Reverse proxy / HTTPS | Traefik + Let's Encrypt | ✅ Работает для LMS и зарезервировано для всех сервисов |
 
 ## Decision
 
@@ -88,23 +88,26 @@ AI Curator не заменяет преподавателя, не выставл
 
 ## Next Steps
 
-1. Согласовать PROJECT_STATE, SPEC, ARCHITECTURE и IMPLEMENTATION_PLAN с куратором / владельцем продукта.
-2. Утвердить технологический стек frontend, LLM-провайдера и хостинг.
-3. Зарезервировать VPS и домены.
-4. Получить API-ключ LLM-провайдера.
-5. Запустить цикл реализации по IMPLEMENTATION_PLAN.md.
+1. ✅ Согласовать PROJECT_STATE, SPEC, ARCHITECTURE и IMPLEMENTATION_PLAN с куратором / владельцем продукта.
+2. ✅ Утвердить технологический стек frontend, LLM-провайдера и хостинг.
+3. ✅ Зарезервировать VPS и домены.
+4. ✅ Получить API-ключ LLM-провайдера.
+5. ✅ Подготовить учебный курс в LMS.
+6. ⏳ Продолжить День 3 IMPLEMENTATION_PLAN.md: Backend scaffold на FastAPI, LMS Adapter, health endpoints.
+7. ⏳ Подготовить учебные материалы для Knowledge Base AI Curator.
+8. ⏳ Подготовить материалы для портфолио и DEPLOYMENT_GUIDE.md.
 
 ## Open Questions
 
 | Вопрос | Категория | Примечание |
 |--------|-----------|------------|
-| Какой LLM-провайдер использовать? | Технология | Предварительно OpenAI; требуется подтверждение |
-| Какой стек для Web UI и Admin Console? | Технология | React / vanilla / другой |
+| Какой LLM-провайдер использовать? | Технология | ✅ Решено: OpenAI API, `gpt-4o-mini`, `text-embedding-3-small` |
+| Какой стек для Web UI и Admin Console? | Технология | ⏳ Открытый вопрос; обсудить в День 5–6 |
 | Какие конкретные домены и VPS? | Инфраструктура | ✅ Решено: домены направлены на VPS, Traefik-маршруты и SSL-сертификаты настроены. |
 | Какой курс будет использоваться для демонстрации? | Контент | ✅ Решено: «Claude Code: от знакомства до автоматизации» (AI Skills Lab), 3 модуля, id: 3 |
-| Как организовать хранилище документов Knowledge Base? | Инфраструктура | Object Storage / файловое хранилище |
-| Нужна ли аутентификация студентов в Web UI? | Безопасность | Гостевой доступ vs вход через Moodle OAuth |
-| Какие метрики аналитики критичны? | Продукт | Распределение по темам, модулям, типам запросов |
+| Как организовать хранилище документов Knowledge Base? | Инфраструктура | ⏳ Предварительно: файловое хранилище внутри Backend-контейнера; Object Storage — будущая опция |
+| Нужна ли аутентификация студентов в Web UI? | Безопасность | ⏳ Открытый вопрос: гостевой доступ vs вход через Moodle OAuth |
+| Какие метрики аналитики критичны? | Продукт | ⏳ Предварительно: распределение по темам, модулям, типам запросов; уточнить в День 6 |
 
 ## Dependencies
 

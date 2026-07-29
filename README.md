@@ -141,9 +141,15 @@ flowchart TB
 
 ## Статус проекта
 
-**Текущая стадия:** Approved for Implementation.
+**Текущая стадия:** Implementation In Progress — LMS развёрнута, Backend в разработке.
 
-Проект согласован с куратором. Подготовлены PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md и IMPLEMENTATION_PLAN.md. Код и инфраструктура ещё не развёрнуты. Следующий шаг — запуск цикла реализации по IMPLEMENTATION_PLAN.md.
+- ✅ Проект согласован с куратором.
+- ✅ Подготовлены PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md и IMPLEMENTATION_PLAN.md.
+- ✅ Moodle LMS развёрнута на VPS и доступна по `https://lms.alex-n8n.site`.
+- ✅ В Moodle создан демо-курс «Claude Code: от знакомства до автоматизации» (AI Skills Lab) с модулями, уроками, заданиями, дедлайнами и формами обратной связи.
+- ✅ Создан read-only API-токен для интеграции с Moodle.
+- ✅ Первый коммит запушен на GitHub: https://github.com/AlexLvGulyaev/AI-Curator.git
+- ⏳ Следующий шаг — День 3 IMPLEMENTATION_PLAN: Backend scaffold на FastAPI, LMS Adapter, health endpoints.
 
 ## Планируемые публичные точки входа
 
