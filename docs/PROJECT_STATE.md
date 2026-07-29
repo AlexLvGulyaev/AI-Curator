@@ -3,7 +3,7 @@
 **Проект:** ai-curator
 **Дата создания:** 2026-07-29
 **Последнее обновление:** 2026-07-29
-**Статус:** Implementation In Progress — Sprint 4.1 Done, Sprint 4.2 Done, Next: Day 5 Web UI
+**Статус:** Implementation In Progress — Day 5 Done, Next: Day 6 Admin Console
 
 ---
 
@@ -34,10 +34,12 @@ AI Curator не заменяет преподавателя, не выставл
 - Реализован Knowledge Base scaffold: модели PostgreSQL, файловое хранилище, Admin API для загрузки и управления документами.
 - Реализован RAG pipeline через LangChain + OpenAI embeddings + Chroma: chunking, индексация, семантический поиск.
 - Добавлены endpoints `POST /api/v1/admin/kb/documents/{id}/process` и `POST /api/v1/rag/search`.
+- Реализован Web UI студента на React + Vite + Tailwind CSS, развёрнут на `https://curator.alex-n8n.site`.
+- Гостевой демо-вход с ролями `active_student`, `late_student`, `new_student`.
 - Alembic-миграция KB применена в PostgreSQL.
 - Тесты `pytest` проходят (14 тестов).
 
-Следующий шаг — День 5 IMPLEMENTATION_PLAN: Web UI студента.
+Следующий шаг — День 6 IMPLEMENTATION_PLAN: Admin Console, Logging, Analytics и Audit.
 
 ## Market Validation
 
@@ -70,8 +72,8 @@ AI Curator не заменяет преподавателя, не выставл
 | Операционная база | PostgreSQL | ✅ Развёрнута, миграции применены, health check проходит |
 | Векторный индекс | Chroma | ✅ Развёрнута, health check проходит через v2 endpoint |
 | Хранилище документов KB | Файловое хранилище внутри Backend-контейнера (volume `/app/storage/documents`) | ✅ Реализовано в Sprint 4.1 |
-| Web UI студента | React / vanilla (уточняется) | ⏳ День 5 IMPLEMENTATION_PLAN |
-| Admin Console | React / vanilla (уточняется) | ⏳ День 6 IMPLEMENTATION_PLAN |
+| Web UI студента | React + Vite + Tailwind CSS | ✅ Развёрнут на `https://curator.alex-n8n.site` |
+| Admin Console | React (план) | ⏳ День 6 IMPLEMENTATION_PLAN |
 | Контейнеризация | Docker + Docker Compose | ✅ LMS развёрнута, Backend предстоит |
 | Reverse proxy / HTTPS | Traefik + Let's Encrypt | ✅ Работает для LMS и зарезервировано для всех сервисов |
 
@@ -102,9 +104,10 @@ AI Curator не заменяет преподавателя, не выставл
 6. ✅ День 3 IMPLEMENTATION_PLAN выполнен: Backend scaffold на FastAPI, LMS Adapter, health endpoints, базовые API, тесты.
 7. ✅ Sprint 4.1 Дня 4 выполнен: Knowledge Base scaffold, Admin API, миграции, тесты.
 8. ✅ Sprint 4.2 Дня 4: RAG pipeline — chunking, embeddings, Chroma, search.
-9. ⏳ Подготовить учебные материалы для Knowledge Base AI Curator.
-10. ⏳ День 5 IMPLEMENTATION_PLAN: Web UI студента.
-11. ⏳ Подготовить материалы для портфолио и DEPLOYMENT_GUIDE.md.
+9. ✅ День 5 IMPLEMENTATION_PLAN: Web UI студента.
+10. ⏳ Подготовить учебные материалы для Knowledge Base AI Curator.
+11. ⏳ День 6 IMPLEMENTATION_PLAN: Admin Console.
+12. ⏳ Подготовить материалы для портфолио и DEPLOYMENT_GUIDE.md.
 
 ## Open Questions
 
@@ -165,3 +168,4 @@ AI Curator не заменяет преподавателя, не выставл
 | 2026-07-29 | Implementation In Progress | Выполнен День 3 IMPLEMENTATION_PLAN: Backend scaffold на FastAPI, LMS Adapter, PostgreSQL, Chroma, health endpoints, базовые API (`/api/v1/courses`, `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`), `docs/API_CONTRACT.md`, тесты `pytest`. |
 | 2026-07-29 | Implementation In Progress | Выполнен Sprint 4.1 Дня 4: Knowledge Base scaffold (`src/models/knowledge_base.py`, `src/services/knowledge_base.py`, `src/api/v1/admin/kb.py`), Alembic-миграция, Admin API endpoints, `tests/test_kb.py`, обновлён `docs/API_CONTRACT.md`. `pytest` — 12 passed. |
 | 2026-07-29 | Implementation In Progress | Выполнен Sprint 4.2 Дня 4: RAG pipeline (`src/services/document_processor.py`, `src/services/rag_pipeline.py`), endpoints `/api/v1/admin/kb/documents/{id}/process` и `/api/v1/rag/search`, обновлён `chromadb` до 1.5.9, добавлен `tests/test_rag.py`. `pytest` — 14 passed. |
+| 2026-07-29 | Implementation In Progress | Выполнен День 5 IMPLEMENTATION_PLAN: Web UI студента на React + Vite + Tailwind CSS, развёрнут на `https://curator.alex-n8n.site`, гостевой демо-вход с ролями, чат с организационными и учебными ответами, источники из LMS и Knowledge Base. |

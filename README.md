@@ -155,9 +155,11 @@ flowchart TB
 - ✅ Добавлен endpoint обработки документов: `POST /api/v1/admin/kb/documents/{id}/process`.
 - ✅ Alembic-миграция Knowledge Base применена в PostgreSQL.
 - ✅ Доступны endpoints: `/health`, `/health/db`, `/health/lms`, `/health/chroma`, `/api/v1/courses`, `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`, `/api/v1/admin/kb/*`, `/api/v1/rag/search`.
+- ✅ Web UI: `https://curator.alex-n8n.site` — гостевой вход, чат, источники ответов, переключатель сложности.
 - ✅ Подготовлен `docs/API_CONTRACT.md`.
 - ✅ Тесты `pytest` проходят (14 тестов).
-- ⏳ Следующий шаг — День 5 IMPLEMENTATION_PLAN: Web UI студента.
+- ✅ Web UI студента развёрнут на `https://curator.alex-n8n.site` с гостевым входом и чатом.
+- ⏳ Следующий шаг — День 6 IMPLEMENTATION_PLAN: Admin Console.
 
 ## Планируемые публичные точки входа
 

@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.2  
+**Версия:** 1.3  
 **Дата:** 2026-07-29  
-**Статус:** Актуален для Дня 4.2 (Sprint 4.2)
+**Статус:** Актуален для Дня 5
 
 ---
 
@@ -611,13 +611,23 @@
 
 ---
 
-## 5. Ограничения и допущения
+## 5. Web UI
+
+Web UI AI Curator — отдельный публичный сервис на `https://curator.alex-n8n.site`.
+
+- Стек: React + Vite + Tailwind CSS.
+- Гостевой вход с выбором одной из трёх демо-ролей: `active_student`, `late_student`, `new_student`.
+- Сессия хранится в `localStorage`.
+- Web UI обращается к backend API напрямую: `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`, `/api/v1/rag/search`.
+- CORS в backend разрешён для `WEB_UI_URL` и `ADMIN_CONSOLE_URL`.
+
+## 6. Ограничения и допущения
 
 1. **Авторизация:** не реализована. Все endpoints публичные.
 2. **Read-only LMS:** LMS Adapter использует только read-only Web Service functions и проверяет их по белому списку.
-3. **Chroma health check:** использует прямой HTTP-запрос к `/api/v2/heartbeat`, потому что `chromadb==0.5.3` клиент обращается к устаревшему v1 API.
+3. **Chroma health check:** использует прямой HTTP-запрос к `/api/v2/heartbeat`, потому что `chromadb==1.5.9` клиент совместим с сервером Chroma latest (v2 API).
 4. **Прогресс:** `student_demo` и курс `id=3` зафиксированы в коде до появления аутентификации.
-5. **Knowledge Base:** административные endpoints не требуют авторизации. Фоновая обработка документов (`/process`) будет реализована в Sprint 4.2.
+5. **Knowledge Base:** административные endpoints не требуют авторизации. Обработка документов (`/process`) синхронная.
 6. **База данных:** используется `NullPool` для asyncpg, чтобы избежать состояния гонки в тестах через ASGITransport.
 
 ---
@@ -628,3 +638,5 @@
 |------|--------|-----------|
 | 2026-07-29 | 1.0 | Начальный API-контракт для Sprint 3.2: courses, deadlines, progress, health endpoints |
 | 2026-07-29 | 1.1 | Добавлен Knowledge Base Admin API: загрузка, версии, публикация, статус |
+| 2026-07-29 | 1.2 | Добавлены RAG endpoints: `/process`, `/rag/search` |
+| 2026-07-29 | 1.3 | Добавлен раздел Web UI, обновлено допущение по Chroma v2 |

@@ -146,6 +146,24 @@ services:
       - "traefik.http.routers.ai-curator-backend.tls.certresolver=myresolver"
       - "traefik.http.services.ai-curator-backend.loadbalancer.server.port=8000"
 
+  ai-curator-web-ui:
+    build:
+      context: ./web-ui
+      dockerfile: Dockerfile
+    container_name: ai-curator-web-ui
+    restart: unless-stopped
+    networks:
+      - ai-curator-network
+      - n8n_default
+    depends_on:
+      - ai-curator-backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ai-curator-web-ui.rule=Host(`curator.alex-n8n.site`)"
+      - "traefik.http.routers.ai-curator-web-ui.entrypoints=websecure"
+      - "traefik.http.routers.ai-curator-web-ui.tls.certresolver=myresolver"
+      - "traefik.http.services.ai-curator-web-ui.loadbalancer.server.port=80"
+
 volumes:
   ai-curator-lms-db-data:
   ai-curator-lms-data:

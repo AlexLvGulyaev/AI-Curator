@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Background */
+  --ai-bg: #f8fafc;
+  --ai-surface: #ffffff;
+  --ai-surface-hover: #f1f5f9;
+  --ai-input: #ffffff;
+
+  /* Text */
+  --ai-text: #0f172a;
+  --ai-text-secondary: #475569;
+  --ai-text-muted: #64748b;
+
+  /* Primary accent — violet */
+  --ai-primary: #7c3aed;
+  --ai-primary-hover: #6d28d9;
+  --ai-primary-light: #ede9fe;
+
+  /* Secondary accent — teal for AI */
+  --ai-teal: #14b8a6;
+  --ai-teal-hover: #0d9488;
+  --ai-teal-light: #f0fdfa;
+
+  /* Status */
+  --ai-success: #22c55e;
+  --ai-error: #ef4444;
+  --ai-warning: #f59e0b;
+
+  /* Borders & shadows */
+  --ai-border: #e2e8f0;
+  --ai-border-subtle: #f1f5f9;
+  --ai-radius: 10px;
+  --ai-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --ai-shadow-lg: 0 10px 24px rgba(15, 23, 42, 0.12);
+
+  /* Typography */
+  --ai-font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ai-font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--ai-font-body);
+    background-color: var(--ai-bg);
+    color: var(--ai-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--ai-font-display);
+  }
+}
+
+@layer components {
+  .ai-card {
+    background-color: var(--ai-surface);
+    border: 1px solid var(--ai-border);
+    border-radius: var(--ai-radius);
+    box-shadow: var(--ai-shadow);
+  }
+
+  .ai-btn {
+    background-color: var(--ai-primary);
+    color: #ffffff;
+    border-radius: var(--ai-radius);
+    font-weight: 500;
+    transition: background-color 150ms ease, transform 150ms ease;
+  }
+
+  .ai-btn:hover:not(:disabled) {
+    background-color: var(--ai-primary-hover);
+  }
+
+  .ai-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .ai-input {
+    background-color: var(--ai-input);
+    border: 1px solid var(--ai-border);
+    border-radius: var(--ai-radius);
+    color: var(--ai-text);
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .ai-input:focus {
+    outline: none;
+    border-color: var(--ai-primary);
+    box-shadow: 0 0 0 3px var(--ai-primary-light);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--ai-text-muted);
+  }
+
+  .status-dot.online {
+    background-color: var(--ai-success);
+    animation: pulse 2s infinite;
+  }
+
+  .status-dot.error {
+    background-color: var(--ai-error);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+}
