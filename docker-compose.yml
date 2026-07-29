@@ -1,0 +1,91 @@
+services:
+  # ============================================================
+  # LMS: Moodle + PostgreSQL
+  # ============================================================
+  ai-curator-lms-db:
+    image: postgres:15-alpine
+    container_name: ai-curator-lms-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${MOODLE_DB_USER:-moodle}
+      POSTGRES_PASSWORD: ${MOODLE_DB_PASSWORD:?MOODLE_DB_PASSWORD is required}
+      POSTGRES_DB: ${MOODLE_DB_NAME:-moodle}
+    volumes:
+      - ai-curator-lms-db-data:/var/lib/postgresql/data
+    networks:
+      - ai-curator-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MOODLE_DB_USER:-moodle} -d ${MOODLE_DB_NAME:-moodle}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-curator-lms-init:
+    image: alpine:latest
+    container_name: ai-curator-lms-init
+    restart: no
+    environment:
+      MOODLE_VERSION: ${MOODLE_VERSION:-MOODLE_404_STABLE}
+    volumes:
+      - ai-curator-lms-data:/var/www/html
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        if [ ! -f /var/www/html/version.php ]; then
+          echo "Downloading Moodle ${MOODLE_VERSION}..."
+          apk add --no-cache git
+          git clone --depth 1 --branch ${MOODLE_VERSION} https://github.com/moodle/moodle.git /var/www/html
+          chown -R 33:33 /var/www/html
+          echo "Moodle downloaded."
+        else
+          echo "Moodle already present, skipping download."
+        fi
+    networks:
+      - ai-curator-network
+
+  ai-curator-lms:
+    image: moodlehq/moodle-php-apache:8.1
+    container_name: ai-curator-lms
+    restart: unless-stopped
+    environment:
+      MOODLE_DATABASE_TYPE: pgsql
+      MOODLE_DATABASE_HOST: ai-curator-lms-db
+      MOODLE_DATABASE_PORT: 5432
+      MOODLE_DATABASE_NAME: ${MOODLE_DB_NAME:-moodle}
+      MOODLE_DATABASE_USER: ${MOODLE_DB_USER:-moodle}
+      MOODLE_DATABASE_PASSWORD: ${MOODLE_DB_PASSWORD:?MOODLE_DB_PASSWORD is required}
+      MOODLE_ADMIN_USER: ${MOODLE_ADMIN_USER:-admin}
+      MOODLE_ADMIN_PASSWORD: ${MOODLE_ADMIN_PASSWORD:?MOODLE_ADMIN_PASSWORD is required}
+      MOODLE_ADMIN_EMAIL: ${MOODLE_ADMIN_EMAIL:-admin@example.com}
+      MOODLE_SITE_NAME: ${MOODLE_SITE_NAME:-AI Curator Demo LMS}
+      MOODLE_WWWROOT: https://lms.alex-n8n.site
+    volumes:
+      - ai-curator-lms-data:/var/www/html
+      - ai-curator-lms-moodledata:/var/www/moodledata
+    networks:
+      - ai-curator-network
+      - n8n_default
+    depends_on:
+      ai-curator-lms-db:
+        condition: service_healthy
+      ai-curator-lms-init:
+        condition: service_completed_successfully
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ai-curator-lms.rule=Host(`lms.alex-n8n.site`)"
+      - "traefik.http.routers.ai-curator-lms.entrypoints=websecure"
+      - "traefik.http.routers.ai-curator-lms.tls.certresolver=myresolver"
+      - "traefik.http.services.ai-curator-lms.loadbalancer.server.port=80"
+
+volumes:
+  ai-curator-lms-db-data:
+  ai-curator-lms-data:
+  ai-curator-lms-moodledata:
+
+networks:
+  ai-curator-network:
+    driver: bridge
+  n8n_default:
+    external: true
