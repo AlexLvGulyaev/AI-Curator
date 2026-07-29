@@ -3,7 +3,7 @@
 **Проект:** ai-curator
 **Дата создания:** 2026-07-29
 **Последнее обновление:** 2026-07-29
-**Статус:** Implementation In Progress — Sprint 4.1 Done, Sprint 4.2 Next
+**Статус:** Implementation In Progress — Sprint 4.1 Done, Sprint 4.2 Done, Next: Day 5 Web UI
 
 ---
 
@@ -32,10 +32,12 @@ AI Curator не заменяет преподавателя, не выставл
 - Backend AI Curator развёрнут на `https://curator-api.alex-n8n.site`.
 - Реализован LMS Adapter: курсы, дедлайны, прогресс из Moodle.
 - Реализован Knowledge Base scaffold: модели PostgreSQL, файловое хранилище, Admin API для загрузки и управления документами.
+- Реализован RAG pipeline через LangChain + OpenAI embeddings + Chroma: chunking, индексация, семантический поиск.
+- Добавлены endpoints `POST /api/v1/admin/kb/documents/{id}/process` и `POST /api/v1/rag/search`.
 - Alembic-миграция KB применена в PostgreSQL.
-- Тесты `pytest` проходят (12 тестов).
+- Тесты `pytest` проходят (14 тестов).
 
-Следующий шаг — Sprint 4.2 Дня 4: RAG pipeline — chunking, embeddings, Chroma, search.
+Следующий шаг — День 5 IMPLEMENTATION_PLAN: Web UI студента.
 
 ## Market Validation
 
@@ -64,7 +66,7 @@ AI Curator не заменяет преподавателя, не выставл
 | Backend | FastAPI | ✅ День 3 IMPLEMENTATION_PLAN выполнен: LMS Adapter, базовые endpoints, health checks, тесты |
 | LLM | OpenAI API | ✅ Ключ добавлен в `.env` |
 | Embeddings | OpenAI API | ✅ Ключ добавлен в `.env` |
-| AI / RAG библиотека | LangChain (внутри Backend) | ⏳ Sprint 4.2 Дня 4 |
+| AI / RAG библиотека | LangChain (внутри Backend) | ✅ Sprint 4.2 Дня 4 выполнен |
 | Операционная база | PostgreSQL | ✅ Развёрнута, миграции применены, health check проходит |
 | Векторный индекс | Chroma | ✅ Развёрнута, health check проходит через v2 endpoint |
 | Хранилище документов KB | Файловое хранилище внутри Backend-контейнера (volume `/app/storage/documents`) | ✅ Реализовано в Sprint 4.1 |
@@ -99,9 +101,10 @@ AI Curator не заменяет преподавателя, не выставл
 5. ✅ Подготовить учебный курс в LMS.
 6. ✅ День 3 IMPLEMENTATION_PLAN выполнен: Backend scaffold на FastAPI, LMS Adapter, health endpoints, базовые API, тесты.
 7. ✅ Sprint 4.1 Дня 4 выполнен: Knowledge Base scaffold, Admin API, миграции, тесты.
-8. ⏳ Sprint 4.2 Дня 4: RAG pipeline — chunking, embeddings, Chroma, search.
+8. ✅ Sprint 4.2 Дня 4: RAG pipeline — chunking, embeddings, Chroma, search.
 9. ⏳ Подготовить учебные материалы для Knowledge Base AI Curator.
-10. ⏳ Подготовить материалы для портфолио и DEPLOYMENT_GUIDE.md.
+10. ⏳ День 5 IMPLEMENTATION_PLAN: Web UI студента.
+11. ⏳ Подготовить материалы для портфолио и DEPLOYMENT_GUIDE.md.
 
 ## Open Questions
 
@@ -161,3 +164,4 @@ AI Curator не заменяет преподавателя, не выставл
 | 2026-07-29 | Implementation In Progress | Выполнены День 1 и День 2 IMPLEMENTATION_PLAN: Moodle развёрнута, курс «Claude Code: от знакомства до автоматизации» (AI Skills Lab) с модулями, заданиями и дедлайнами создан, API-токен создан. |
 | 2026-07-29 | Implementation In Progress | Выполнен День 3 IMPLEMENTATION_PLAN: Backend scaffold на FastAPI, LMS Adapter, PostgreSQL, Chroma, health endpoints, базовые API (`/api/v1/courses`, `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`), `docs/API_CONTRACT.md`, тесты `pytest`. |
 | 2026-07-29 | Implementation In Progress | Выполнен Sprint 4.1 Дня 4: Knowledge Base scaffold (`src/models/knowledge_base.py`, `src/services/knowledge_base.py`, `src/api/v1/admin/kb.py`), Alembic-миграция, Admin API endpoints, `tests/test_kb.py`, обновлён `docs/API_CONTRACT.md`. `pytest` — 12 passed. |
+| 2026-07-29 | Implementation In Progress | Выполнен Sprint 4.2 Дня 4: RAG pipeline (`src/services/document_processor.py`, `src/services/rag_pipeline.py`), endpoints `/api/v1/admin/kb/documents/{id}/process` и `/api/v1/rag/search`, обновлён `chromadb` до 1.5.9, добавлен `tests/test_rag.py`. `pytest` — 14 passed. |

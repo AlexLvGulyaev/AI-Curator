@@ -19,9 +19,12 @@ from models.knowledge_base import (
     DocumentStatus,
     DocumentType,
     KbDocument,
+    KbDocumentChunk,
     KbDocumentVersion,
 )
 from schemas.knowledge_base import KbDocumentCreate, KbDocumentUpdate
+from services.document_processor import DocumentProcessor
+from services.rag_pipeline import RagPipeline
 
 KB_ROOT = Path(settings.doc_store_path)
 ALLOWED_MIME_TYPES = {
@@ -225,14 +228,16 @@ class KnowledgeBaseService:
         if publish:
             document.status = DocumentStatus.PENDING
             # Activate the most recent pending/indexed version, deactivate others.
-            latest = None
-            for version in document.versions:
-                if version.status in (DocumentStatus.PENDING, DocumentStatus.INDEXED):
-                    latest = version
-            if latest is None:
+            candidates = [
+                version
+                for version in document.versions
+                if version.status in (DocumentStatus.PENDING, DocumentStatus.INDEXED)
+            ]
+            if not candidates:
                 raise KnowledgeBaseError(
                     f"Document {document_id} has no processable version to publish."
                 )
+            latest = max(candidates, key=lambda v: v.version_number)
             for version in document.versions:
                 version.is_active = version.id == latest.id
         else:
@@ -242,6 +247,79 @@ class KnowledgeBaseService:
         await self.db.commit()
         await self.db.refresh(document)
         return document
+
+    async def process_document(self, document_id: int) -> KbDocument:
+        """Process the active version of a document: chunk, embed and index in Chroma."""
+        document = await self.get_document(document_id)
+
+        active_version = document.active_version
+        if active_version is None:
+            raise KnowledgeBaseError(
+                f"Document {document_id} has no active version to process."
+            )
+
+        document.status = DocumentStatus.PROCESSING
+        active_version.status = DocumentStatus.PROCESSING
+        await self.db.commit()
+
+        try:
+            file_path = self.root_path / active_version.storage_path
+            processor = DocumentProcessor()
+            rag = RagPipeline()
+
+            chunks = processor.process(file_path, active_version.mime_type)
+
+            # Remove any previously indexed chunks for this document.
+            # Only the currently active version should remain searchable.
+            try:
+                rag.collection.delete(where={"document_id": document.id})
+            except Exception:
+                # Collection may be empty or not exist yet; safe to ignore.
+                pass
+
+            # Clean up old chunk traceability records for the active version.
+            for old_chunk in active_version.chunks:
+                await self.db.delete(old_chunk)
+
+            indexed_count = await rag.index_chunks(
+                chunks=chunks,
+                document_id=document.id,
+                version_id=active_version.id,
+                course_id=document.course_id,
+                module_id=document.module_id,
+                topic_id=document.topic_id,
+                difficulty=document.difficulty.value,
+            )
+
+            for chunk in chunks:
+                db_chunk = KbDocumentChunk(
+                    version_id=active_version.id,
+                    chunk_index=chunk.chunk_index,
+                    char_start=chunk.char_start,
+                    char_end=chunk.char_end,
+                    token_count=chunk.token_count,
+                    status=DocumentStatus.INDEXED,
+                )
+                self.db.add(db_chunk)
+
+            active_version.chunk_count = indexed_count
+            active_version.status = DocumentStatus.INDEXED
+            document.status = DocumentStatus.INDEXED
+            document.last_error = None
+            await self.db.commit()
+            await self.db.refresh(document)
+            return document
+
+        except Exception as exc:
+            await self.db.rollback()
+            document.status = DocumentStatus.ERROR
+            active_version.status = DocumentStatus.ERROR
+            document.last_error = f"{type(exc).__name__}: {exc}"
+            await self.db.commit()
+            await self.db.refresh(document)
+            raise KnowledgeBaseError(
+                f"Failed to process document {document_id}: {exc}"
+            ) from exc
 
     async def get_status(self) -> dict:
         """Return aggregated Knowledge Base statistics."""

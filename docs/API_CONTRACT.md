@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.1  
+**Версия:** 1.2  
 **Дата:** 2026-07-29  
-**Статус:** Актуален для Дня 4.1 (Sprint 4.1)
+**Статус:** Актуален для Дня 4.2 (Sprint 4.2)
 
 ---
 
@@ -433,7 +433,20 @@
 
 ---
 
-### 3.13. `GET /api/v1/admin/kb/status`
+### 3.13. `POST /api/v1/admin/kb/documents/{document_id}/process`
+
+Запускает обработку активной версии документа: извлечение текста, разбиение на фрагменты, генерацию embeddings и индексацию в Chroma.
+
+**Ответ 200 OK:** обновлённый объект `KbDocumentOut` со статусом `indexed`.
+
+**Возможные ошибки:**
+
+- `404 Not Found` — документ не найден.
+- `400 Bad Request` — нет активной версии или ошибка обработки (подробности в `last_error`).
+
+---
+
+### 3.14. `GET /api/v1/admin/kb/status`
 
 Агрегированный статус Knowledge Base.
 
@@ -449,6 +462,47 @@
   "total_chunks": 0,
   "indexed_chunks": 0,
   "last_updated": "2026-07-29T21:38:00Z"
+}
+```
+
+---
+
+### 3.15. `POST /api/v1/rag/search`
+
+Семантический поиск по индексированным фрагментам Knowledge Base.
+
+**Тело запроса (JSON):**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `query` | string | Поисковый запрос |
+| `document_id` | int | Ограничить поиск одним документом (опционально) |
+| `course_id` | int | Фильтр по курсу (опционально) |
+| `module_id` | int | Фильтр по модулю (опционально) |
+| `topic_id` | int | Фильтр по теме (опционально) |
+| `difficulty` | string | Фильтр по уровню сложности (опционально) |
+| `k` | int | Количество результатов, по умолчанию 5, макс. 20 |
+
+**Ответ 200 OK:**
+
+```json
+{
+  "query": "установка Claude Code npm",
+  "results": [
+    {
+      "chunk_id": "41:0",
+      "content": "Для установки Claude Code выполните команду npm install -g @anthropic-ai/claude-code...",
+      "metadata": {
+        "document_id": 31,
+        "version_id": 41,
+        "chunk_index": 0,
+        "difficulty": "beginner",
+        "status": "indexed"
+      },
+      "distance": 0.123
+    }
+  ],
+  "total": 1
 }
 ```
 

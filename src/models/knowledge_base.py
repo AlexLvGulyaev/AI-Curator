@@ -74,17 +74,16 @@ class KbDocument(Base):
     versions: Mapped[List["KbDocumentVersion"]] = relationship(
         back_populates="document",
         cascade="all, delete-orphan",
-        order_by="KbDocumentVersion.version_number.desc()",
         lazy="selectin",
     )
 
     @property
     def active_version(self) -> Optional["KbDocumentVersion"]:
         """Return the most recent non-archived version."""
-        for version in self.versions:
-            if version.status != DocumentStatus.ARCHIVED:
-                return version
-        return None
+        non_archived = [v for v in self.versions if v.status != DocumentStatus.ARCHIVED]
+        if not non_archived:
+            return None
+        return max(non_archived, key=lambda v: v.version_number)
 
 
 class KbDocumentVersion(Base):

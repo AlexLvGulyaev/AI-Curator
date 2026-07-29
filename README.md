@@ -151,11 +151,13 @@ flowchart TB
 - ✅ Backend AI Curator развёрнут на `https://curator-api.alex-n8n.site`.
 - ✅ Реализован LMS Adapter: курсы, дедлайны, прогресс из Moodle.
 - ✅ Реализован Knowledge Base scaffold: загрузка документов, версии, публикация, статус через Admin API (`/api/v1/admin/kb/*`).
+- ✅ Реализован RAG pipeline: chunking, OpenAI embeddings, индексация в Chroma, семантический поиск через `/api/v1/rag/search`.
+- ✅ Добавлен endpoint обработки документов: `POST /api/v1/admin/kb/documents/{id}/process`.
 - ✅ Alembic-миграция Knowledge Base применена в PostgreSQL.
-- ✅ Доступны endpoints: `/health`, `/health/db`, `/health/lms`, `/health/chroma`, `/api/v1/courses`, `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`, `/api/v1/admin/kb/*`.
+- ✅ Доступны endpoints: `/health`, `/health/db`, `/health/lms`, `/health/chroma`, `/api/v1/courses`, `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`, `/api/v1/admin/kb/*`, `/api/v1/rag/search`.
 - ✅ Подготовлен `docs/API_CONTRACT.md`.
-- ✅ Тесты `pytest` проходят (12 тестов).
-- ⏳ Следующий шаг — Sprint 4.2 Дня 4: RAG pipeline — chunking, embeddings, Chroma, search.
+- ✅ Тесты `pytest` проходят (14 тестов).
+- ⏳ Следующий шаг — День 5 IMPLEMENTATION_PLAN: Web UI студента.
 
 ## Планируемые публичные точки входа
 

@@ -37,12 +37,10 @@ def _document_out(document: KbDocument) -> KbDocumentOut:
     """Convert an ORM document to the output schema with active version id."""
     active_version_id = None
     if document.versions:
-        for version in document.versions:
-            if version.is_active:
-                active_version_id = version.id
-                break
-        if active_version_id is None:
-            active_version_id = document.versions[0].id
+        # Prefer the version explicitly marked active; otherwise use the latest.
+        active_versions = [v for v in document.versions if v.is_active]
+        latest = max(document.versions, key=lambda v: v.version_number)
+        active_version_id = active_versions[0].id if active_versions else latest.id
     data = KbDocumentOut.model_validate(document)
     data.active_version_id = active_version_id
     return data
@@ -194,6 +192,27 @@ async def publish_document(
     """Publish or unpublish a document."""
     try:
         document = await service.toggle_publish(document_id, publish)
+        return _document_out(document)
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except KnowledgeBaseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post("/documents/{document_id}/process", response_model=KbDocumentOut)
+async def process_document(
+    document_id: int,
+    service: KnowledgeBaseService = Depends(get_kb_service),
+):
+    """Process the active version of a document: extract text, chunk, embed, index."""
+    try:
+        document = await service.process_document(document_id)
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
