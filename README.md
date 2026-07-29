@@ -141,7 +141,7 @@ flowchart TB
 
 ## Статус проекта
 
-**Текущая стадия:** Implementation In Progress — LMS развёрнута, Backend в разработке.
+**Текущая стадия:** Implementation In Progress — LMS и Backend scaffold развёрнуты, интеграция с LMS работает.
 
 - ✅ Проект согласован с куратором.
 - ✅ Подготовлены PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md и IMPLEMENTATION_PLAN.md.
@@ -149,7 +149,12 @@ flowchart TB
 - ✅ В Moodle создан демо-курс «Claude Code: от знакомства до автоматизации» (AI Skills Lab) с модулями, уроками, заданиями, дедлайнами и формами обратной связи.
 - ✅ Создан read-only API-токен для интеграции с Moodle.
 - ✅ Первый коммит запушен на GitHub: https://github.com/AlexLvGulyaev/AI-Curator.git
-- ⏳ Следующий шаг — День 3 IMPLEMENTATION_PLAN: Backend scaffold на FastAPI, LMS Adapter, health endpoints.
+- ✅ Backend AI Curator развёрнут на `https://curator-api.alex-n8n.site`.
+- ✅ Реализован LMS Adapter: курсы, дедлайны, прогресс из Moodle.
+- ✅ Доступны endpoints: `/health`, `/health/db`, `/health/lms`, `/health/chroma`, `/api/v1/courses`, `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`.
+- ✅ Подготовлен `docs/API_CONTRACT.md`.
+- ✅ Тесты `pytest` проходят.
+- ⏳ Следующий шаг — День 4 IMPLEMENTATION_PLAN: Knowledge Base + RAG через LangChain в Backend.
 
 ## Планируемые публичные точки входа
 

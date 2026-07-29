@@ -36,7 +36,7 @@
 
 - [x] LMS (Moodle) развёрнута на VPS и доступна по HTTPS.
 - [x] В LMS подготовлен курс с модулями, заданиями, дедлайнами и тестовыми ролями.
-- [ ] Backend AI Curator работает и подключён к LMS API, Chroma и PostgreSQL.
+- [x] Backend AI Curator работает и подключён к LMS API, Chroma и PostgreSQL.
 - [ ] Knowledge Base содержит учебные материалы (лекции, методички, FAQ), загруженные через Admin Console.
 - [ ] RAG индексирует материалы Knowledge Base и отвечает по ним.
 - [ ] Web UI AI Curator развёрнут как отдельный публичный сервис на VPS и доступен по HTTPS.
@@ -155,8 +155,10 @@ flowchart LR
 | Backend scaffold | FastAPI приложение запускается в Docker |
 | PostgreSQL подключена | Миграции применены |
 | LMS Adapter | Backend получает курсы, модули, задания, дедлайны, прогресс в канонической модели |
-| Health endpoints | `/health`, `/health/lms`, `/health/db` отвечают |
+| Health endpoints | `/health`, `/health/lms`, `/health/db`, `/health/chroma` отвечают |
 | Базовые API | `GET /api/v1/courses`, `GET /api/v1/courses/{id}/deadlines`, `GET /api/v1/me/progress` |
+| API-контракт | `docs/API_CONTRACT.md` содержит описание endpoint'ов |
+| Тесты | `pytest` проходит (health, courses, deadlines, progress) |
 
 ### Задачи
 
@@ -168,10 +170,12 @@ flowchart LR
 
 ### Критерий завершения
 
-- [ ] `GET /health/lms` возвращает статус OK.
-- [ ] `GET /api/v1/courses` возвращает список курсов из LMS.
-- [ ] `GET /api/v1/courses/{id}/deadlines` возвращает дедлайны.
-- [ ] `GET /api/v1/me/progress` возвращает прогресс текущего студента.
+- [x] `GET /health/lms` возвращает статус OK.
+- [x] `GET /api/v1/courses` возвращает список курсов из LMS.
+- [x] `GET /api/v1/courses/{id}/deadlines` возвращает дедлайны.
+- [x] `GET /api/v1/me/progress` возвращает прогресс текущего студента.
+- [x] `GET /health/chroma` возвращает статус OK.
+- [x] `pytest` проходит.
 
 ---
 

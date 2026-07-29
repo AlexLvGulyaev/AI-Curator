@@ -31,7 +31,7 @@ AI Curator не заменяет преподавателя, не выставл
 - Включены Moodle Web Services; создан read-only API-токен для интеграции.
 - `.env` обновлён реальными секретами и токеном.
 
-Следующий шаг — День 3 IMPLEMENTATION_PLAN: Backend scaffold на FastAPI, LMS Adapter, health endpoints.
+Следующий шаг — День 4 IMPLEMENTATION_PLAN: Knowledge Base + RAG через LangChain в Backend.
 
 ## Market Validation
 
@@ -57,12 +57,12 @@ AI Curator не заменяет преподавателя, не выставл
 | Область | Компетенция / решение | Статус |
 |---------|----------------------|--------|
 | LMS | Moodle | ✅ Развёрнуто и настроено |
-| Backend | FastAPI | ⏳ День 3 IMPLEMENTATION_PLAN |
+| Backend | FastAPI | ✅ День 3 IMPLEMENTATION_PLAN выполнен: LMS Adapter, базовые endpoints, health checks, тесты |
 | LLM | OpenAI API | ✅ Ключ добавлен в `.env` |
 | Embeddings | OpenAI API | ✅ Ключ добавлен в `.env` |
 | AI / RAG библиотека | LangChain (внутри Backend) | ⏳ День 4 IMPLEMENTATION_PLAN |
-| Операционная база | PostgreSQL | ⏳ Добавить в Docker Compose |
-| Векторный индекс | Chroma | ⏳ Добавить в Docker Compose |
+| Операционная база | PostgreSQL | ✅ Развёрнута, миграции применены, health check проходит |
+| Векторный индекс | Chroma | ✅ Развёрнута, health check проходит через v2 endpoint |
 | Хранилище документов KB | Файловое хранилище внутри Backend-контейнера | ⏳ Реализовать в День 4 |
 | Web UI студента | React / vanilla (уточняется) | ⏳ День 5 IMPLEMENTATION_PLAN |
 | Admin Console | React / vanilla (уточняется) | ⏳ День 6 IMPLEMENTATION_PLAN |
@@ -93,7 +93,7 @@ AI Curator не заменяет преподавателя, не выставл
 3. ✅ Зарезервировать VPS и домены.
 4. ✅ Получить API-ключ LLM-провайдера.
 5. ✅ Подготовить учебный курс в LMS.
-6. ⏳ Продолжить День 3 IMPLEMENTATION_PLAN.md: Backend scaffold на FastAPI, LMS Adapter, health endpoints.
+6. ✅ День 3 IMPLEMENTATION_PLAN выполнен: Backend scaffold на FastAPI, LMS Adapter, health endpoints, базовые API, тесты.
 7. ⏳ Подготовить учебные материалы для Knowledge Base AI Curator.
 8. ⏳ Подготовить материалы для портфолио и DEPLOYMENT_GUIDE.md.
 
@@ -153,3 +153,4 @@ AI Curator не заменяет преподавателя, не выставл
 | 2026-07-29 | Discovery and Architecture | Созданы PROJECT_STATE, SPEC, ARCHITECTURE, IMPLEMENTATION_PLAN на основе AI_CURATOR_SYSTEM_SPECIFICATION.md. Ожидание согласования с куратором. |
 | 2026-07-29 | Approved for Implementation | Документы согласованы куратором. Проект готов к реализации. |
 | 2026-07-29 | Implementation In Progress | Выполнены День 1 и День 2 IMPLEMENTATION_PLAN: Moodle развёрнута, курс «Claude Code: от знакомства до автоматизации» (AI Skills Lab) с модулями, заданиями и дедлайнами создан, API-токен создан. |
+| 2026-07-29 | Implementation In Progress | Выполнен День 3 IMPLEMENTATION_PLAN: Backend scaffold на FastAPI, LMS Adapter, PostgreSQL, Chroma, health endpoints, базовые API (`/api/v1/courses`, `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`), `docs/API_CONTRACT.md`, тесты `pytest`. |
