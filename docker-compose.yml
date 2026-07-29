@@ -79,10 +79,80 @@ services:
       - "traefik.http.routers.ai-curator-lms.tls.certresolver=myresolver"
       - "traefik.http.services.ai-curator-lms.loadbalancer.server.port=80"
 
+  # ============================================================
+  # AI Curator Backend + Operational DB + Vector Store
+  # ============================================================
+  ai-curator-postgres:
+    image: postgres:15-alpine
+    container_name: ai-curator-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ai_curator
+      POSTGRES_PASSWORD: AICPG3hfpf2100
+      POSTGRES_DB: ai_curator
+    volumes:
+      - ai-curator-postgres-data:/var/lib/postgresql/data
+    networks:
+      - ai-curator-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_curator -d ai_curator"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-curator-chroma:
+    image: chromadb/chroma:latest
+    container_name: ai-curator-chroma
+    restart: unless-stopped
+    environment:
+      - CHROMA_HOST=0.0.0.0
+      - CHROMA_PORT=8000
+      - ANONYMIZED_TELEMETRY=false
+    volumes:
+      - ai-curator-chroma-data:/chroma/chroma
+    networks:
+      - ai-curator-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/api/v2/heartbeat || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  ai-curator-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-curator-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://ai_curator:AICPG3hfpf2100@ai-curator-postgres:5432/ai_curator
+    volumes:
+      - ai-curator-doc-store:/app/storage/documents
+    networks:
+      - ai-curator-network
+      - n8n_default
+    depends_on:
+      ai-curator-postgres:
+        condition: service_healthy
+      ai-curator-chroma:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ai-curator-backend.rule=Host(`curator-api.alex-n8n.site`)"
+      - "traefik.http.routers.ai-curator-backend.entrypoints=websecure"
+      - "traefik.http.routers.ai-curator-backend.tls.certresolver=myresolver"
+      - "traefik.http.services.ai-curator-backend.loadbalancer.server.port=8000"
+
 volumes:
   ai-curator-lms-db-data:
   ai-curator-lms-data:
   ai-curator-lms-moodledata:
+  ai-curator-postgres-data:
+  ai-curator-chroma-data:
+  ai-curator-doc-store:
 
 networks:
   ai-curator-network:
