@@ -5,7 +5,7 @@ import pytest
 from adapters.lms_adapter import MoodleLMSAdapter
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_get_course_deadlines():
     adapter = MoodleLMSAdapter()
     deadlines = await adapter.get_course_deadlines(3)
@@ -17,7 +17,7 @@ async def test_get_course_deadlines():
         assert deadline.due_date is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_get_user_course_progress():
     adapter = MoodleLMSAdapter()
     progress = await adapter.get_user_course_progress(3, 3)

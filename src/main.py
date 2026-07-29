@@ -2,7 +2,7 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.v1 import api_v1_router
@@ -46,6 +46,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def close_upload_files_middleware(request, call_next):
+    """Ensure uploaded file handles are closed after request handling."""
+    response = await call_next(request)
+    try:
+        form = await request.form()
+        for _, value in form.multi_items():
+            if isinstance(value, UploadFile):
+                await value.close()
+    except Exception:
+        pass
+    return response
+
 
 # Public health endpoints (outside /api/v1 for load balancers)
 app.include_router(health_router)

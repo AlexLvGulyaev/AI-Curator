@@ -5,7 +5,7 @@ import pytest
 from adapters.lms_adapter import MoodleLMSAdapter
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_get_courses():
     adapter = MoodleLMSAdapter()
     courses = await adapter.get_courses()
@@ -15,7 +15,7 @@ async def test_get_courses():
     assert target, "Expected demo course to be present in Moodle"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_get_course_contents():
     adapter = MoodleLMSAdapter()
     modules = await adapter.get_course_contents(3)
@@ -25,7 +25,7 @@ async def test_get_course_contents():
     assert len(assign_modules) == 9, "Expected 9 assignments in the demo course"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_health_check():
     adapter = MoodleLMSAdapter()
     health = await adapter.health_check()

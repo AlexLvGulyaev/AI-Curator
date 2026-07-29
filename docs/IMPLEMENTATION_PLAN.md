@@ -37,8 +37,8 @@
 - [x] LMS (Moodle) развёрнута на VPS и доступна по HTTPS.
 - [x] В LMS подготовлен курс с модулями, заданиями, дедлайнами и тестовыми ролями.
 - [x] Backend AI Curator работает и подключён к LMS API, Chroma и PostgreSQL.
-- [ ] Knowledge Base содержит учебные материалы (лекции, методички, FAQ), загруженные через Admin Console.
-- [ ] RAG индексирует материалы Knowledge Base и отвечает по ним.
+- [x] Knowledge Base содержит учебные материалы (лекции, методички, FAQ), загруженные через Admin Console. (Sprint 4.1)
+- [ ] RAG индексирует материалы Knowledge Base и отвечает по ним. (Sprint 4.2)
 - [ ] Web UI AI Curator развёрнут как отдельный публичный сервис на VPS и доступен по HTTPS.
 - [ ] Admin Console позволяет загружать материалы, управлять версиями и метаданными, запускать индексацию, просматривать аналитику.
 - [ ] Логирование, аналитика и аудит работают.
@@ -181,43 +181,58 @@ flowchart LR
 
 ## 6. День 4: Knowledge Base и RAG через LangChain в Backend
 
-### Цель
+День 4 разбит на два спринта, чтобы каждый завершался работающим инкрементом.
 
-Реализовать управление Knowledge Base, загрузку документов, разбиение на фрагменты, embeddings, индексацию в Chroma и retrieval для RAG.
+### 6.1. Sprint 4.1: Knowledge Base scaffold и Admin API ✅
 
-### Результат дня
+#### Цель
+
+Реализовать управление документами Knowledge Base: загрузку, версионирование, публикацию, хранение метаданных в PostgreSQL и файлов в хранилище.
+
+#### Результат спринта
 
 | Артефакт | Признак готовности |
 |----------|-------------------|
-| Хранилище документов | Файлы Knowledge Base сохраняются |
-| Метаданные KB | Карточки документов с полными метаданными хранятся в PostgreSQL |
-| LangChain Document Loader | Markdown / PDF / HTML преобразуются в текст |
+| SQLAlchemy-модели | `KbDocument`, `KbDocumentVersion`, `KbDocumentChunk` |
+| Alembic-миграция | Таблицы KB созданы в PostgreSQL |
+| Файловое хранилище | `DOC_STORE_PATH` — volume `/app/storage/documents` |
+| Admin API | `POST /api/v1/admin/kb/documents`, `GET /api/v1/admin/kb/documents`, `GET /api/v1/admin/kb/documents/{id}`, `PUT /api/v1/admin/kb/documents/{id}`, `DELETE /api/v1/admin/kb/documents/{id}`, `POST /api/v1/admin/kb/documents/{id}/versions`, `POST /api/v1/admin/kb/documents/{id}/publish`, `GET /api/v1/admin/kb/status` |
+| API-контракт | `docs/API_CONTRACT.md` обновлён разделом Knowledge Base |
+| Тесты | `tests/test_kb.py` — 4 теста проходят |
+
+#### Критерий завершения
+
+- [x] Можно загрузить документ в Knowledge Base через API.
+- [x] Метаданные документа сохраняются в PostgreSQL.
+- [x] Можно получить список документов и карточку документа.
+- [x] Можно опубликовать / снять с публикации документ.
+- [x] `pytest` проходит.
+
+---
+
+### 6.2. Sprint 4.2: RAG pipeline (в процессе)
+
+#### Цель
+
+Реализовать обработку документов: извлечение текста, chunking, embeddings, индексацию в Chroma и семантический поиск.
+
+#### Результат спринта
+
+| Артефакт | Признак готовности |
+|----------|-------------------|
+| LangChain Document Loader | Markdown / PDF преобразуются в текст |
 | LangChain Chunker | Документы разбиваются на фрагменты с метаданными |
 | Chroma интегрирована | Векторы сохраняются и извлекаются |
 | RAG endpoint | `POST /api/v1/rag/search` возвращает релевантные фрагменты |
 | Processing endpoint | `POST /api/v1/admin/kb/documents/{id}/process` запускает обработку |
 
-### Задачи
+#### Критерий завершения
 
-1. Развернуть Chroma в Docker.
-2. Настроить хранилище документов Knowledge Base.
-3. Реализовать модели документов и метаданных в PostgreSQL.
-4. Реализовать LangChain Document Loader для Markdown / PDF / HTML.
-5. Реализовать LangChain Chunker с сохранением метаданных.
-6. Настроить LangChain Embeddings через OpenAI API.
-7. Реализовать API загрузки документов и управления метаданными.
-8. Реализовать pipeline обработки и индексации.
-9. Реализовать RAG search с metadata filters через LangChain Retrieval.
-10. Проверить, что поиск находит материалы по теме.
-
-### Критерий завершения
-
-- [ ] Можно загрузить документ в Knowledge Base через API.
-- [ ] Метаданные документа сохраняются в PostgreSQL.
 - [ ] Обработка создаёт фрагменты и embeddings.
 - [ ] Chroma содержит фрагменты с метаданными.
-- [ ] RAG search по теме возвращает релевантные результаты.
+- [ ] `POST /api/v1/rag/search` возвращает релевантные результаты.
 - [ ] Старая версия документа исключается из активного индекса при публикации новой версии.
+- [ ] `pytest` проходит.
 
 ---
 

@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./
 COPY alembic/ ./alembic/
 COPY alembic.ini .
+COPY pytest.ini .
 COPY tests/ ./tests/
 
 # Ensure document storage directory exists

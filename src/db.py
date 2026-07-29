@@ -1,5 +1,6 @@
 """Async SQLAlchemy database setup for AI Curator backend."""
 
+from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -9,6 +10,10 @@ engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
     future=True,
+    # NullPool avoids "another operation is in progress" errors with asyncpg
+    # when running tests through ASGITransport. Each request gets a fresh
+    # connection; for the current workload this is acceptable.
+    poolclass=pool.NullPool,
 )
 
 AsyncSessionLocal = sessionmaker(
@@ -22,8 +27,11 @@ AsyncSessionLocal = sessionmaker(
 
 async def get_db() -> AsyncSession:
     """Yield an async database session for FastAPI dependency injection."""
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+    session = AsyncSessionLocal()
+    try:
+        yield session
+    except Exception:
+        await session.rollback()
+        raise
+    finally:
+        await session.close()

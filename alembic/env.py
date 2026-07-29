@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src
 
 from config import settings
 from models.base import Base
+from models.knowledge_base import KbDocument, KbDocumentChunk, KbDocumentVersion  # noqa: F401
 from models.request_log import RequestLog  # noqa: F401
 
 # this is the Alembic Config object

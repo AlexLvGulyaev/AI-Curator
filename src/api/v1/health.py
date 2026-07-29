@@ -23,7 +23,6 @@ async def health_db(db: AsyncSession = Depends(get_db)):
     """Check PostgreSQL connectivity."""
     try:
         result = await db.execute(text("SELECT 1"))
-        await db.commit()
         return {"status": "ok", "database": "connected", "result": result.scalar()}
     except Exception as exc:
         return {"status": "error", "database": "disconnected", "detail": str(exc)}

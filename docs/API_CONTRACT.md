@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.0  
+**Версия:** 1.1  
 **Дата:** 2026-07-29  
-**Статус:** Актуален для Дня 3 (Sprint 3.2)
+**Статус:** Актуален для Дня 4.1 (Sprint 4.1)
 
 ---
 
@@ -282,6 +282,178 @@
 
 ---
 
+### 3.6. `POST /api/v1/admin/kb/documents`
+
+Загрузка нового документа в Knowledge Base. Поддерживаются `text/markdown`, `text/plain` и `application/pdf`.
+
+**Параметры формы (multipart/form-data):**
+
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|--------------|----------|
+| `title` | string | ✅ | Название документа |
+| `document_type` | string | — | `lecture` (по умолчанию), `methodical`, `faq`, `instruction`, `glossary`, `example`, `external` |
+| `course_id` | int | — | Привязка к курсу LMS |
+| `module_id` | int | — | Привязка к модулю курса |
+| `topic_id` | int | — | Привязка к теме |
+| `difficulty` | string | — | `beginner` (по умолчанию), `intermediate`, `advanced` |
+| `language` | string | — | Код языка, по умолчанию `ru` |
+| `description` | string | — | Описание документа |
+| `source_url` | string | — | URL источника |
+| `file` | file | ✅ | Файл документа |
+
+**Ответ 201 Created:**
+
+```json
+{
+  "id": 31,
+  "title": "Claude Code: быстрый старт",
+  "document_type": "lecture",
+  "course_id": 3,
+  "module_id": 1,
+  "topic_id": null,
+  "difficulty": "beginner",
+  "language": "ru",
+  "description": null,
+  "source_url": null,
+  "is_published": false,
+  "status": "pending",
+  "last_error": null,
+  "active_version_id": 32,
+  "versions": [
+    {
+      "id": 32,
+      "version_number": 1,
+      "storage_path": "31/v1_... .md",
+      "original_filename": "quick-start.md",
+      "file_size": 1234,
+      "mime_type": "text/markdown",
+      "status": "pending",
+      "chunk_count": null,
+      "is_active": true,
+      "created_at": "2026-07-29T21:38:00Z",
+      "updated_at": "2026-07-29T21:38:00Z"
+    }
+  ],
+  "created_at": "2026-07-29T21:38:00Z",
+  "updated_at": "2026-07-29T21:38:00Z"
+}
+```
+
+**Возможные ошибки:**
+
+- `415 Unsupported Media Type` — MIME-тип файла не поддерживается.
+
+---
+
+### 3.7. `GET /api/v1/admin/kb/documents`
+
+Список документов Knowledge Base с фильтрами и пагинацией.
+
+**Параметры запроса:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `course_id` | int | Фильтр по курсу |
+| `module_id` | int | Фильтр по модулю |
+| `is_published` | bool | Фильтр по статусу публикации |
+| `limit` | int | Лимит, по умолчанию 100, макс. 500 |
+| `offset` | int | Смещение, по умолчанию 0 |
+
+**Ответ 200 OK:** массив объектов `KbDocumentOut`.
+
+---
+
+### 3.8. `GET /api/v1/admin/kb/documents/{document_id}`
+
+Карточка одного документа с версиями и фрагментами.
+
+**Ответ 200 OK:** объект `KbDocumentOut`.
+
+**Возможные ошибки:**
+
+- `404 Not Found` — документ не найден.
+
+---
+
+### 3.9. `PUT /api/v1/admin/kb/documents/{document_id}`
+
+Обновление метаданных документа.
+
+**Тело запроса (JSON):**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `title` | string | Название |
+| `document_type` | string | Тип документа |
+| `course_id` | int | Курс |
+| `module_id` | int | Модуль |
+| `topic_id` | int | Тема |
+| `difficulty` | string | Уровень сложности |
+| `language` | string | Язык |
+| `description` | string | Описание |
+| `source_url` | string | URL источника |
+
+**Ответ 200 OK:** обновлённый объект `KbDocumentOut`.
+
+---
+
+### 3.10. `DELETE /api/v1/admin/kb/documents/{document_id}`
+
+Мягкое удаление (архивирование) документа и всех его версий.
+
+**Ответ 204 No Content**.
+
+---
+
+### 3.11. `POST /api/v1/admin/kb/documents/{document_id}/versions`
+
+Загрузка новой версии существующего документа.
+
+**Параметры формы (multipart/form-data):**
+
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|--------------|----------|
+| `file` | file | ✅ | Новый файл версии |
+
+**Ответ 200 OK:** обновлённый объект `KbDocumentOut`.
+
+---
+
+### 3.12. `POST /api/v1/admin/kb/documents/{document_id}/publish`
+
+Публикация или снятие с публикации документа.
+
+**Параметры запроса:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `publish` | bool | `true` (по умолчанию) — опубликовать, `false` — снять с публикации |
+
+**Ответ 200 OK:** обновлённый объект `KbDocumentOut`.
+
+---
+
+### 3.13. `GET /api/v1/admin/kb/status`
+
+Агрегированный статус Knowledge Base.
+
+**Ответ 200 OK:**
+
+```json
+{
+  "total_documents": 10,
+  "published_documents": 0,
+  "draft_documents": 0,
+  "total_versions": 10,
+  "active_versions": 10,
+  "total_chunks": 0,
+  "indexed_chunks": 0,
+  "last_updated": "2026-07-29T21:38:00Z"
+}
+```
+
+---
+
 ## 4. Канонические модели данных
 
 ### 4.1. `Course`
@@ -345,14 +517,54 @@
 | `submitted_at` | ISO-8601 \| null | Время сдачи |
 | `graded_at` | ISO-8601 \| null | Время оценивания |
 
+### 4.5. `KbDocumentOut`
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | int | Идентификатор документа |
+| `title` | string | Название |
+| `document_type` | string | Тип документа |
+| `course_id` | int \| null | Курс |
+| `module_id` | int \| null | Модуль |
+| `topic_id` | int \| null | Тема |
+| `difficulty` | string | Уровень сложности |
+| `language` | string | Язык |
+| `description` | string \| null | Описание |
+| `source_url` | string \| null | URL источника |
+| `is_published` | bool | Опубликован ли документ |
+| `status` | string | Статус (`draft`, `pending`, `processing`, `indexed`, `error`, `archived`) |
+| `last_error` | string \| null | Последняя ошибка обработки |
+| `active_version_id` | int \| null | ID активной версии |
+| `versions` | list[KbDocumentVersionOut] | Версии документа |
+| `created_at` | ISO-8601 | Дата создания |
+| `updated_at` | ISO-8601 | Дата обновления |
+
+### 4.6. `KbDocumentVersionOut`
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | int | Идентификатор версии |
+| `version_number` | int | Номер версии |
+| `storage_path` | string | Путь к файлу в хранилище |
+| `original_filename` | string | Исходное имя файла |
+| `file_size` | int \| null | Размер файла в байтах |
+| `mime_type` | string \| null | MIME-тип |
+| `status` | string | Статус версии |
+| `chunk_count` | int \| null | Количество фрагментов |
+| `is_active` | bool | Активна ли версия |
+| `created_at` | ISO-8601 | Дата создания |
+| `updated_at` | ISO-8601 | Дата обновления |
+
 ---
 
-## 5. Ограничения и допущения Дня 3
+## 5. Ограничения и допущения
 
 1. **Авторизация:** не реализована. Все endpoints публичные.
 2. **Read-only LMS:** LMS Adapter использует только read-only Web Service functions и проверяет их по белому списку.
 3. **Chroma health check:** использует прямой HTTP-запрос к `/api/v2/heartbeat`, потому что `chromadb==0.5.3` клиент обращается к устаревшему v1 API.
 4. **Прогресс:** `student_demo` и курс `id=3` зафиксированы в коде до появления аутентификации.
+5. **Knowledge Base:** административные endpoints не требуют авторизации. Фоновая обработка документов (`/process`) будет реализована в Sprint 4.2.
+6. **База данных:** используется `NullPool` для asyncpg, чтобы избежать состояния гонки в тестах через ASGITransport.
 
 ---
 
@@ -361,3 +573,4 @@
 | Дата | Версия | Изменения |
 |------|--------|-----------|
 | 2026-07-29 | 1.0 | Начальный API-контракт для Sprint 3.2: courses, deadlines, progress, health endpoints |
+| 2026-07-29 | 1.1 | Добавлен Knowledge Base Admin API: загрузка, версии, публикация, статус |

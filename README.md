@@ -141,20 +141,21 @@ flowchart TB
 
 ## Статус проекта
 
-**Текущая стадия:** Implementation In Progress — LMS и Backend scaffold развёрнуты, интеграция с LMS работает.
+**Текущая стадия:** Implementation In Progress — LMS, Backend scaffold и Knowledge Base Admin API развёрнуты.
 
 - ✅ Проект согласован с куратором.
 - ✅ Подготовлены PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md и IMPLEMENTATION_PLAN.md.
 - ✅ Moodle LMS развёрнута на VPS и доступна по `https://lms.alex-n8n.site`.
 - ✅ В Moodle создан демо-курс «Claude Code: от знакомства до автоматизации» (AI Skills Lab) с модулями, уроками, заданиями, дедлайнами и формами обратной связи.
 - ✅ Создан read-only API-токен для интеграции с Moodle.
-- ✅ Первый коммит запушен на GitHub: https://github.com/AlexLvGulyaev/AI-Curator.git
 - ✅ Backend AI Curator развёрнут на `https://curator-api.alex-n8n.site`.
 - ✅ Реализован LMS Adapter: курсы, дедлайны, прогресс из Moodle.
-- ✅ Доступны endpoints: `/health`, `/health/db`, `/health/lms`, `/health/chroma`, `/api/v1/courses`, `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`.
+- ✅ Реализован Knowledge Base scaffold: загрузка документов, версии, публикация, статус через Admin API (`/api/v1/admin/kb/*`).
+- ✅ Alembic-миграция Knowledge Base применена в PostgreSQL.
+- ✅ Доступны endpoints: `/health`, `/health/db`, `/health/lms`, `/health/chroma`, `/api/v1/courses`, `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`, `/api/v1/admin/kb/*`.
 - ✅ Подготовлен `docs/API_CONTRACT.md`.
-- ✅ Тесты `pytest` проходят.
-- ⏳ Следующий шаг — День 4 IMPLEMENTATION_PLAN: Knowledge Base + RAG через LangChain в Backend.
+- ✅ Тесты `pytest` проходят (12 тестов).
+- ⏳ Следующий шаг — Sprint 4.2 Дня 4: RAG pipeline — chunking, embeddings, Chroma, search.
 
 ## Планируемые публичные точки входа
 
