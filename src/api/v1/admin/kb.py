@@ -19,6 +19,7 @@ from services.knowledge_base import (
     KnowledgeBaseService,
     UnsupportedFileError,
 )
+from services.logger import LoggerService
 
 router = APIRouter(prefix="/kb", tags=["admin-kb"])
 
@@ -26,6 +27,18 @@ router = APIRouter(prefix="/kb", tags=["admin-kb"])
 def get_kb_service(db: AsyncSession = Depends(get_db)) -> KnowledgeBaseService:
     """Dependency factory for Knowledge Base service."""
     return KnowledgeBaseService(db)
+
+
+async def _log_audit(action: str, resource_type: str, resource_id, db: AsyncSession):
+    """Helper to persist an audit event for KB admin actions."""
+    logger = LoggerService(db)
+    await logger.log_audit(
+        action=action,
+        resource_type=resource_type,
+        resource_id=str(resource_id) if resource_id is not None else None,
+        user_id="admin",
+        user_role="admin",
+    )
 
 
 # ------------------------------------------------------------------
@@ -79,6 +92,7 @@ async def create_document(
             source_url=source_url,
         )
         document = await service.create_document(data, file)
+        await _log_audit("create", "kb_document", document.id, service.db)
         return _document_out(document)
     except UnsupportedFileError as exc:
         raise HTTPException(
@@ -137,6 +151,7 @@ async def update_document(
     """Update document metadata."""
     try:
         document = await service.update_document(document_id, data)
+        await _log_audit("update", "kb_document", document.id, service.db)
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -153,6 +168,7 @@ async def delete_document(
     """Archive a Knowledge Base document."""
     try:
         await service.delete_document(document_id)
+        await _log_audit("delete", "kb_document", document_id, service.db)
     except DocumentNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -168,8 +184,9 @@ async def add_version(
 ):
     """Upload a new version of an existing document."""
     try:
-        await service.add_version(document_id, file)
+        version = await service.add_version(document_id, file)
         document = await service.get_document(document_id)
+        await _log_audit("add_version", "kb_document_version", version.id, service.db)
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -192,6 +209,7 @@ async def publish_document(
     """Publish or unpublish a document."""
     try:
         document = await service.toggle_publish(document_id, publish)
+        await _log_audit("publish" if publish else "unpublish", "kb_document", document.id, service.db)
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -213,6 +231,7 @@ async def process_document(
     """Process the active version of a document: extract text, chunk, embed, index."""
     try:
         document = await service.process_document(document_id)
+        await _log_audit("process", "kb_document", document.id, service.db)
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
