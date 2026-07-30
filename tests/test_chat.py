@@ -56,24 +56,6 @@ async def test_chat_endpoint_study(client, tmp_path):
     file_path = tmp_path / "prompts.md"
     file_path.write_text(content, encoding="utf-8")
 
-    async with client:
-        create_response = await client.post(
-            "/api/v1/admin/kb/documents",
-            data={
-                "title": "Prompt Engineering",
-                "document_type": "lecture",
-                "course_id": 3,
-                "difficulty": "beginner",
-            },
-            files={"file": ("prompts.md", file_path.read_bytes(), "text/markdown")},
-        )
-        assert create_response.status_code == 201
-        doc_id = create_response.json()["id"]
-
-        await client.post(f"/api/v1/admin/kb/documents/{doc_id}/publish?publish=true")
-        process_response = await client.post(f"/api/v1/admin/kb/documents/{doc_id}/process")
-        assert process_response.status_code == 200
-
     with patch(
         "services.llm_adapter.ChatOpenAI.ainvoke",
         new=AsyncMock(return_value=type("R", (), {
@@ -82,6 +64,23 @@ async def test_chat_endpoint_study(client, tmp_path):
         })()),
     ):
         async with client:
+            create_response = await client.post(
+                "/api/v1/admin/kb/documents",
+                data={
+                    "title": "Prompt Engineering",
+                    "document_type": "lecture",
+                    "course_id": 3,
+                    "difficulty": "beginner",
+                },
+                files={"file": ("prompts.md", file_path.read_bytes(), "text/markdown")},
+            )
+            assert create_response.status_code == 201
+            doc_id = create_response.json()["id"]
+
+            await client.post(f"/api/v1/admin/kb/documents/{doc_id}/publish?publish=true")
+            process_response = await client.post(f"/api/v1/admin/kb/documents/{doc_id}/process")
+            assert process_response.status_code == 200
+
             response = await client.post(
                 "/api/v1/chat",
                 json={

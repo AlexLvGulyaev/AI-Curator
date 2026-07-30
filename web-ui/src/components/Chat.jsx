@@ -10,7 +10,7 @@ function Chat({ role, onChangeRole }) {
   const [input, setInput] = useState('');
   const [difficulty, setDifficulty] = useState('beginner');
   const [backendOnline, setBackendOnline] = useState(null);
-  const { messages, isLoading, error, sendMessage } = useChat({
+  const { messages, isLoading, error, sendMessage, clearMessages } = useChat({
     role,
     courseId: DEMO_COURSE_ID,
     difficulty,
@@ -76,6 +76,13 @@ function Chat({ role, onChangeRole }) {
             {roleTitles[role] || role}
           </span>
           <DifficultyToggle value={difficulty} onChange={setDifficulty} />
+          <button
+            onClick={clearMessages}
+            className="rounded-ai px-3 py-1.5 text-sm font-medium text-ai-text-secondary hover:bg-ai-surface-hover"
+            title="Начать новый диалог"
+          >
+            Новый диалог
+          </button>
           <button
             onClick={onChangeRole}
             className="rounded-ai px-3 py-1.5 text-sm font-medium text-ai-text-secondary hover:bg-ai-surface-hover"

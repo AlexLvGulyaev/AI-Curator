@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.3  
-**Дата:** 2026-07-29  
-**Статус:** Актуален для Дня 5
+**Версия:** 1.4  
+**Дата:** 2026-07-30  
+**Статус:** Актуален для Дня 6
 
 ---
 
@@ -508,7 +508,90 @@
 
 ---
 
-## 4. Канонические модели данных
+### 3.16. `POST /api/v1/chat`
+
+Публичный чат со студентами. Backend классифицирует запрос, получает данные из LMS и/или Knowledge Base, формирует промпт, вызывает LLM и возвращает ответ с источниками.
+
+**Тело запроса (JSON):**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `message` | string | Вопрос студента |
+| `role` | string | Демо-роль студента (опционально) |
+| `difficulty` | string | Уровень подготовки: `beginner`, `intermediate`, `advanced` |
+| `course_id` | int | ID курса в LMS (опционально) |
+| `session_id` | string | ID сессии диалога (опционально) |
+| `history` | array | Последние сообщения диалога (`{role, content}`) |
+
+**Ответ 200 OK:**
+
+```json
+{
+  "answer": "## Дедлайны по курсу\n\n1. **ДЗ: Установка...** — 1 августа 2026 г.\n...",
+  "sources": [
+    {"type": "lms", "title": "ДЗ: Установка и первый запуск Claude Code", "url": "https://lms.alex-n8n.site/mod/assign/view.php?id=24"}
+  ],
+  "intent": "organizational",
+  "model": "gpt-4o-mini-2024-07-18",
+  "latency_ms": 1234.56,
+  "session_id": "...",
+  "error": null
+}
+```
+
+---
+
+## 4. Административные endpoints (`/api/v1/admin/*`)
+
+### 4.1. AI Configuration
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| `GET` | `/api/v1/admin/ai-config` | Активная конфигурация AI |
+| `GET` | `/api/v1/admin/ai-config/history` | История версий конфигурации |
+| `POST` | `/api/v1/admin/ai-config` | Создать новую версию конфигурации |
+| `POST` | `/api/v1/admin/ai-config/{id}/activate` | Активировать версию |
+
+### 4.2. Analytics
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| `GET` | `/api/v1/admin/analytics/dashboard` | Ключевые метрики |
+| `GET` | `/api/v1/admin/analytics/topics` | Распределение по темам |
+| `GET` | `/api/v1/admin/analytics/unanswered` | Вопросы без ответа |
+| `GET` | `/api/v1/admin/analytics/feedback` | Распределение оценок |
+| `GET` | `/api/v1/admin/analytics/events` | Сырые аналитические события |
+
+### 4.3. Monitoring
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| `GET` | `/api/v1/admin/monitoring/status` | Состояние компонентов с задержками |
+| `GET` | `/api/v1/admin/monitoring/health` | Агрегированный health check |
+
+### 4.4. Audit
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| `GET` | `/api/v1/admin/audit` | Журнал аудита с фильтрами |
+
+**Параметры фильтрации:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `action` | string | Действие |
+| `resource_type` | string | Тип ресурса |
+| `user_id` | string | ID пользователя |
+| `limit` | int | Лимит, по умолчанию 100 |
+| `offset` | int | Смещение |
+
+### 4.5. Авторизация
+
+Административные endpoints защищены Bearer-токеном из переменной окружения `ADMIN_CONSOLE_TOKEN`, если она задана. Web UI и публичный чат не требуют авторизации.
+
+---
+
+## 5. Канонические модели данных
 
 ### 4.1. `Course`
 
@@ -611,28 +694,43 @@
 
 ---
 
-## 5. Web UI
+## 6. Пользовательские интерфейсы
 
-Web UI AI Curator — отдельный публичный сервис на `https://curator.alex-n8n.site`.
+### 6.1. Web UI AI Curator
 
+- URL: `https://curator.alex-n8n.site`.
 - Стек: React + Vite + Tailwind CSS.
 - Гостевой вход с выбором одной из трёх демо-ролей: `active_student`, `late_student`, `new_student`.
 - Сессия хранится в `localStorage`.
-- Web UI обращается к backend API напрямую: `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`, `/api/v1/rag/search`.
-- CORS в backend разрешён для `WEB_UI_URL` и `ADMIN_CONSOLE_URL`.
+- Web UI использует `POST /api/v1/chat` для диалога с LLM.
+- Markdown-ответы рендерятся безопасно (sanitized).
+- История диалога сохраняется в `localStorage`.
 
-## 6. Ограничения и допущения
+### 6.2. Admin Console AI Curator
 
-1. **Авторизация:** не реализована. Все endpoints публичные.
-2. **Read-only LMS:** LMS Adapter использует только read-only Web Service functions и проверяет их по белому списку.
-3. **Chroma health check:** использует прямой HTTP-запрос к `/api/v2/heartbeat`, потому что `chromadb==1.5.9` клиент совместим с сервером Chroma latest (v2 API).
-4. **Прогресс:** `student_demo` и курс `id=3` зафиксированы в коде до появления аутентификации.
-5. **Knowledge Base:** административные endpoints не требуют авторизации. Обработка документов (`/process`) синхронная.
-6. **База данных:** используется `NullPool` для asyncpg, чтобы избежать состояния гонки в тестах через ASGITransport.
+- URL: `https://curator-admin.alex-n8n.site`.
+- Стек: React + Vite + Tailwind CSS (тёмная административная тема).
+- Аутентификация по Bearer-токену из переменной окружения `ADMIN_CONSOLE_TOKEN`.
+- Возможности:
+  - панель состояния системы;
+  - управление Knowledge Base (загрузка, версии, обработка, публикация);
+  - AI Configuration (версионирование, активация);
+  - аналитика запросов и оценок;
+  - журнал аудита.
+
+## 7. Ограничения и допущения
+
+1. **Авторизация студентов:** не реализована. Web UI использует гостевые демо-роли.
+2. **Авторизация администраторов:** административные endpoints защищены статическим Bearer-токеном.
+3. **Read-only LMS:** LMS Adapter использует только read-only Web Service functions и проверяет их по белому списку.
+4. **Chroma health check:** использует прямой HTTP-запрос к `/api/v2/heartbeat`, потому что `chromadb==1.5.9` клиент совместим с сервером Chroma latest (v2 API).
+5. **Прогресс:** `student_demo` и курс `id=3` зафиксированы в коде до появления аутентификации.
+6. **Knowledge Base:** обработка документов (`/process`) синхронная.
+7. **База данных:** используется `NullPool` для asyncpg, чтобы избежать состояния гонки в тестах через ASGITransport.
 
 ---
 
-## 6. История изменений
+## 8. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
@@ -640,3 +738,4 @@ Web UI AI Curator — отдельный публичный сервис на `h
 | 2026-07-29 | 1.1 | Добавлен Knowledge Base Admin API: загрузка, версии, публикация, статус |
 | 2026-07-29 | 1.2 | Добавлены RAG endpoints: `/process`, `/rag/search` |
 | 2026-07-29 | 1.3 | Добавлен раздел Web UI, обновлено допущение по Chroma v2 |
+| 2026-07-30 | 1.4 | Добавлен `POST /api/v1/chat`, административные endpoints (AI-config, analytics, monitoring, audit), разделы Web UI и Admin Console, авторизация admin |

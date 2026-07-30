@@ -1,166 +1,58 @@
-import { useCallback, useState } from 'react';
-import { getDeadlines, getProgress, searchRag } from '../api/backend';
+import { useCallback, useEffect, useState } from 'react';
+import { sendChatMessage } from '../api/backend';
 
-const ORG_KEYWORDS = [
-  'дедлайн',
-  'дедлайны',
-  'срок',
-  'сдача',
-  'задание',
-  'задания',
-  'когда',
-  'до когда',
-  'прогресс',
-  'оценка',
-  'оценки',
-  'сколько осталось',
-];
+const GREETING = {
+  role: 'assistant',
+  content:
+    'Привет! Я AI Curator. Задайте вопрос по курсу — я найду ответ в учебных материалах, проверю дедлайны и прогресс.',
+  sources: [],
+};
 
-const STUDY_KEYWORDS = [
-  'лекция',
-  'лекции',
-  'методичка',
-  'инструкция',
-  'объясни',
-  'расскажи',
-  'как работает',
-  'что такое',
-  'help',
-  'помоги',
-];
-
-function detectIntent(text) {
-  const lower = text.toLowerCase();
-  const isOrg = ORG_KEYWORDS.some((kw) => lower.includes(kw));
-  const isStudy = STUDY_KEYWORDS.some((kw) => lower.includes(kw));
-
-  if (isOrg && isStudy) return 'mixed';
-  if (isOrg) return 'organizational';
-  if (isStudy) return 'study';
-  return 'study';
+function storageKey(role) {
+  return `ai-curator-messages-${role || 'guest'}`;
 }
 
-function formatDate(dateString) {
-  if (!dateString) return 'нет даты';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function getDaysLeft(dateString) {
-  if (!dateString) return null;
-  const now = new Date();
-  const due = new Date(dateString);
-  const diffMs = due - now;
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  return diffDays;
-}
-
-function buildDeadlineResponse(deadlines, progress) {
-  if (!deadlines || deadlines.length === 0) {
-    return {
-      content:
-        'У меня нет данных о дедлайнах для этого курса. Возможно, задания ещё не опубликованы в LMS.',
-      sources: [],
-    };
+function getSessionId() {
+  let id = localStorage.getItem('ai-curator-session-id');
+  if (!id) {
+    id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem('ai-curator-session-id', id);
   }
-
-  const upcoming = deadlines
-    .filter((d) => d.due_date && getDaysLeft(d.due_date) >= -7)
-    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
-    .slice(0, 5);
-
-  if (upcoming.length === 0) {
-    return {
-      content: 'Ближайших дедлайнов не найдено.',
-      sources: [],
-    };
-  }
-
-  const lines = upcoming.map((d) => {
-    const days = getDaysLeft(d.due_date);
-    const daysText =
-      days < 0
-        ? `просрочено на ${Math.abs(days)} ${dayWord(Math.abs(days))}`
-        : `осталось ${days} ${dayWord(days)}`;
-    return `• **${d.name}** — ${formatDate(d.due_date)} (${daysText})`;
-  });
-
-  const overall = progress?.completion_status
-    ? `\n\nТекущий статус прохождения курса: **${progress.completion_status}**.`
-    : '';
-
-  return {
-    content: `Вот ближайшие дедлайны по курсу:${overall}\n\n${lines.join('\n')}`,
-    sources: upcoming.map((d) => ({
-      type: 'lms',
-      title: d.name,
-      url: d.url,
-    })),
-  };
+  return id;
 }
 
-function dayWord(n) {
-  const last = n % 10;
-  const lastTwo = n % 100;
-  if (lastTwo >= 11 && lastTwo <= 14) return 'дней';
-  if (last === 1) return 'день';
-  if (last >= 2 && last <= 4) return 'дня';
-  return 'дней';
+function loadMessages(role) {
+  try {
+    const raw = localStorage.getItem(storageKey(role));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // Ignore corrupted storage
+  }
+  return [GREETING];
 }
 
-function buildRagResponse(searchResults) {
-  if (!searchResults || searchResults.results.length === 0) {
-    return {
-      content:
-        'Я не нашёл подходящих материалов в Knowledge Base по этому вопросу. Попробуйте переформулировать запрос или уточнить тему.',
-      sources: [],
-    };
+function saveMessages(role, messages) {
+  try {
+    localStorage.setItem(storageKey(role), JSON.stringify(messages));
+  } catch {
+    // Storage may be unavailable
   }
-
-  const top = searchResults.results[0];
-  const other = searchResults.results.slice(1, 3);
-
-  let content = `Вот что я нашёл по вашему вопросу:\n\n${top.content}`;
-
-  if (other.length > 0) {
-    content += '\n\nДополнительные материалы:\n';
-    other.forEach((result, index) => {
-      content += `\n${index + 1}. ${result.content.substring(0, 160)}...`;
-    });
-  }
-
-  return {
-    content,
-    sources: searchResults.results.map((r) => {
-      const meta = r.metadata || {};
-      return {
-        type: 'kb',
-        title: meta.document_id
-          ? `Материал курса (chunk ${meta.chunk_index ?? 0})`
-          : 'Материал Knowledge Base',
-        url: `https://lms.alex-n8n.site/course/view.php?id=${meta.course_id || 3}`,
-      };
-    }),
-    meta: `Найдено фрагментов: ${searchResults.total}`,
-  };
 }
 
 function useChat({ role, courseId, difficulty }) {
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content:
-        'Привет! Я AI Curator. Задайте вопрос по курсу — я найду ответ в учебных материалах или проверю дедлайны и прогресс.',
-      sources: [],
-    },
-  ]);
+  const [messages, setMessages] = useState(() => loadMessages(role));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [sessionId] = useState(() => getSessionId());
+
+  useEffect(() => {
+    saveMessages(role, messages);
+  }, [role, messages]);
 
   const sendMessage = useCallback(
     async (text) => {
@@ -169,31 +61,29 @@ function useChat({ role, courseId, difficulty }) {
       setIsLoading(true);
 
       try {
-        const intent = detectIntent(text);
-        let response;
+        const history = messages.slice(-6).map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
 
-        if (intent === 'organizational' || intent === 'mixed') {
-          const [deadlines, progress] = await Promise.all([
-            getDeadlines(courseId),
-            getProgress(),
-          ]);
-          response = buildDeadlineResponse(deadlines, progress);
-        } else {
-          const searchResults = await searchRag(text, {
-            course_id: courseId,
-            difficulty,
-            k: 3,
-          });
-          response = buildRagResponse(searchResults);
-        }
+        const response = await sendChatMessage({
+          message: text,
+          role,
+          difficulty,
+          courseId,
+          history,
+          sessionId,
+        });
 
         setMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
-            content: response.content,
-            sources: response.sources,
-            meta: response.meta,
+            content: response.answer,
+            sources: response.sources || [],
+            meta: response.model
+              ? `Модель: ${response.model} · Намерение: ${response.intent || '—'} · ${Math.round(response.latency_ms || 0)} мс`
+              : null,
           },
         ]);
       } catch (err) {
@@ -202,10 +92,15 @@ function useChat({ role, courseId, difficulty }) {
         setIsLoading(false);
       }
     },
-    [courseId, difficulty]
+    [role, courseId, difficulty, messages, sessionId]
   );
 
-  return { messages, isLoading, error, sendMessage };
+  const clearMessages = useCallback(() => {
+    setMessages([GREETING]);
+    setError(null);
+  }, []);
+
+  return { messages, isLoading, error, sendMessage, clearMessages };
 }
 
 export default useChat;

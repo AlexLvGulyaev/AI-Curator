@@ -141,10 +141,10 @@ flowchart TB
 
 ## Статус проекта
 
-**Текущая стадия:** Implementation In Progress — LMS, Backend scaffold и Knowledge Base Admin API развёрнуты.
+**Текущая стадия:** Implementation In Progress — Day 6 Done: LLM Chat, Admin Console, Logging, Analytics, Audit.
 
 - ✅ Проект согласован с куратором.
-- ✅ Подготовлены PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md и IMPLEMENTATION_PLAN.md.
+- ✅ Подготовлены PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md, IMPLEMENTATION_PLAN.md, PROMPT_ARCHITECTURE.md, OPERATIONS.md, ADMIN_CONSOLE.md.
 - ✅ Moodle LMS развёрнута на VPS и доступна по `https://lms.alex-n8n.site`.
 - ✅ В Moodle создан демо-курс «Claude Code: от знакомства до автоматизации» (AI Skills Lab) с модулями, уроками, заданиями, дедлайнами и формами обратной связи.
 - ✅ Создан read-only API-токен для интеграции с Moodle.
@@ -152,14 +152,16 @@ flowchart TB
 - ✅ Реализован LMS Adapter: курсы, дедлайны, прогресс из Moodle.
 - ✅ Реализован Knowledge Base scaffold: загрузка документов, версии, публикация, статус через Admin API (`/api/v1/admin/kb/*`).
 - ✅ Реализован RAG pipeline: chunking, OpenAI embeddings, индексация в Chroma, семантический поиск через `/api/v1/rag/search`.
-- ✅ Добавлен endpoint обработки документов: `POST /api/v1/admin/kb/documents/{id}/process`.
-- ✅ Alembic-миграция Knowledge Base применена в PostgreSQL.
-- ✅ Доступны endpoints: `/health`, `/health/db`, `/health/lms`, `/health/chroma`, `/api/v1/courses`, `/api/v1/courses/{id}/deadlines`, `/api/v1/me/progress`, `/api/v1/admin/kb/*`, `/api/v1/rag/search`.
-- ✅ Web UI: `https://curator.alex-n8n.site` — гостевой вход, чат, источники ответов, переключатель сложности.
-- ✅ Подготовлен `docs/API_CONTRACT.md`.
-- ✅ Тесты `pytest` проходят (14 тестов).
-- ✅ Web UI студента развёрнут на `https://curator.alex-n8n.site` с гостевым входом и чатом.
-- ⏳ Следующий шаг — День 6 IMPLEMENTATION_PLAN: Admin Console.
+- ✅ Реализован LLM Chat: `POST /api/v1/chat` с orchestrator, prompt builder, answer validator и logging.
+- ✅ Реализованы admin endpoints: AI-config, analytics, monitoring, audit.
+- ✅ Логирование, аналитика и аудит пишутся в PostgreSQL.
+- ✅ AI-конфигурация версионируется и применяется.
+- ✅ Web UI: `https://curator.alex-n8n.site` — гостевой вход, чат через `POST /api/v1/chat`, markdown-рендеринг, история диалога, источники ответов, переключатель сложности.
+- ✅ Admin Console: `https://curator-admin.alex-n8n.site` — KB, AI-config, analytics, monitoring, audit.
+- ✅ Административные endpoints защищены Bearer-токеном.
+- ✅ Alembic-миграции Knowledge Base и Дня 6 применены в PostgreSQL.
+- ✅ Тесты `pytest` проходят (23 теста).
+- ⏳ Следующий шаг — День 7 IMPLEMENTATION_PLAN: E2E-тестирование, DEPLOYMENT_GUIDE.md, материалы для портфолио.
 
 ## Планируемые публичные точки входа
 
@@ -187,6 +189,9 @@ flowchart TB
 | `docs/SPEC.md` | Продуктовая спецификация, сценарии, требования |
 | `docs/ARCHITECTURE.md` | Архитектурные решения, компоненты, потоки данных, диаграммы |
 | `docs/IMPLEMENTATION_PLAN.md` | План реализации и развёртывания на VPS |
+| `docs/PROMPT_ARCHITECTURE.md` | Структура промптов и few-shot примеры |
+| `docs/OPERATIONS.md` | Эксплуатация: KB, AI-config, аналитика |
+| `docs/ADMIN_CONSOLE.md` | Описание Admin Console |
 
 ## Технологии
 

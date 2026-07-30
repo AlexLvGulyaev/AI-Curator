@@ -40,9 +40,16 @@ class Settings(BaseSettings):
     admin_console_url: str = "https://curator-admin.example.com"
     backend_api_url: str = "https://curator-api.example.com"
 
+    # Admin Console authentication
+    admin_console_token: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"
+
+    @property
+    def admin_auth_enabled(self) -> bool:
+        return bool(self.admin_console_token) and not self.admin_console_token.startswith("YOUR")
 
 
 settings = Settings()

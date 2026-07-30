@@ -30,8 +30,7 @@ async def monitoring_status(db: AsyncSession = Depends(get_db)):
     """Return health and latency for each integrated component."""
     start = time.perf_counter()
     try:
-        async with db.begin():
-            await db.execute(text("SELECT 1"))
+        await db.execute(text("SELECT 1"))
         db_status = "ok"
         db_detail = None
     except Exception as exc:

@@ -2,8 +2,8 @@
 
 **Проект:** ai-curator
 **Дата создания:** 2026-07-29
-**Последнее обновление:** 2026-07-29
-**Статус:** Implementation In Progress — Day 5 Done, Next: Day 6 LLM Chat + Admin Console
+**Последнее обновление:** 2026-07-30
+**Статус:** Implementation In Progress — Day 6 Done, Next: Day 7 E2E + Deployment Guide + Portfolio
 
 ---
 
@@ -35,11 +35,19 @@ AI Curator не заменяет преподавателя, не выставл
 - Реализован RAG pipeline через LangChain + OpenAI embeddings + Chroma: chunking, индексация, семантический поиск.
 - Добавлены endpoints `POST /api/v1/admin/kb/documents/{id}/process` и `POST /api/v1/rag/search`.
 - Реализован Web UI студента на React + Vite + Tailwind CSS, развёрнут на `https://curator.alex-n8n.site`.
+- Web UI использует `POST /api/v1/chat`, рендерит markdown-ответы, сохраняет историю диалога в `localStorage`.
 - Гостевой демо-вход с ролями `active_student`, `late_student`, `new_student`.
-- Alembic-миграция KB применена в PostgreSQL.
-- Тесты `pytest` проходят (14 тестов).
+- Создан Admin Console на React + Vite + Tailwind CSS (тёмная административная тема), развёрнут на `https://curator-admin.alex-n8n.site`.
+- Admin Console: панель состояния, Knowledge Base (загрузка, обработка, публикация, версии), AI Configuration, аналитика, журнал аудита.
+- Реализованы backend-сервисы LLM Chat: `Prompt Builder`, `LLM Adapter`, `Answer Validator`, `Orchestrator`, `Logger`, `AiConfig`.
+- Добавлены admin endpoints: `/api/v1/admin/ai-config`, `/api/v1/admin/analytics/*`, `/api/v1/admin/monitoring/*`, `/api/v1/admin/audit`.
+- Логирование, аналитика и аудит пишутся в PostgreSQL: `chat_requests`, `chat_logs`, `llm_calls`, `analytics_events`, `audit_logs`.
+- AI-конфигурация версионируется, активная версия применяется к чату и RAG.
+- Административные endpoints защищены Bearer-токеном `ADMIN_CONSOLE_TOKEN`.
+- Alembic-миграции Дня 6 применены в PostgreSQL.
+- Тесты `pytest` проходят (23 теста).
 
-Следующий шаг — День 6 IMPLEMENTATION_PLAN: Admin Console, Logging, Analytics и Audit.
+Следующий шаг — День 7 IMPLEMENTATION_PLAN: E2E-тестирование, DEPLOYMENT_GUIDE.md, материалы для портфолио.
 
 ## Market Validation
 
@@ -73,9 +81,9 @@ AI Curator не заменяет преподавателя, не выставл
 | Векторный индекс | Chroma | ✅ Развёрнута, health check проходит через v2 endpoint |
 | Хранилище документов KB | Файловое хранилище внутри Backend-контейнера (volume `/app/storage/documents`) | ✅ Реализовано в Sprint 4.1 |
 | Web UI студента | React + Vite + Tailwind CSS | ✅ Развёрнут на `https://curator.alex-n8n.site` |
-| Admin Console | React (план) | ⏳ День 6 IMPLEMENTATION_PLAN |
-| Контейнеризация | Docker + Docker Compose | ✅ LMS развёрнута, Backend предстоит |
-| Reverse proxy / HTTPS | Traefik + Let's Encrypt | ✅ Работает для LMS и зарезервировано для всех сервисов |
+| Admin Console | React + Vite + Tailwind CSS | ✅ Развёрнут на `https://curator-admin.alex-n8n.site` |
+| Контейнеризация | Docker + Docker Compose | ✅ LMS, Backend, Web UI, Admin Console развёрнуты |
+| Reverse proxy / HTTPS | Traefik + Let's Encrypt | ✅ Работает для всех публичных сервисов |
 
 ## Decision
 
@@ -105,21 +113,21 @@ AI Curator не заменяет преподавателя, не выставл
 7. ✅ Sprint 4.1 Дня 4 выполнен: Knowledge Base scaffold, Admin API, миграции, тесты.
 8. ✅ Sprint 4.2 Дня 4: RAG pipeline — chunking, embeddings, Chroma, search.
 9. ✅ День 5 IMPLEMENTATION_PLAN: Web UI студента.
-10. ⏳ Подготовить учебные материалы для Knowledge Base AI Curator.
-11. ⏳ День 6 IMPLEMENTATION_PLAN: LLM Chat + Admin Console + Logging + Analytics + Audit.
-12. ⏳ Подготовить материалы для портфолио и DEPLOYMENT_GUIDE.md.
+10. ✅ День 6 IMPLEMENTATION_PLAN: LLM Chat + Admin Console + Logging + Analytics + Audit.
+11. ⏳ Подготовить учебные материалы для Knowledge Base AI Curator.
+12. ⏳ День 7 IMPLEMENTATION_PLAN: E2E-тестирование, DEPLOYMENT_GUIDE.md, материалы для портфолио.
 
 ## Open Questions
 
 | Вопрос | Категория | Примечание |
 |--------|-----------|------------|
 | Какой LLM-провайдер использовать? | Технология | ✅ Решено: OpenAI API, `gpt-4o-mini`, `text-embedding-3-small` |
-| Какой стек для Web UI и Admin Console? | Технология | ⏳ Открытый вопрос; обсудить в День 5–6 |
-| Какие конкретные домены и VPS? | Инфраструктура | ✅ Решено: домены направлены на VPS, Traefik-маршруты и SSL-сертификаты настроены. |
+| Какой стек для Web UI и Admin Console? | Технология | ✅ Решено: React + Vite + Tailwind CSS; Admin Console — тёмная тема лаборатории |
+| Какие конкретные домены и VPS? | Инфраструктура | ✅ Решено: домены направлены на VPS, Traefik-маршруты и SSL-сертификаты настроены |
 | Какой курс будет использоваться для демонстрации? | Контент | ✅ Решено: «Claude Code: от знакомства до автоматизации» (AI Skills Lab), 3 модуля, id: 3 |
 | Как организовать хранилище документов Knowledge Base? | Инфраструктура | ✅ Решено: файловое хранилище внутри Backend-контейнера через Docker volume; Object Storage — будущая опция |
 | Нужна ли аутентификация студентов в Web UI? | Безопасность | ✅ Решено: гостевой демо-доступ с выбором одной из 2–3 демо-ролей; Moodle OAuth / SSO — будущая опция для пилотов |
-| Какие метрики аналитики критичны? | Продукт | ⏳ Предварительно: распределение по темам, модулям, типам запросов; уточнить в День 6 |
+| Какие метрики аналитики критичны? | Продукт | ✅ Решено: total_requests, intent_distribution, unanswered_count, average_latency_ms, feedback_score_distribution |
 
 ## Dependencies
 
@@ -169,3 +177,4 @@ AI Curator не заменяет преподавателя, не выставл
 | 2026-07-29 | Implementation In Progress | Выполнен Sprint 4.1 Дня 4: Knowledge Base scaffold (`src/models/knowledge_base.py`, `src/services/knowledge_base.py`, `src/api/v1/admin/kb.py`), Alembic-миграция, Admin API endpoints, `tests/test_kb.py`, обновлён `docs/API_CONTRACT.md`. `pytest` — 12 passed. |
 | 2026-07-29 | Implementation In Progress | Выполнен Sprint 4.2 Дня 4: RAG pipeline (`src/services/document_processor.py`, `src/services/rag_pipeline.py`), endpoints `/api/v1/admin/kb/documents/{id}/process` и `/api/v1/rag/search`, обновлён `chromadb` до 1.5.9, добавлен `tests/test_rag.py`. `pytest` — 14 passed. |
 | 2026-07-29 | Implementation In Progress | Выполнен День 5 IMPLEMENTATION_PLAN: Web UI студента на React + Vite + Tailwind CSS, развёрнут на `https://curator.alex-n8n.site`, гостевой демо-вход с ролями, чат с организационными и учебными ответами, источники из LMS и Knowledge Base. |
+| 2026-07-30 | Implementation In Progress | Выполнен День 6 IMPLEMENTATION_PLAN: LLM Chat (`POST /api/v1/chat`) с orchestrator, prompt builder, answer validator и logging; Admin Console на React (тёмная тема) с KB, AI-config, analytics, monitoring, audit; обновлён Web UI; деплой на VPS; `pytest` — 23 passed. |

@@ -43,17 +43,16 @@ export async function getProgress() {
   return apiRequest('/api/v1/me/progress');
 }
 
-export async function searchRag(query, filters = {}) {
-  return apiRequest('/api/v1/rag/search', {
+export async function sendChatMessage({ message, role, difficulty, courseId, history = [], sessionId }) {
+  return apiRequest('/api/v1/chat', {
     method: 'POST',
     body: JSON.stringify({
-      query,
-      k: filters.k || 5,
-      course_id: filters.course_id,
-      module_id: filters.module_id,
-      topic_id: filters.topic_id,
-      difficulty: filters.difficulty,
-      document_id: filters.document_id,
+      message,
+      role,
+      difficulty,
+      course_id: courseId,
+      history,
+      session_id: sessionId,
     }),
   });
 }

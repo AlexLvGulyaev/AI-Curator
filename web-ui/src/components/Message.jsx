@@ -1,8 +1,12 @@
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
+
 function SourceLink({ source }) {
   if (source.type === 'kb') {
     return (
       <a
-        href={source.url}
+        href={source.url || '#'}
         target="_blank"
         rel="noreferrer"
         className="inline-flex items-center gap-1.5 rounded-md bg-ai-primary-light px-2.5 py-1 text-xs font-medium text-ai-primary hover:bg-ai-primary hover:text-white transition"
@@ -16,7 +20,7 @@ function SourceLink({ source }) {
   if (source.type === 'lms') {
     return (
       <a
-        href={source.url}
+        href={source.url || '#'}
         target="_blank"
         rel="noreferrer"
         className="inline-flex items-center gap-1.5 rounded-md bg-ai-teal-light px-2.5 py-1 text-xs font-medium text-ai-teal hover:bg-ai-teal hover:text-white transition"
@@ -42,7 +46,19 @@ function Message({ message }) {
             : 'ai-card'
         }`}
       >
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+        {isUser ? (
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+        ) : (
+          <div className="markdown-content text-sm leading-relaxed text-ai-text">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSanitize]}
+              skipHtml
+            >
+              {message.content}
+            </ReactMarkdown>
+          </div>
+        )}
 
         {!isUser && message.sources && message.sources.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
