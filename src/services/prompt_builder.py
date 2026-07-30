@@ -80,15 +80,16 @@ class PromptBuilder:
 
     @staticmethod
     def _format_rag_context(rag_context: List[Dict[str, Any]]) -> str:
-        lines = ["Релевантные фрагменты из Knowledge Base:"]
+        lines = ["Релевантные фрагменты из Knowledge Base (используй ТОЛЬКО эти идентификаторы в разделе Источники):"]
         for i, chunk in enumerate(rag_context, start=1):
             meta = chunk.get("metadata", {})
             doc_id = meta.get("document_id", "?")
             chunk_idx = meta.get("chunk_index", "?")
             difficulty = meta.get("difficulty", "?")
             lines.append(
-                f"[Фрагмент {i}] document_id={doc_id} chunk_index={chunk_idx} "
-                f"difficulty={difficulty}:\n{chunk.get('content', '')}"
+                f"[Фрагмент KB-{doc_id}-{chunk_idx}] "
+                f"document_id={doc_id} chunk_index={chunk_idx} difficulty={difficulty}:\n"
+                f"{chunk.get('content', '')}"
             )
         return "\n\n".join(lines)
 
@@ -117,6 +118,8 @@ class PromptBuilder:
         return """Правила оформления ответа:
 1. Отвечай кратко и по делу, но с достаточным пояснением.
 2. Используй markdown (заголовки, списки, выделение).
-3. В конце обязательно добавь раздел «Источники» со ссылками из данных LMS или Knowledge Base.
-4. Если данных недостаточно, напиши: «У меня недостаточно данных, чтобы точно ответить. Обратитесь к преподавателю.»
-5. Не выдумывай факты, не упоминай других студентов."""
+3. В конце обязательно добавь раздел «Источники».
+4. В разделе «Источники» используй ТОЛЬКО источники, предоставленные в контексте (LMS-задания или фрагменты Knowledge Base с document_id). Не придумывай ссылки и не используй числа вместо URL.
+5. Для источников Knowledge Base указывай ID документа в формате: «Материал Knowledge Base (документ N)».
+6. Если данных недостаточно, напиши: «У меня недостаточно данных, чтобы точно ответить. Обратитесь к преподавателю.»
+7. Не выдумывай факты, не упоминай других студентов."""
