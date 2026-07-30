@@ -101,19 +101,25 @@ services:
       retries: 5
 
   ai-curator-chroma:
-    image: chromadb/chroma:latest
+    # Pin Chroma image to a known-good version to avoid floating-tag breakages.
+    # This digest corresponds to chromadb/chroma:0.5.25 (2026-05-05).
+    image: chromadb/chroma:0.5.25@sha256:1e0b73a187a28757c572acba508c46f48c9e8b0acaf5c20e6d95cdedce1acdf6
     container_name: ai-curator-chroma
     restart: unless-stopped
     environment:
       - CHROMA_HOST=0.0.0.0
       - CHROMA_PORT=8000
       - ANONYMIZED_TELEMETRY=false
+      - IS_PERSISTENT=true
+      - PERSIST_DIRECTORY=/data
     volumes:
-      - ai-curator-chroma-data:/chroma/chroma
+      # Chroma 0.5.x persists SQLite to /data. Older versions used /chroma/chroma.
+      - ai-curator-chroma-data:/data
     networks:
       - ai-curator-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/api/v2/heartbeat || exit 1"]
+      # The chromadb image no longer ships wget/curl/python. Use bash TCP probe.
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/localhost/8000'"]
       interval: 10s
       timeout: 5s
       retries: 10

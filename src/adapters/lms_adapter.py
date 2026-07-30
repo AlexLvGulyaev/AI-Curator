@@ -246,6 +246,8 @@ class MoodleLMSAdapter:
         """Return assignment deadlines, optionally filtered by course.
 
         When course_id is provided only assignments for that course are returned.
+        Falls back to parsing course contents when the LMS token lacks enrollment
+        or capability for a specific course (common in multi-course setups).
         """
         params: Dict[str, Any] = {}
         if course_id is not None:
@@ -272,6 +274,64 @@ class MoodleLMSAdapter:
                         cutoff_date=self._from_unix(assignment.get("cutoffdate")),
                         url=self._module_url(cmid) if cmid else None,
                         raw=assignment,
+                    )
+                )
+
+        # Fallback: if the service token can't see assignments for a specific course
+        # (empty list + capability warning), try reading from course contents which
+        # is less restrictive and exposes duedate in module customdata.
+        if not result and course_id is not None:
+            result = await self._get_assignments_from_contents(course_id)
+        return result
+
+    async def _get_assignments_from_contents(self, course_id: int) -> List[Deadline]:
+        """Build Deadline objects from core_course_get_contents assign modules.
+
+        Moodle's mod_assign_get_assignments requires the calling user to be
+        enrolled or have a management capability in the course. When that is not
+        the case, the course contents API still lists assign modules and carries
+        the due date in the module customdata JSON.
+        """
+        import json
+
+        raw_sections = await self._call(
+            "core_course_get_contents",
+            params={"courseid": course_id},
+        )
+        if not isinstance(raw_sections, list):
+            return []
+
+        result: List[Deadline] = []
+        for section in raw_sections:
+            for module in section.get("modules", []):
+                if module.get("modname") != "assign":
+                    continue
+                cmid = module.get("id")
+                instance_id = module.get("instance")
+                duedate: Optional[int] = None
+                customdata_raw = module.get("customdata")
+                if isinstance(customdata_raw, str):
+                    try:
+                        customdata = json.loads(customdata_raw)
+                        duedate = customdata.get("duedate")
+                    except (json.JSONDecodeError, AttributeError):
+                        pass
+                if duedate is None and isinstance(customdata_raw, dict):
+                    duedate = customdata_raw.get("duedate")
+
+                result.append(
+                    Deadline(
+                        id=instance_id,
+                        course_id=course_id,
+                        module_id=cmid,
+                        instance_id=instance_id,
+                        name=module.get("name", ""),
+                        modname="assign",
+                        due_date=self._from_unix(duedate),
+                        allow_submissions_from=None,
+                        cutoff_date=None,
+                        url=self._module_url(cmid) if cmid else None,
+                        raw=module,
                     )
                 )
         return result

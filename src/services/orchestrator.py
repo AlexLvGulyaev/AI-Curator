@@ -115,19 +115,32 @@ class Orchestrator:
     def _extract_course_mentions(message: str) -> List[str]:
         """Extract potential course names from the user message.
 
-        Conservative heuristics: quoted strings, "курс X" patterns, and short
-        capitalized phrases that do not start with common question words.
+        Conservative heuristics:
+        - quoted strings only when they are preceded by a course marker ("курс");
+        - explicit "курс X" / "по курсу X" patterns;
+        - short capitalized phrases after "курс Name".
+
+        Assignment and module names quoted in questions like
+        "Что повторить перед заданием \"Ролевые промпты\"" are intentionally
+        excluded so they do not trigger a "course not found" refusal.
         """
         mentions = []
-        # Capture text inside quotes
-        for match in re.finditer(r'["«"]([^"""]+)["""]', message):
+
+        # Quoted strings are course names only if preceded by a course marker.
+        for match in re.finditer(
+            r'курс[аеуом]?\s+["«"]([^"""]+)["""]',
+            message,
+            re.IGNORECASE,
+        ):
             mentions.append(match.group(1).strip())
-        # Capture "курс/курса/курсу «Name»" or "курс 'Name'"
-        for match in re.finditer(r'курс[аеуом]?\s+["«"]([^"""]+)["""]', message, re.IGNORECASE):
-            mentions.append(match.group(1).strip())
+
         # Capture "по курсу Name" / "курс Name" where Name is a short proper noun.
         # This is much more reliable than scanning the whole sentence.
-        for match in re.finditer(r'(?:по\s+)?курс[аеуом]?\s+([А-ЯA-Z][а-яa-zА-ЯA-Z0-9\-]*(?:\s+[а-яa-zА-ЯA-Z0-9\-]+){0,2})', message, re.IGNORECASE):
+        for match in re.finditer(
+            r'(?:по\s+)?курс[аеуом]?\s+([А-ЯA-Z][а-яa-zА-ЯA-Z0-9\-]*(?:\s+[а-яa-zА-ЯA-Z0-9\-]+){0,2})',
+            message,
+            re.IGNORECASE,
+        ):
             candidate = match.group(1).strip()
             words = candidate.split()
             if len(words) >= 1:
@@ -417,6 +430,45 @@ class Orchestrator:
             }
 
         target_course_id = mentioned_course_id or explicit_course_id or default_course_id
+
+        # Early short-circuit for requests that must be refused (grades, deadlines).
+        # This avoids wasting tokens and latency on LLM/RAG/LMS calls.
+        refusal_topic = AnswerValidator.requires_refusal(message)
+        if refusal_topic:
+            refusal = (
+                "Я не выставляю оценки и не изменяю учебный процесс. "
+                "Обратитесь к преподавателю."
+            )
+            request = await self.logger.create_chat_request(
+                session_id=session_id,
+                role=role,
+                course_id=target_course_id,
+                difficulty=difficulty,
+                message=message,
+                intent="refusal",
+                lms_calls=[],
+                rag_filters={},
+            )
+            await self.logger.create_chat_log(
+                request_id=request.id,
+                answer=refusal,
+                sources=[],
+                llm_model=None,
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                latency_ms=0,
+                error=None,
+            )
+            return {
+                "answer": refusal,
+                "sources": [],
+                "intent": "refusal",
+                "model": None,
+                "latency_ms": 0,
+                "session_id": session_id,
+                "error": None,
+            }
 
         intent = self.detect_intent(message)
 
