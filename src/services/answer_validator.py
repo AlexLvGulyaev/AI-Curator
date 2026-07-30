@@ -21,8 +21,15 @@ class AnswerValidator:
     FORBIDDEN_PATTERNS = [
         r"оценка\s*[:=]?\s*[0-9]+",
         r"ставлю\s+оценку",
+        r"выстав[лю]\s+(оценку|зач[её]т)",
         r"измен[ию]\s+(дедлайн|задание|расписание)",
+        r"перенес[у]\s+дедлайн",
         r"удал[ию]\s+(задание|курс|модуль)",
+    ]
+
+    REFUSAL_REQUEST_PATTERNS = [
+        (r"выстав[ьи].*оценк|зач[её]т|оценк.*выстав", "оценки"),
+        (r"перенес[и].*дедлайн|измен[и].*дедлайн|дедлайн.*перенес", "дедлайны"),
     ]
 
     # Markdown links that look like [text](number) — LLM sometimes generates fake KB links
@@ -34,13 +41,39 @@ class AnswerValidator:
         self.has_context = has_lms_or_rag_context
         self.issues: List[str] = []
 
+    def _check_refusal_requests(self) -> None:
+        """Detect user requests that should be refused explicitly."""
+        lower = self.answer.lower()
+        for pattern, topic in self.REFUSAL_REQUEST_PATTERNS:
+            if re.search(pattern, lower):
+                # Only flag if the answer does not already contain a clear refusal.
+                if "не выставляю" not in lower and "не изменяю" not in lower and "не переношу" not in lower:
+                    self.issues.append(f"Запрос требует отказа: {topic}.")
+
     def validate(self) -> ValidationResult:
         """Run validation rules and return normalized result."""
         self._check_empty()
         self._check_forbidden_actions()
+        self._check_refusal_requests()
         self._check_sources()
 
         if self.issues:
+            # If the issue is a refusal request, replace with an explicit refusal.
+            refusal_topics = {topic for _, topic in self.REFUSAL_REQUEST_PATTERNS}
+            for issue in self.issues:
+                for topic in refusal_topics:
+                    if topic in issue:
+                        explicit_refusal = (
+                            "Я не выставляю оценки и не изменяю учебный процесс. "
+                            "Обратитесь к преподавателю."
+                        )
+                        return ValidationResult(
+                            is_valid=True,
+                            answer=explicit_refusal,
+                            issues=[],
+                            fallback=False,
+                        )
+
             fallback_answer = self.sanitize_answer()
             # If sanitized answer still has meaningful content and sources, use it instead of generic fallback
             if (

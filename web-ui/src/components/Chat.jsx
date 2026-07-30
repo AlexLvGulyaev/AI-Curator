@@ -4,15 +4,24 @@ import DifficultyToggle from './DifficultyToggle';
 import Message from './Message';
 import { checkBackendStatus } from '../api/backend';
 
-const DEMO_COURSE_ID = 3;
+const ROLE_COURSES = {
+  active_student: [
+    { id: 3, name: 'Claude Code: от знакомства до автоматизации' },
+    { id: 4, name: 'Промпт-инжиниринг' },
+  ],
+  late_student: [{ id: 3, name: 'Claude Code: от знакомства до автоматизации' }],
+  new_student: [{ id: 3, name: 'Claude Code: от знакомства до автоматизации' }],
+};
 
 function Chat({ role, onChangeRole }) {
+  const courses = ROLE_COURSES[role] || ROLE_COURSES.active_student;
+  const [courseId, setCourseId] = useState(courses[0]?.id);
   const [input, setInput] = useState('');
   const [difficulty, setDifficulty] = useState('beginner');
   const [backendOnline, setBackendOnline] = useState(null);
   const { messages, isLoading, error, sendMessage, clearMessages } = useChat({
     role,
-    courseId: DEMO_COURSE_ID,
+    courseId,
     difficulty,
   });
 
@@ -25,6 +34,11 @@ function Chat({ role, onChangeRole }) {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    clearMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courseId]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -75,6 +89,19 @@ function Chat({ role, onChangeRole }) {
           <span className="hidden rounded-full bg-ai-primary-light px-3 py-1 text-xs font-medium text-ai-primary sm:inline-block">
             {roleTitles[role] || role}
           </span>
+          {courses.length > 1 && (
+            <select
+              value={courseId}
+              onChange={(e) => setCourseId(Number(e.target.value))}
+              className="rounded-ai border border-ai-border bg-ai-surface px-3 py-1.5 text-sm text-ai-text focus:outline-none focus:ring-2 focus:ring-ai-primary"
+            >
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
           <DifficultyToggle value={difficulty} onChange={setDifficulty} />
           <button
             onClick={clearMessages}

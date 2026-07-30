@@ -2,6 +2,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
 
+// Prevent markdown links inside the answer from duplicating the source list.
+function PlainTextLink({ children }) {
+  return <span>{children}</span>;
+}
+
 function SourceLink({ source }) {
   if (source.type === 'kb') {
     return (
@@ -54,6 +59,9 @@ function Message({ message }) {
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeSanitize]}
               skipHtml
+              components={{
+                a: PlainTextLink,
+              }}
             >
               {message.content}
             </ReactMarkdown>
