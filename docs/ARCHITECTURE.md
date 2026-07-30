@@ -446,7 +446,17 @@ flowchart TB
 | User Question | Вопрос студента |
 | Output Rules | Требования к структуре, ссылкам, отказу |
 
-### 11.2. System Prompt — ключевые правила
+### 11.2. Latency-aware prompt design
+
+После Sprint 4 (2026-07-30) размер prompt и выбор источников оптимизированы для NFR ≤ 5 сек:
+
+- **LMS contents** — передаются не более **12** элементов (было 30).
+- **LMS deadlines** — передаются не более **5** ближайших (было 10).
+- **RAG top_k** — для chat-интентов (`study`, `mixed`) используется **3** чанка; для Admin и fallback — значение из `ai_configs.top_k_retrieval`.
+- **Few-shot examples** и **output rules** сокращены до минимума, сохраняющего качество ответов.
+- **History** — не более `max_history_messages` из активной конфигурации (по умолчанию 6).
+
+### 11.3. System Prompt — ключевые правила
 
 - AI — наставник, отвечает в поддерживающем стиле.
 - Запрещено выставлять оценки.
@@ -525,7 +535,62 @@ Admin Console отображает:
 
 ---
 
-## 14. Основные архитектурные решения
+## 12. Latency Architecture
+
+### 12.1. NFR и целевые показатели
+
+- **NFR-1 (chat):** типовой ответ на вопрос студента — не более **5 секунд** (p50).
+- **SLO:** p95 ≤ 8 сек для холодного старта; p50 ≤ 5 сек для повторных запросов.
+
+### 12.2. Компоненты оптимизации latency
+
+| Оптимизация | Где | Эффект |
+|-------------|-----|--------|
+| **Embedding cache** | `src/services/rag_pipeline.py` — `_EmbeddingCache` (LRU, TTL 5 мин, размер 1000) | Повторные запросы не вызывают OpenAI Embeddings API. Холодный старт — один embedding-вызов; последующие — чтение из кэша. |
+| **Parallel LMS calls** | `src/services/orchestrator.py` — `asyncio.gather(deadlines, progress, contents)` | Три LMS-вызова выполняются одновременно, а не последовательно. |
+| **Parallel RAG + LMS** | `src/services/orchestrator.py` — `asyncio.gather(_fetch_lms_data, _fetch_rag_context)` для `mixed` intent | LMS-данные и RAG-контекст собираются параллельно. |
+| **Reduced RAG top_k** | `src/services/orchestrator.py` — `rag_k = 3 if intent in ("study", "mixed")` | Меньше чанков в prompt → меньше токенов → быстрее LLM. |
+| **RAG deduplication** | `src/services/orchestrator.py` — content hash фильтр | Исключает дублирующиеся чанки из prompt. |
+| **Reduced LMS context** | `src/services/prompt_builder.py` — `contents[:12]`, `deadlines[:5]` | Меньше текста в prompt → меньше prompt tokens. |
+| **Intent-based max_tokens** | `src/services/orchestrator.py` + `src/services/llm_adapter.py` | `organizational` 500, `study` beginner 650, `mixed` 800, остальное 750. Ограничивает длину ответа и время генерации. |
+| **LLM client caching** | `src/services/llm_adapter.py` — `_get_client(max_tokens)` | Один и тот же `ChatOpenAI` клиент переиспользуется при одинаковом `max_tokens`. |
+| **Short-circuit** | `src/services/orchestrator.py` | `refusal` и `progress` обходят LLM/RAG/LMS полностью или частично. |
+
+### 12.3. Разбивка latency в analytics
+
+`analytics_events.payload.timings_ms` содержит:
+
+| Метрика | Смысл |
+|---------|-------|
+| `intent_detect_ms` | Классификация сообщения |
+| `lms_deadlines_ms` | LMS: дедлайны (parallel) |
+| `lms_progress_ms` | LMS: прогресс (parallel) |
+| `lms_contents_ms` | LMS: структура курса (parallel) |
+| `rag_embedding_ms` | Время получения embedding (кэш или OpenAI) |
+| `rag_chroma_ms` | Время Chroma query |
+| `rag_postprocess_ms` | Дедупликация и фильтрация по distance |
+| `rag_search_ms` | Общее время RAG |
+| `llm_generate_ms` | Время генерации ответа LLM |
+| `validation_ms` | Валидация ответа |
+
+### 12.4. Фактические результаты Sprint 4
+
+Профилирование на боевом контуре (2026-07-30, 30 запросов):
+
+| Сценарий | p50 latency_ms | max latency_ms | Статус NFR |
+|----------|----------------|----------------|------------|
+| organizational_deadline | 2016 | 2333 | ✅ ≤ 5 сек |
+| study_basic | 940 | 3547* | ✅ ≤ 5 сек |
+| study_advanced | 2452 | 3269 | ✅ ≤ 5 сек |
+| mixed_revision | 1816 | 1875 | ✅ ≤ 5 сек |
+| progress | 766 | 842 | ✅ ≤ 5 сек |
+| refusal_grade | 0 | 0 | ✅ ≤ 5 сек |
+
+\* Первый вызов `study_basic` — холодный старт (embedding cache miss + LLM client cache miss). Runs 2–5: 798–951 мс.
+
+---
+
+## 15. Основные архитектурные решения
 
 | Решение | Реализация |
 |---------|------------|
@@ -539,6 +604,7 @@ Admin Console отображает:
 | Admin Console AI Curator | Отдельный публичный административный интерфейс |
 | HTTPS для всех сервисов | Traefik + Let's Encrypt |
 | Пользовательские интерфейсы не обращаются напрямую к источникам | Все внешние обращения маршрутизируются через Backend |
+| NFR latency ≤ 5 сек | Комбинация embedding cache, parallel LMS+RAG, reduced top_k, intent-based max_tokens, prompt trimming |
 
 ---
 
@@ -563,3 +629,4 @@ Admin Console отображает:
 | 2026-07-29 | 2.0 (Approved) | Документ согласован куратором. Статус изменён на Approved. Исправлено архитектурное противоречие: RAG Pipeline не обращается к LLM напрямую, единственный вызов модели выполняется через LLM Adapter. |
 | 2026-07-29 | 1.0 | Первая версия ARCHITECTURE.md |
 | 2026-07-30 | 2.1 | Добавлены разделы retention и архивирования логов; параметризация промптов через `ai_configs`; детальная разбивка latency в analytics events |
+| 2026-07-30 | 2.2 | Добавлен раздел **Latency Architecture** (Sprint 4): embedding cache, parallel LMS+RAG, intent-based max_tokens, reduced top_k, prompt trimming; фактические результаты профилирования; NFR ≤ 5 сек подтверждён |

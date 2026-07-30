@@ -1,5 +1,6 @@
 """Orchestrator for AI Curator chat: classify, gather context, generate answer."""
 
+import asyncio
 import re
 import time
 import uuid
@@ -489,174 +490,231 @@ class Orchestrator:
         rag_context: List[Dict[str, Any]] = []
         rag_filters: Dict[str, Any] = {}
 
-        # Gather LMS data
+        async def _fetch_lms_data(course_id: int, student_user_id: int) -> Dict[str, Any]:
+            """Fetch deadlines, progress and contents from LMS in parallel."""
+            t_lms = time.perf_counter()
+            deadlines_task = lms_adapter.get_course_deadlines(course_id)
+            progress_task = lms_adapter.get_user_course_progress(course_id, user_id=student_user_id)
+            contents_task = lms_adapter.get_course_contents(course_id)
+            deadlines, progress, contents = await asyncio.gather(
+                deadlines_task, progress_task, contents_task, return_exceptions=True
+            )
+            t_total = round((time.perf_counter() - t_lms) * 1000, 2)
+            # Normalize exceptions into empty results + error log entries.
+            result: Dict[str, Any] = {"deadlines": [], "progress": {}, "contents": [], "errors": []}
+            for label, value in [("deadlines", deadlines), ("progress", progress), ("contents", contents)]:
+                if isinstance(value, Exception):
+                    result["errors"].append({"type": label, "error": str(value)})
+                elif label == "deadlines":
+                    result["deadlines"] = self._format_deadlines(value)
+                elif label == "progress":
+                    result["progress"] = self._format_progress(value)
+                elif label == "contents":
+                    result["contents"] = self._format_course_contents(value)
+            return {
+                "data": result,
+                "calls": [
+                    {"type": "deadlines", "course_id": course_id, "latency_ms": t_total},
+                    {"type": "progress", "course_id": course_id, "user_id": student_user_id, "latency_ms": t_total},
+                    {"type": "contents", "course_id": course_id, "module_count": len(result.get("contents", [])), "latency_ms": t_total},
+                ],
+            }
+
+        async def _fetch_rag_context(
+            query: str,
+            course_id: int,
+            k: int,
+            threshold: float,
+        ) -> Dict[str, Any]:
+            """Search RAG and deduplicate chunks by content hash."""
+            t_rag = time.perf_counter()
+            rag = RagPipeline()
+            # rag.search() returns results plus per-stage timings for embedding and chroma.
+            results, search_timings = await rag.search(
+                query=query,
+                k=k,
+                course_id=course_id,
+            )
+            t_post_start = time.perf_counter()
+            seen_hashes = set()
+            output: List[Dict[str, Any]] = []
+            for r in results:
+                if r.distance is not None and r.distance > threshold:
+                    continue
+                content_hash = hash((r.content.strip(), r.metadata.get("document_id"), r.metadata.get("chunk_index")))
+                if content_hash in seen_hashes:
+                    continue
+                seen_hashes.add(content_hash)
+                output.append({
+                    "content": r.content,
+                    "metadata": r.metadata,
+                    "distance": r.distance,
+                })
+            t_post = round((time.perf_counter() - t_post_start) * 1000, 2)
+            t_total = round((time.perf_counter() - t_rag) * 1000, 2)
+            return {
+                "chunks": output,
+                "timings": {
+                    "rag_embedding_ms": search_timings["embedding_ms"],
+                    "rag_chroma_ms": search_timings["chroma_ms"],
+                    "rag_postprocess_ms": t_post,
+                    "rag_search_ms": t_total,
+                },
+            }
+
+        # Pick retrieval size: smaller for chat to reduce prompt size and latency.
+        rag_k = 3 if intent in ("study", "mixed") else config.top_k_retrieval
+
+        # Gather LMS and RAG in parallel for mixed; otherwise run only needed phases.
+        fetch_tasks: List[Any] = []
         if need_lms and target_course_id:
-            try:
-                t_lms = time.perf_counter()
-                deadlines = await lms_adapter.get_course_deadlines(target_course_id)
-                t_deadlines = round((time.perf_counter() - t_lms) * 1000, 2)
-
-                t_lms = time.perf_counter()
-                progress = await lms_adapter.get_user_course_progress(target_course_id, user_id=user_id)
-                t_progress = round((time.perf_counter() - t_lms) * 1000, 2)
-
-                t_lms = time.perf_counter()
-                contents = await lms_adapter.get_course_contents(target_course_id)
-                t_contents = round((time.perf_counter() - t_lms) * 1000, 2)
-
-                lms_data = {
-                    "deadlines": self._format_deadlines(deadlines),
-                    "progress": self._format_progress(progress),
-                    "contents": self._format_course_contents(contents),
-                }
-                lms_calls.extend([
-                    {"type": "deadlines", "course_id": target_course_id, "latency_ms": t_deadlines},
-                    {"type": "progress", "course_id": target_course_id, "user_id": user_id, "latency_ms": t_progress},
-                    {"type": "contents", "course_id": target_course_id, "module_count": len(contents), "latency_ms": t_contents},
-                ])
-                timings["lms_deadlines_ms"] = t_deadlines
-                timings["lms_progress_ms"] = t_progress
-                timings["lms_contents_ms"] = t_contents
-
-                # Short-circuit for progress questions: answer deterministically from LMS data.
-                if intent == "progress":
-                    progress_answer, progress_sources = self._build_progress_answer(
-                        message, lms_data, target_course_id
-                    )
-                    total_lms_ms = round(t_deadlines + t_progress + t_contents, 2)
-                    request = await self.logger.create_chat_request(
-                        session_id=session_id,
-                        role=role,
-                        course_id=target_course_id,
-                        difficulty=difficulty,
-                        message=message,
-                        intent=intent,
-                        lms_calls=lms_calls,
-                        rag_filters=rag_filters,
-                    )
-                    await self.logger.create_chat_log(
-                        request_id=request.id,
-                        answer=progress_answer,
-                        sources=progress_sources,
-                        llm_model=None,
-                        prompt_tokens=0,
-                        completion_tokens=0,
-                        total_tokens=0,
-                        latency_ms=total_lms_ms,
-                        error=None,
-                    )
-                    await self.logger.log_analytics_event(
-                        event_type="chat_answer",
-                        session_id=session_id,
-                        course_id=target_course_id,
-                        difficulty=difficulty,
-                        intent=intent,
-                        payload={
-                            "has_lms_data": True,
-                            "rag_chunks": 0,
-                            "llm_status": "short_circuit",
-                            "validated": True,
-                            "timings_ms": timings,
-                        },
-                    )
-                    return {
-                        "answer": progress_answer,
-                        "sources": progress_sources,
-                        "intent": intent,
-                        "model": None,
-                        "latency_ms": total_lms_ms,
-                        "session_id": session_id,
-                        "error": None,
-                    }
-
-                # Short-circuit: if the user asks about deadlines/assignments and there are none.
-                if (
-                    "дедлайн" in message.lower()
-                    or "задание" in message.lower()
-                    or "срок" in message.lower()
-                ) and not deadlines:
-                    no_deadline_answer = (
-                        f"В курсе пока нет опубликованных заданий с дедлайнами. "
-                        "Если вы ожидаете увидеть задание, обратитесь к преподавателю."
-                    )
-                    total_lms_ms = round(t_deadlines + t_progress + t_contents, 2)
-                    request = await self.logger.create_chat_request(
-                        session_id=session_id,
-                        role=role,
-                        course_id=target_course_id,
-                        difficulty=difficulty,
-                        message=message,
-                        intent=intent,
-                        lms_calls=lms_calls,
-                        rag_filters=rag_filters,
-                    )
-                    await self.logger.create_chat_log(
-                        request_id=request.id,
-                        answer=no_deadline_answer,
-                        sources=[],
-                        llm_model=None,
-                        prompt_tokens=0,
-                        completion_tokens=0,
-                        total_tokens=0,
-                        latency_ms=total_lms_ms,
-                        error=None,
-                    )
-                    await self.logger.log_analytics_event(
-                        event_type="chat_answer",
-                        session_id=session_id,
-                        course_id=target_course_id,
-                        difficulty=difficulty,
-                        intent=intent,
-                        payload={
-                            "has_lms_data": bool(lms_data),
-                            "rag_chunks": 0,
-                            "llm_status": "short_circuit",
-                            "validated": True,
-                            "timings_ms": timings,
-                        },
-                    )
-                    return {
-                        "answer": no_deadline_answer,
-                        "sources": [],
-                        "intent": intent,
-                        "model": None,
-                        "latency_ms": total_lms_ms,
-                        "session_id": session_id,
-                        "error": None,
-                    }
-            except Exception as exc:
-                lms_calls.append({"type": "lms_error", "error": str(exc)})
-
-        # Gather RAG context
+            fetch_tasks.append(_fetch_lms_data(target_course_id, user_id))
         if need_rag:
-            try:
-                t_rag = time.perf_counter()
-                rag = RagPipeline()
-                # Difficulty is intentionally not used as a retrieval filter.
-                # Per spec, difficulty adaptation is handled by the prompt/LLM,
-                # while RAG returns all relevant course/context chunks.
-                rag_filters = {
-                    "course_id": course_id,
-                }
-                results = await rag.search(
-                    query=message,
-                    k=config.top_k_retrieval,
-                    course_id=target_course_id,
+            rag_filters = {"course_id": target_course_id}
+            fetch_tasks.append(_fetch_rag_context(
+                query=message,
+                course_id=target_course_id,
+                k=rag_k,
+                threshold=config.rag_distance_threshold or 1.35,
+            ))
+        if fetch_tasks:
+            gathered = await asyncio.gather(*fetch_tasks, return_exceptions=True)
+            for item in gathered:
+                if isinstance(item, Exception):
+                    lms_calls.append({"type": "fetch_error", "error": str(item)})
+                    continue
+                if "data" in item:
+                    lms_data = item["data"]
+                    lms_calls = item["calls"]
+                    for call in lms_calls:
+                        timings[f"lms_{call['type']}_ms"] = call["latency_ms"]
+                if "chunks" in item:
+                    rag_context = item["chunks"]
+                    timings.update(item["timings"])
+
+        if lms_data:
+            lms_errors = lms_data.pop("errors", [])
+            for err in lms_errors:
+                lms_calls.append({"type": f"lms_error_{err['type']}", "error": err["error"]})
+
+            # Short-circuit for progress questions: answer deterministically from LMS data.
+            if intent == "progress":
+                progress_answer, progress_sources = self._build_progress_answer(
+                    message, lms_data, target_course_id
                 )
-                rag_distance_threshold = config.rag_distance_threshold or 1.35
-                rag_context = [
-                    {
-                        "content": r.content,
-                        "metadata": r.metadata,
-                        "distance": r.distance,
-                    }
-                    for r in results
-                    if r.distance is None or r.distance <= rag_distance_threshold
-                ]
-                timings["rag_search_ms"] = round((time.perf_counter() - t_rag) * 1000, 2)
-            except Exception as exc:
-                rag_context = []
-                timings["rag_search_ms"] = round((time.perf_counter() - t_rag) * 1000, 2) if 't_rag' in locals() else 0
+                total_lms_ms = round(
+                    timings.get("lms_deadlines_ms", 0)
+                    + timings.get("lms_progress_ms", 0)
+                    + timings.get("lms_contents_ms", 0),
+                    2,
+                )
+                request = await self.logger.create_chat_request(
+                    session_id=session_id,
+                    role=role,
+                    course_id=target_course_id,
+                    difficulty=difficulty,
+                    message=message,
+                    intent=intent,
+                    lms_calls=lms_calls,
+                    rag_filters=rag_filters,
+                )
+                await self.logger.create_chat_log(
+                    request_id=request.id,
+                    answer=progress_answer,
+                    sources=progress_sources,
+                    llm_model=None,
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    total_tokens=0,
+                    latency_ms=total_lms_ms,
+                    error=None,
+                )
+                await self.logger.log_analytics_event(
+                    event_type="chat_answer",
+                    session_id=session_id,
+                    course_id=target_course_id,
+                    difficulty=difficulty,
+                    intent=intent,
+                    payload={
+                        "has_lms_data": True,
+                        "rag_chunks": 0,
+                        "llm_status": "short_circuit",
+                        "validated": True,
+                        "timings_ms": timings,
+                    },
+                )
+                return {
+                    "answer": progress_answer,
+                    "sources": progress_sources,
+                    "intent": intent,
+                    "model": None,
+                    "latency_ms": total_lms_ms,
+                    "session_id": session_id,
+                    "error": None,
+                }
+
+            # Short-circuit: if the user asks about deadlines/assignments and there are none.
+            deadlines = lms_data.get("deadlines", [])
+            if (
+                ("дедлайн" in message.lower()
+                 or "задание" in message.lower()
+                 or "срок" in message.lower())
+                and not deadlines
+            ):
+                no_deadline_answer = (
+                    "В курсе пока нет опубликованных заданий с дедлайнами. "
+                    "Если вы ожидаете увидеть задание, обратитесь к преподавателю."
+                )
+                total_lms_ms = round(
+                    timings.get("lms_deadlines_ms", 0)
+                    + timings.get("lms_progress_ms", 0)
+                    + timings.get("lms_contents_ms", 0),
+                    2,
+                )
+                request = await self.logger.create_chat_request(
+                    session_id=session_id,
+                    role=role,
+                    course_id=target_course_id,
+                    difficulty=difficulty,
+                    message=message,
+                    intent=intent,
+                    lms_calls=lms_calls,
+                    rag_filters=rag_filters,
+                )
+                await self.logger.create_chat_log(
+                    request_id=request.id,
+                    answer=no_deadline_answer,
+                    sources=[],
+                    llm_model=None,
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    total_tokens=0,
+                    latency_ms=total_lms_ms,
+                    error=None,
+                )
+                await self.logger.log_analytics_event(
+                    event_type="chat_answer",
+                    session_id=session_id,
+                    course_id=target_course_id,
+                    difficulty=difficulty,
+                    intent=intent,
+                    payload={
+                        "has_lms_data": bool(lms_data),
+                        "rag_chunks": 0,
+                        "llm_status": "short_circuit",
+                        "validated": True,
+                        "timings_ms": timings,
+                    },
+                )
+                return {
+                    "answer": no_deadline_answer,
+                    "sources": [],
+                    "intent": intent,
+                    "model": None,
+                    "latency_ms": total_lms_ms,
+                    "session_id": session_id,
+                    "error": None,
+                }
 
         # Short-circuit: if this is a pure study question and no relevant context
         # was found, refuse immediately without calling the LLM.
@@ -741,8 +799,23 @@ class Orchestrator:
             history=history,
         )
 
+        # Choose output token budget by intent/difficulty to reduce generation latency.
+        # The actual limit is clamped to the active config's max_tokens in LLMAdapter.
+        if intent == "organizational":
+            llm_max_tokens = 500
+        elif intent == "study" and difficulty and difficulty.lower() in (
+            "beginner", "начинающий", "базовый"
+        ):
+            llm_max_tokens = 650
+        elif intent == "mixed":
+            llm_max_tokens = 800
+        else:
+            # Advanced study and any other intent: cap below the config default
+            # to keep latency under the NFR ceiling.
+            llm_max_tokens = 750
+
         llm = LLMAdapter(config)
-        llm_result: LlmResponse = await llm.generate(prompt)
+        llm_result: LlmResponse = await llm.generate(prompt, max_tokens=llm_max_tokens)
         timings["llm_generate_ms"] = llm_result.latency_ms or 0
 
         await self.logger.create_llm_call(
@@ -844,9 +917,7 @@ class Orchestrator:
 
         total_latency = round(
             timings.get("intent_detect_ms", 0)
-            + timings.get("lms_deadlines_ms", 0)
-            + timings.get("lms_progress_ms", 0)
-            + timings.get("lms_contents_ms", 0)
+            + max(timings.get("lms_deadlines_ms", 0), timings.get("lms_progress_ms", 0), timings.get("lms_contents_ms", 0))
             + timings.get("rag_search_ms", 0)
             + (llm_result.latency_ms or 0)
             + timings.get("validation_ms", 0),

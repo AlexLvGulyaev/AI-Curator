@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # LLM Provider
     openai_api_key: str = "YOUR_OPENAI_API_KEY"
     openai_model: str = "gpt-4o-mini"
+    openai_model_max_tokens: int = 1024
     openai_embedding_model: str = "text-embedding-3-small"
 
     # Public URLs

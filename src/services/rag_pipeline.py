@@ -1,7 +1,9 @@
 """RAG pipeline: embeddings + Chroma vector search for AI Curator Knowledge Base."""
 
+import hashlib
+import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import chromadb
 from langchain_openai import OpenAIEmbeddings
@@ -27,16 +29,73 @@ class RagPipelineError(Exception):
     pass
 
 
+class _EmbeddingCache:
+    """Simple in-memory LRU cache with TTL for query embeddings."""
+
+    def __init__(self, maxsize: int = 1000, ttl_seconds: float = 300.0):
+        self.maxsize = maxsize
+        self.ttl_seconds = ttl_seconds
+        self._store: Dict[str, Tuple[List[float], float]] = {}
+        self._order: List[str] = []
+
+    def _normalize(self, text: str) -> str:
+        # Stable hash of normalized query text.
+        normalized = " ".join(text.lower().split())
+        return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+    def get(self, text: str) -> Optional[List[float]]:
+        key = self._normalize(text)
+        now = time.monotonic()
+        if key in self._store:
+            vector, expires = self._store[key]
+            if expires > now:
+                # Move to MRU position.
+                self._order.remove(key)
+                self._order.append(key)
+                return vector
+            # Expired: remove below.
+        self._delete(key)
+        return None
+
+    def set(self, text: str, vector: List[float]) -> None:
+        key = self._normalize(text)
+        now = time.monotonic()
+        self._delete(key)
+        self._store[key] = (vector, now + self.ttl_seconds)
+        self._order.append(key)
+        self._evict()
+
+    def _delete(self, key: str) -> None:
+        if key in self._store:
+            del self._store[key]
+        if key in self._order:
+            self._order.remove(key)
+
+    def _evict(self) -> None:
+        now = time.monotonic()
+        # Evict expired entries first.
+        expired = [k for k, (_, exp) in self._store.items() if exp <= now]
+        for k in expired:
+            self._delete(k)
+        # Then evict LRU if still over size.
+        while len(self._store) > self.maxsize and self._order:
+            lru = self._order.pop(0)
+            self._delete(lru)
+
+
 class RagPipeline:
     """Manage embeddings indexing and semantic search over Chroma."""
 
     COLLECTION_NAME = "ai_curator_kb"
+    # Shared process-level cache across pipeline instances.
+    _embedding_cache = _EmbeddingCache(maxsize=1000, ttl_seconds=300.0)
 
     def __init__(
         self,
         embedding_model: str | None = None,
         collection_name: str | None = None,
         client: chromadb.ClientAPI | None = None,
+        embedding_cache: Optional[_EmbeddingCache] = None,
     ):
         self.embedding_model = embedding_model or settings.openai_embedding_model
         self.collection_name = collection_name or self.COLLECTION_NAME
@@ -46,6 +105,7 @@ class RagPipeline:
             api_key=settings.openai_api_key,
         )
         self._collection: chromadb.Collection | None = None
+        self._embedding_cache = embedding_cache or self._embedding_cache
 
     @property
     def collection(self) -> chromadb.Collection:
@@ -180,7 +240,7 @@ class RagPipeline:
         module_id: Optional[int] = None,
         topic_id: Optional[int] = None,
         difficulty: Optional[str] = None,
-    ) -> List[SearchResult]:
+    ) -> tuple[List[SearchResult], Dict[str, float]]:
         """Run semantic search and return ranked chunks."""
         where = self._build_where_filter(
             document_id=document_id,
@@ -191,14 +251,24 @@ class RagPipeline:
             difficulty=difficulty,
         )
 
-        query_embedding = self.embeddings.embed_query(query)
+        # Try process-level embedding cache first to avoid repeated OpenAI API calls.
+        t_embed_start = time.perf_counter()
+        cached = self._embedding_cache.get(query)
+        if cached is not None:
+            query_embedding = cached
+        else:
+            query_embedding = self.embeddings.embed_query(query)
+            self._embedding_cache.set(query, query_embedding)
+        embedding_ms = round((time.perf_counter() - t_embed_start) * 1000, 2)
 
+        t_chroma_start = time.perf_counter()
         results = self.collection.query(
             query_embeddings=[query_embedding],
             n_results=k,
             where=where,
             include=["documents", "metadatas", "distances"],
         )
+        chroma_ms = round((time.perf_counter() - t_chroma_start) * 1000, 2)
 
         output: List[SearchResult] = []
         ids = results.get("ids", [[]])[0]
@@ -216,4 +286,4 @@ class RagPipeline:
                 )
             )
 
-        return output
+        return output, {"embedding_ms": embedding_ms, "chroma_ms": chroma_ms}

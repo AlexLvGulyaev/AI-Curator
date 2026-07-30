@@ -51,7 +51,7 @@ async def search(
 ):
     """Run semantic search over indexed Knowledge Base chunks."""
     try:
-        results: List[SearchResult] = await rag.search(
+        results, _search_timings = await rag.search(
             query=payload.query,
             k=payload.k,
             document_id=payload.document_id,

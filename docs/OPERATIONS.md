@@ -76,6 +76,38 @@
 
 Аналитика читается из PostgreSQL: таблицы `chat_requests`, `chat_logs`, `analytics_events`.
 
+### 4.1. Мониторинг latency
+
+Каждый chat-ответ записывает полную разбивку latency в `analytics_events.payload.timings_ms`:
+
+| Метрика | Компонент | Целевое значение |
+|---------|-----------|------------------|
+| `intent_detect_ms` | Классификация | < 10 мс |
+| `lms_deadlines_ms` / `lms_progress_ms` / `lms_contents_ms` | LMS Adapter | параллельно, сумма не критична; каждый < 3 сек |
+| `rag_embedding_ms` | RAG embedding (кэш или OpenAI) | < 1000 мс холодный, < 10 мс из кэша |
+| `rag_chroma_ms` | Chroma query | < 500 мс |
+| `rag_postprocess_ms` | Фильтрация + дедупликация | < 50 мс |
+| `llm_generate_ms` | LLM generation | < 4000 мс (зависит от `max_tokens`) |
+| `validation_ms` | Answer Validator | < 200 мс |
+
+Общая latency отчитывается в `chat_logs.latency_ms` и в ответе API как `latency_ms`.
+
+### 4.2. Профилирование вручную
+
+Для замера latency на живом backend выполните изнутри контейнера:
+
+```bash
+docker exec ai-curator-backend python /app/scripts/profile_latency.py
+```
+
+Скрипт делает 5 вызовов по 6 сценариям (30 запросов) и выводит p50/mean/max.
+
+### 4.3. SLO и NFR
+
+- **NFR-1:** p50 latency на типовых chat-сценариях ≤ **5 секунд**.
+- **SLO:** p95 ≤ 8 сек для холодного старта.
+- **Профилирование Sprint 4 (2026-07-30):** все сценарии уложились в 5 сек; максимальный measured latency — 3547 мс (`study_basic`, холодный старт).
+
 ---
 
 ## 5. Мониторинг
@@ -113,6 +145,19 @@
 | `ARCHIVE_DIR` | Путь к локальному архиву логов (по умолчанию `./storage/archives`) |
 | `HOT_RETENTION_DAYS` | Срок хранения логов в PostgreSQL (по умолчанию 30) |
 | `TRACE_RETENTION_DAYS` | Срок хранения полных prompt/response traces (по умолчанию 7) |
+| `OPENAI_MODEL_MAX_TOKENS` | Fallback max output tokens для LLM (по умолчанию 1024) |
+
+### AI Config tuning для latency
+
+В Admin Console можно влиять на latency через параметры активной конфигурации:
+
+| Параметр | Влияние на latency | Рекомендация |
+|----------|-------------------|--------------|
+| `max_tokens` | Жёсткий потолок длины ответа LLM | 512–1024 для chat; выше — медленнее |
+| `top_k_retrieval` | Сколько RAG-чанков попадает в prompt | Для chat переопределяется кодом до 3; для Admin оставить 5 |
+| `rag_distance_threshold` | Фильтр шумных чанков | 1.35 по умолчанию; уменьшение ускоряет, но может снизить recall |
+| `system_prompt` + `output_rules` | Размер prompt | Избыточный текст увеличивает prompt tokens и latency |
+| `max_history_messages` | Длина истории в prompt | Меньше сообщений — меньше токенов |
 
 ---
 
@@ -147,4 +192,5 @@ asyncio.run(main())
 | Дата | Версия | Изменения |
 |------|--------|-----------|
 | 2026-07-30 | 1.0 | Создан документ |
-| 2026-07-30 | 1.1 | Добавлены расширенные параметры AI Config, retention и архивирование логов |
+ | 2026-07-30 | 1.1 | Добавлены расширенные параметры AI Config, retention и архивирование логов |
+| 2026-07-30 | 1.2 | Добавлен раздел мониторинга latency: метрики из `analytics_events`, ручное профилирование через `scripts/profile_latency.py`, SLO/NFR, AI Config tuning для latency |
