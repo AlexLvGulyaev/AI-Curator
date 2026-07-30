@@ -107,6 +107,15 @@ class Orchestrator:
         data = progress.model_dump() if hasattr(progress, "model_dump") else dict(progress)
         return data
 
+    @staticmethod
+    def _format_course_contents(contents: List[Any]) -> List[Dict[str, Any]]:
+        """Convert CourseModule models to plain dicts with formatted fields."""
+        result = []
+        for item in contents:
+            data = item.model_dump() if hasattr(item, "model_dump") else dict(item)
+            result.append(data)
+        return result
+
     async def process(
         self,
         message: str,
@@ -138,13 +147,16 @@ class Orchestrator:
                 start = __import__("time").perf_counter()
                 deadlines = await lms_adapter.get_course_deadlines(course_id)
                 progress = await lms_adapter.get_user_course_progress(course_id, user_id=3)
+                contents = await lms_adapter.get_course_contents(course_id)
                 elapsed = round((__import__("time").perf_counter() - start) * 1000, 2)
                 lms_data = {
                     "deadlines": self._format_deadlines(deadlines),
                     "progress": self._format_progress(progress),
+                    "contents": self._format_course_contents(contents),
                 }
                 lms_calls.append({"type": "deadlines", "course_id": course_id, "latency_ms": elapsed})
                 lms_calls.append({"type": "progress", "course_id": course_id, "user_id": 3, "latency_ms": elapsed})
+                lms_calls.append({"type": "contents", "course_id": course_id, "module_count": len(contents), "latency_ms": elapsed})
             except Exception as exc:
                 lms_calls.append({"type": "lms_error", "error": str(exc)})
 
@@ -217,13 +229,22 @@ class Orchestrator:
 
         # Build sources
         sources: List[Dict[str, Any]] = []
-        if lms_data and lms_data.get("deadlines"):
-            for d in lms_data["deadlines"][:5]:
-                sources.append({
-                    "type": "lms",
-                    "title": d.get("name", "Задание LMS"),
-                    "url": d.get("url"),
-                })
+        if lms_data:
+            if lms_data.get("contents"):
+                for item in lms_data["contents"][:10]:
+                    sources.append({
+                        "type": "lms",
+                        "title": item.get("name") or "Материал курса",
+                        "url": item.get("url"),
+                        "module": item.get("section_name"),
+                    })
+            elif lms_data.get("deadlines"):
+                for d in lms_data["deadlines"][:5]:
+                    sources.append({
+                        "type": "lms",
+                        "title": d.get("name", "Задание LMS"),
+                        "url": d.get("url"),
+                    })
         for chunk in rag_context[:5]:
             meta = chunk.get("metadata", {})
             doc_id = meta.get("document_id")
