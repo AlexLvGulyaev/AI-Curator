@@ -1,5 +1,6 @@
 """AI Curator backend entry point."""
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile
@@ -8,18 +9,52 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.v1 import api_v1_router
 from api.v1.health import router as health_router
 from config import settings
-from db import engine
+from db import async_session_factory, engine
 from models.base import Base
+from services.logger import LoggerService
+
+
+async def _retention_cleanup_loop():
+    """Periodically archive and delete old logs from hot storage."""
+    while True:
+        try:
+            await asyncio.sleep(24 * 60 * 60)  # once per day
+            async with async_session_factory() as db:
+                logger = LoggerService(db)
+                deleted = await logger.cleanup_old_records(
+                    archive_dir=settings.archive_dir,
+                    hot_retention_days=settings.hot_retention_days,
+                    trace_retention_days=settings.trace_retention_days,
+                )
+                # Log the cleanup itself as an audit event.
+                await logger.log_audit(
+                    action="retention_cleanup",
+                    resource_type="system",
+                    user_id="system",
+                    user_role="system",
+                    details=deleted,
+                )
+        except Exception:
+            # Cleanup must never crash the main application.
+            await asyncio.sleep(60 * 60)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: create tables on startup (dev helper)."""
+    """Application lifespan: create tables on startup and run background jobs."""
     if not settings.is_production:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-    yield
-    await engine.dispose()
+    cleanup_task = asyncio.create_task(_retention_cleanup_loop())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
+        await engine.dispose()
 
 
 app = FastAPI(

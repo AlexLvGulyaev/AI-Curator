@@ -1,6 +1,6 @@
 """Chat and logging SQLAlchemy models for AI Curator."""
 
-from sqlalchemy import Column, Float, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base
@@ -46,15 +46,27 @@ class ChatLog(Base):
     request: Mapped["ChatRequest"] = relationship(back_populates="logs")
 
 
-class LlmCall(Base):
-    """Detailed log of every LLM API call."""
+class LlmCallTrace(Base):
+    """Full prompt/response trace for an LLM call with short retention."""
 
-    __tablename__ = "llm_calls"
+    __tablename__ = "llm_call_traces"
 
+    id = Column(Integer, primary_key=True)
     request_id = Column(Integer, ForeignKey("chat_requests.id", ondelete="SET NULL"), nullable=True, index=True)
     model = Column(String(100), nullable=False)
     prompt = Column(Text, nullable=True)
     response = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class LlmCall(Base):
+    """Metadata log of every LLM API call. Full content is stored in LlmCallTrace."""
+
+    __tablename__ = "llm_calls"
+
+    request_id = Column(Integer, ForeignKey("chat_requests.id", ondelete="SET NULL"), nullable=True, index=True)
+    trace_id = Column(Integer, ForeignKey("llm_call_traces.id", ondelete="SET NULL"), nullable=True, index=True)
+    model = Column(String(100), nullable=False)
     prompt_tokens = Column(Integer, nullable=True)
     completion_tokens = Column(Integer, nullable=True)
     total_tokens = Column(Integer, nullable=True)

@@ -24,6 +24,9 @@ AsyncSessionLocal = sessionmaker(
     autocommit=False,
 )
 
+# Factory alias used by background tasks.
+async_session_factory = AsyncSessionLocal
+
 
 async def get_db() -> AsyncSession:
     """Yield an async database session for FastAPI dependency injection."""

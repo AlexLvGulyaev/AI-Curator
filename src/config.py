@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     # Admin Console authentication
     admin_console_token: str = ""
 
+    # Log retention and archiving
+    archive_dir: str = "./storage/archives"
+    hot_retention_days: int = 30
+    trace_retention_days: int = 7
+
     @property
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"

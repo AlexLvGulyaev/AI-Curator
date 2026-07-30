@@ -32,17 +32,14 @@ class PromptBuilder:
         if role:
             context_lines.append(f"Роль студента: {role}.")
         if difficulty:
-            if difficulty.lower() in ("beginner", "начинающий", "базовый"):
+            lower = difficulty.lower()
+            if lower in ("beginner", "начинающий", "базовый"):
                 context_lines.append(
-                    "Уровень подготовки: beginner. "
-                    "Объясняй простыми словами, избегай жаргона, давай конкретные примеры, "
-                    "используй аналогии. Не углубляйся в технические детали."
+                    (self.config.beginner_instructions or "Уровень подготовки: beginner.").strip()
                 )
-            elif difficulty.lower() in ("advanced", "продвинутый", "углублённый"):
+            elif lower in ("advanced", "продвинутый", "углублённый"):
                 context_lines.append(
-                    "Уровень подготовки: advanced. "
-                    "Давай углублённый ответ: детали реализации, edge cases, сравнения подходов, "
-                    "практические нюансы. Примеры должны быть более техническими."
+                    (self.config.advanced_instructions or "Уровень подготовки: advanced.").strip()
                 )
             else:
                 context_lines.append(f"Уровень подготовки: {difficulty}.")
@@ -60,17 +57,17 @@ class PromptBuilder:
             parts.append(self._format_rag_context(rag_context))
 
         # Few-shot examples
-        parts.append(self._few_shot_examples())
+        parts.append(self.config.few_shot_examples or self._few_shot_examples())
 
         # Conversation history (shortened)
         if history:
-            parts.append(self._format_history(history))
+            parts.append(self._format_history(history, max_messages=self.config.max_history_messages or 6))
 
         # User question
         parts.append(f"Вопрос студента:\n{message}")
 
         # Output rules
-        parts.append(self._output_rules())
+        parts.append(self.config.output_rules or self._output_rules())
 
         return "\n\n---\n\n".join(parts)
 
@@ -136,9 +133,9 @@ class PromptBuilder:
 Неправильно: Это когда ты хакер и ломаешь нейросеть."""
 
     @staticmethod
-    def _format_history(history: List[Dict[str, str]]) -> str:
+    def _format_history(history: List[Dict[str, str]], max_messages: int = 6) -> str:
         lines = ["История диалога (последние сообщения):"]
-        for entry in history[-6:]:
+        for entry in history[-max_messages:]:
             speaker = "Студент" if entry.get("role") == "user" else "AI Curator"
             lines.append(f"{speaker}: {entry.get('content', '')}")
         return "\n".join(lines)

@@ -40,6 +40,13 @@ class AiConfigIn(BaseModel):
     temperature: float = Field(0.3, ge=0.0, le=2.0)
     max_tokens: int = Field(1024, ge=1, le=4096)
     top_k_retrieval: int = Field(5, ge=1, le=20)
+    rag_distance_threshold: float = Field(1.35, ge=0.0, le=10.0)
+    beginner_instructions: Optional[str] = None
+    advanced_instructions: Optional[str] = None
+    few_shot_examples: Optional[str] = None
+    output_rules: Optional[str] = None
+    refusal_answer_text: Optional[str] = None
+    max_history_messages: int = Field(6, ge=0, le=50)
 
 
 class AiConfigOut(BaseModel):
@@ -53,6 +60,13 @@ class AiConfigOut(BaseModel):
     temperature: float
     max_tokens: int
     top_k_retrieval: int
+    rag_distance_threshold: float
+    beginner_instructions: Optional[str]
+    advanced_instructions: Optional[str]
+    few_shot_examples: Optional[str]
+    output_rules: Optional[str]
+    refusal_answer_text: Optional[str]
+    max_history_messages: int
     is_active: bool
     created_by: Optional[str]
     created_at: datetime
@@ -86,6 +100,13 @@ async def create_config(
         temperature=payload.temperature,
         max_tokens=payload.max_tokens,
         top_k_retrieval=payload.top_k_retrieval,
+        rag_distance_threshold=payload.rag_distance_threshold,
+        beginner_instructions=payload.beginner_instructions,
+        advanced_instructions=payload.advanced_instructions,
+        few_shot_examples=payload.few_shot_examples,
+        output_rules=payload.output_rules,
+        refusal_answer_text=payload.refusal_answer_text,
+        max_history_messages=payload.max_history_messages,
         created_by="admin",
     )
     await _log_audit("create", config.id, service.db)
