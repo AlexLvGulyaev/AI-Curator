@@ -50,13 +50,14 @@
 
 ### 3.1. Просмотр активной конфигурации
 
-Раздел **AI Configuration** показывает активную версию: модель, temperature, max_tokens, top_k_retrieval, system_prompt.
+Раздел **AI Configuration** показывает активную версию: модель, temperature, max_tokens, top_k_retrieval, rag_distance_threshold, system_prompt, beginner/advanced instructions, few-shot examples, output rules, refusal answer text, max_history_messages.
 
 ### 3.2. Создание новой версии
 
 1. Введите название версии.
-2. Отредактируйте system_prompt, модель и параметры.
-3. Нажмите **Создать новую версию**.
+2. Отредактируйте `system_prompt`, модель, температуру, лимит токенов и параметры retrieval (`top_k_retrieval`, `rag_distance_threshold`).
+3. При необходимости измените тексты для beginner/advanced уровня, few-shot примеры, output rules и текст стандартного отказа.
+4. Нажмите **Создать новую версию**.
 
 ### 3.3. Активация версии
 
@@ -109,11 +110,41 @@
 | `DATABASE_URL` | URL подключения к PostgreSQL |
 | `CHROMA_HOST` / `CHROMA_PORT` | Подключение к Chroma |
 | `WEB_UI_URL` / `ADMIN_CONSOLE_URL` | Публичные URL для CORS |
+| `ARCHIVE_DIR` | Путь к локальному архиву логов (по умолчанию `./storage/archives`) |
+| `HOT_RETENTION_DAYS` | Срок хранения логов в PostgreSQL (по умолчанию 30) |
+| `TRACE_RETENTION_DAYS` | Срок хранения полных prompt/response traces (по умолчанию 7) |
 
 ---
 
-## 8. История изменений
+## 8. Retention и архивы
+
+Старые логи автоматически архивируются и удаляются из PostgreSQL фоновым процессом Backend.
+
+Проверить последний cleanup:
+
+```bash
+docker exec ai-curator-backend ls -la /app/storage/archives/
+```
+
+Вручную запустить cleanup (для отладки):
+
+```bash
+docker exec ai-curator-backend python3 -c "
+import asyncio
+from db import async_session_factory
+from services.logger import LoggerService
+async def main():
+    async with async_session_factory() as db:
+        logger = LoggerService(db)
+        deleted = await logger.cleanup_old_records('/app/storage/archives')
+        print(deleted)
+asyncio.run(main())
+"
+```
+
+## 9. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
 | 2026-07-30 | 1.0 | Создан документ |
+| 2026-07-30 | 1.1 | Добавлены расширенные параметры AI Config, retention и архивирование логов |

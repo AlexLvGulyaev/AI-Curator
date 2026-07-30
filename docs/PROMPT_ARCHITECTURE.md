@@ -21,10 +21,11 @@
 | User Context | Параметры запроса | Роль студента, уровень сложности, course_id |
 | LMS Data | LMS Adapter | Дедлайны, задания, прогресс |
 | RAG Context | RAG Pipeline | Топ-K фрагментов Knowledge Base |
-| Few-shot | `PromptBuilder._few_shot_examples()` | Корректные и некорректные примеры ответов |
-| Conversation History | Параметр `history` | Последние 6 сообщений диалога |
+| Few-shot | `ai_config.few_shot_examples` | Корректные и некорректные примеры ответов |
+| Conversation History | Параметр `history` | Последние N сообщений диалога (задаётся `ai_config.max_history_messages`) |
 | User Question | Параметр `message` | Вопрос студента |
-| Output Rules | `PromptBuilder._output_rules()` | Требования к формату, источникам, отказу |
+| Output Rules | `ai_config.output_rules` | Требования к формату, источникам, отказу |
+| Refusal Answer | `ai_config.refusal_answer_text` | Текст стандартного отказа на запрещённые действия |
 
 ---
 
@@ -59,6 +60,8 @@
 Контекст студента:
 Роль студента: {role}.
 Уровень подготовки: {difficulty}.
+{ai_config.beginner_instructions}  # для beginner
+{ai_config.advanced_instructions}  # для advanced
 Курс ID: {course_id}.
 ```
 
@@ -113,16 +116,23 @@
 
 ---
 
-## 9. Параметры LLM
+## 9. Параметры LLM и Retrieval
 
 Активная конфигурация определяет:
 
-| Параметр | Значение по умолчанию | Диапазон |
-|----------|----------------------|----------|
-| `model` | `gpt-4o-mini` | строка |
-| `temperature` | `0.3` | 0.0–2.0 |
-| `max_tokens` | `1024` | 1–4096 |
-| `top_k_retrieval` | `5` | 1–20 |
+| Параметр | Значение по умолчанию | Диапазон | Назначение |
+|----------|----------------------|----------|------------|
+| `model` | `gpt-4o-mini` | строка | Модель LLM |
+| `temperature` | `0.3` | 0.0–2.0 | Творческая вариативность |
+| `max_tokens` | `1024` | 1–4096 | Максимальная длина ответа |
+| `top_k_retrieval` | `5` | 1–20 | Количество фрагментов KB для RAG |
+| `rag_distance_threshold` | `1.35` | 0.0–10.0 | Порог cosine distance для отсечения нерелевантных чанков |
+| `max_history_messages` | `6` | 0–50 | Сколько сообщений истории включать в промпт |
+| `beginner_instructions` | (default text) | строка | Инструкции для ответа начинающему |
+| `advanced_instructions` | (default text) | строка | Инструкции для углублённого ответа |
+| `few_shot_examples` | (default text) | строка | Few-shot примеры |
+| `output_rules` | (default text) | строка | Правила оформления ответа |
+| `refusal_answer_text` | (default text) | строка | Текст отказа на запрещённые действия |
 
 ---
 
@@ -142,3 +152,4 @@
 | Дата | Версия | Изменения |
 |------|--------|-----------|
 | 2026-07-30 | 1.0 | Создан документ: структура промпта, system prompt, few-shot, output rules, параметры LLM |
+| 2026-07-30 | 1.1 | Все части промпта, кроме форматирования LMS/RAG данных, параметризованы через `AiConfig` |

@@ -552,6 +552,24 @@
 | `POST` | `/api/v1/admin/ai-config` | Создать новую версию конфигурации |
 | `POST` | `/api/v1/admin/ai-config/{id}/activate` | Активировать версию |
 
+**Поля конфигурации (`POST /api/v1/admin/ai-config`):**
+
+| Поле | Тип | Обязательное | Описание |
+|------|-----|--------------|----------|
+| `name` | string | ✅ | Название версии |
+| `system_prompt` | string | ✅ | System prompt |
+| `model` | string | — | Модель LLM, по умолчанию `gpt-4o-mini` |
+| `temperature` | float | — | 0.0–2.0, по умолчанию 0.3 |
+| `max_tokens` | int | — | 1–4096, по умолчанию 1024 |
+| `top_k_retrieval` | int | — | 1–20, по умолчанию 5 |
+| `rag_distance_threshold` | float | — | 0.0–10.0, по умолчанию 1.35 |
+| `beginner_instructions` | string | — | Инструкции для уровня beginner |
+| `advanced_instructions` | string | — | Инструкции для уровня advanced |
+| `few_shot_examples` | string | — | Few-shot примеры |
+| `output_rules` | string | — | Правила оформления ответа |
+| `refusal_answer_text` | string | — | Текст стандартного отказа |
+| `max_history_messages` | int | — | 0–50, по умолчанию 6 |
+
 ### 4.2. Analytics
 
 | Метод | Endpoint | Описание |
@@ -739,3 +757,4 @@
 | 2026-07-29 | 1.2 | Добавлены RAG endpoints: `/process`, `/rag/search` |
 | 2026-07-29 | 1.3 | Добавлен раздел Web UI, обновлено допущение по Chroma v2 |
 | 2026-07-30 | 1.4 | Добавлен `POST /api/v1/chat`, административные endpoints (AI-config, analytics, monitoring, audit), разделы Web UI и Admin Console, авторизация admin |
+| 2026-07-30 | 1.5 | Расширены поля AI Configuration; добавлена структура analytics payload с `timings_ms` |

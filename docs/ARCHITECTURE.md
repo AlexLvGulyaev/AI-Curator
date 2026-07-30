@@ -22,6 +22,7 @@ AI Curator — самостоятельная подсистема образо�
 - **Web UI AI Curator** — отдельный публичный сервис на VPS, доступный по собственному HTTPS.
 - **Пользовательские интерфейсы не обращаются напрямую** к LMS, Knowledge Base, векторному индексу или LLM.
 - **Векторный индекс** — производное хранилище, восстанавливаемое из документов Knowledge Base.
+- **Параметры промптов и retrieval** (system prompt, output rules, few-shot, distance threshold, top-k и др.) управляются через Admin Console и таблицу `ai_configs`, а не захардкожены в коде.
 
 ---
 
@@ -459,19 +460,35 @@ flowchart TB
 
 ### 12.1. Что логируется
 
-| Событие | Данные | Хранение |
-|---------|--------|----------|
-| Запрос студента | Текст, session_id, курс, уровень | PostgreSQL |
-| Классификация | Тип запроса, уверенность | PostgreSQL |
-| LMS call | Endpoint, статус, latency | PostgreSQL |
-| RAG query | Запрос, фильтры, найденные фрагменты | PostgreSQL |
-| LLM call | Модель, задержка, статус | PostgreSQL |
-| Ответ AI | Текст, источники, модель | PostgreSQL |
-| Оценка полезности | Оценка, комментарий | PostgreSQL |
-| Административное действие | Действие, пользователь, изменения | PostgreSQL Audit Log |
-| Ошибка | Тип, трассировка, контекст | PostgreSQL |
+| Событие | Данные | Хранение | Retention |
+|---------|--------|----------|-----------|
+| Запрос студента | Текст, session_id, курс, уровень, lms_calls, rag_filters | PostgreSQL `chat_requests` | 30 дней в hot storage |
+| Классификация | Тип запроса | PostgreSQL `chat_requests.intent` | 30 дней |
+| LMS call | Endpoint, статус, latency | PostgreSQL `chat_requests.lms_calls` | 30 дней |
+| RAG query | Запрос, фильтры, количество чанков | PostgreSQL `analytics_events` | 30 дней |
+| LLM call metadata | Модель, токены, задержка, статус, trace_id | PostgreSQL `llm_calls` | 30 дней |
+| LLM call trace | Полный prompt и response | PostgreSQL `llm_call_traces` | 7 дней |
+| Ответ AI | Текст, источники, модель | PostgreSQL `chat_logs` | 30 дней |
+| Latency trace | Разбивка по компонентам (intent, LMS, RAG, LLM, validation) | PostgreSQL `analytics_events.payload.timings_ms` | 30 дней |
+| Оценка полезности | Оценка, комментарий | PostgreSQL `chat_logs.feedback_score` | 30 дней |
+| Административное действие | Действие, пользователь, изменения | PostgreSQL `audit_logs` | 30 дней |
+| Ошибка | Тип, трассировка, контекст | PostgreSQL `chat_logs.error` | 30 дней |
 
-### 12.2. Аналитика
+### 12.2. Retention и архивирование
+
+Hot storage PostgreSQL хранит логи 30 дней. Полные prompt/response (`llm_call_traces`) хранятся 7 дней.
+
+Фоновый cleanup job (`main.py::_retention_cleanup_loop`) раз в сутки:
+1. Экспортирует устаревшие записи в gzip-архивы (`jsonl.gz`) в `archive_dir`.
+2. Загружает записи в локальное хранилище `/app/storage/archives/` (по умолчанию).
+3. Удаляет устаревшие записи из PostgreSQL.
+
+Путь и сроки retention настраиваются переменными окружения:
+- `ARCHIVE_DIR`
+- `HOT_RETENTION_DAYS` (по умолчанию 30)
+- `TRACE_RETENTION_DAYS` (по умолчанию 7)
+
+### 12.3. Аналитика
 
 Admin Console отображает:
 
@@ -481,7 +498,7 @@ Admin Console отображает:
 - вопросы без ответа;
 - использованные источники;
 - оценку полезности;
-- задержку обработки;
+- задержку обработки (общая и по компонентам из `analytics_events.payload.timings_ms`);
 - ошибки;
 - динамику обращений по курсам и модулям.
 
@@ -545,3 +562,4 @@ Admin Console отображает:
 | 2026-07-29 | 2.0 | Пересоздан ARCHITECTURE.md на основе AI_CURATOR_SYSTEM_SPECIFICATION.md: C4 Context/Container/Component диаграммы, Runtime Sequence, Data Flow, Deployment, разделение LMS и Knowledge Base, Backend как единый оркестратор |
 | 2026-07-29 | 2.0 (Approved) | Документ согласован куратором. Статус изменён на Approved. Исправлено архитектурное противоречие: RAG Pipeline не обращается к LLM напрямую, единственный вызов модели выполняется через LLM Adapter. |
 | 2026-07-29 | 1.0 | Первая версия ARCHITECTURE.md |
+| 2026-07-30 | 2.1 | Добавлены разделы retention и архивирования логов; параметризация промптов через `ai_configs`; детальная разбивка latency в analytics events |

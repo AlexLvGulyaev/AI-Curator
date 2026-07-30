@@ -47,8 +47,8 @@ Admin Console использует статический Bearer-токен из
 | `KbDocuments.jsx` | `src/components/KbDocuments.jsx` | Список документов KB |
 | `KbDocumentUpload.jsx` | `src/components/KbDocumentUpload.jsx` | Загрузка нового документа |
 | `KbDocumentDetail.jsx` | `src/components/KbDocumentDetail.jsx` | Карточка документа, версии, обработка |
-| `AiConfig.jsx` | `src/components/AiConfig.jsx` | Управление конфигурацией AI |
-| `Analytics.jsx` | `src/components/Analytics.jsx` | Графики и метрики |
+| `AiConfig.jsx` | `src/components/AiConfig.jsx` | Управление версионированной конфигурацией AI: system prompt, retrieval params, prompt parts |
+| `Analytics.jsx` | `src/components/Analytics.jsx` | Графики и метрики, включая разбивку latency по компонентам |
 | `AuditLog.jsx` | `src/components/AuditLog.jsx` | Журнал аудита |
 | `useAuth.js` | `src/hooks/useAuth.js` | Хранение токена |
 | `backend.js` | `src/api/backend.js` | HTTP-клиент для admin API |
@@ -95,8 +95,26 @@ docker compose up -d --build ai-curator-admin-console
 
 ---
 
-## 8. История изменений
+## 8. AI Configuration — детали
+
+Раздел **AI Configuration** позволяет управлять активной версией конфигурации LLM и retrieval.
+
+Редактируемые поля:
+- `system_prompt` — роль и правила AI Curator;
+- `model`, `temperature`, `max_tokens` — параметры LLM;
+- `top_k_retrieval` — сколько чанков KB запрашивать у Chroma;
+- `rag_distance_threshold` — порог cosine distance для отсечения нерелевантных чанков;
+- `beginner_instructions` / `advanced_instructions` — инструкции по уровню сложности;
+- `few_shot_examples` — корректные/некорректные примеры ответов;
+- `output_rules` — правила оформления ответа, источников, отказа;
+- `refusal_answer_text` — текст отказа на запросы об оценках/дедлайнах;
+- `max_history_messages` — количество сообщений истории в промпте.
+
+Каждая новая версия создаётся неактивной; активация производится отдельной кнопкой.
+
+## 9. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
 | 2026-07-30 | 1.0 | Создан документ |
+| 2026-07-30 | 1.1 | Добавлено описание расширенной AI Configuration и latency traces в Analytics |

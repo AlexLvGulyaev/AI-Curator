@@ -38,6 +38,11 @@ ADMIN_CONSOLE_TOKEN=YOUR_RANDOM_HEX_TOKEN_64_CHARS
 # Web UI
 WEB_UI_URL=https://curator.alex-n8n.site
 
+# Log retention and archiving
+ARCHIVE_DIR=/app/storage/archives
+HOT_RETENTION_DAYS=30
+TRACE_RETENTION_DAYS=7
+
 # Moodle (only if the embedded LMS stack is used)
 MOODLE_DB_USER=moodle
 MOODLE_DB_PASSWORD=YOUR_MOODLE_DB_PASSWORD
@@ -137,6 +142,7 @@ docker compose up -d ai-curator-backend
 | Study questions return refusal after restart | Chroma volume mounted to wrong path, data lost on container recreation | Ensure `/data` mount. Re-upload and re-index documents if data was lost. |
 | Course 4+ deadlines missing | Service token lacks `mod_assign_get_assignments` capability | Use the fallback behavior or enroll the token user in the course. |
 | Admin Console returns 401 | `ADMIN_CONSOLE_TOKEN` mismatch | Check `.env` and restart backend. |
+| `/app/storage/archives` grows too large | Logs are archived but never removed from disk | Configure logrotate or scheduled cleanup on the Docker host. |
 
 ## Validation checklist
 
