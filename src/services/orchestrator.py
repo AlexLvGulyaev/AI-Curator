@@ -45,6 +45,8 @@ class Orchestrator:
         "прогресс",
         "оценка",
         "оценки",
+        "зачёт",
+        "зачет",
         "сколько осталось",
         "сколько",
         "количество",
@@ -58,6 +60,10 @@ class Orchestrator:
         "темы курса",
         "содержание",
         "структура",
+        "расписание",
+        "перенеси",
+        "продли",
+        "измени",
     ]
     STUDY_KEYWORDS = [
         "лекция",
@@ -74,6 +80,21 @@ class Orchestrator:
         "опиши",
         "в чем суть",
         "из чего состоит",
+        "разница",
+        "сравни",
+        "примеры",
+    ]
+    PROGRESS_KEYWORDS = [
+        "прошёл",
+        "прошел",
+        "завершил",
+        "сдал",
+        "выполнил",
+        "уже сделал",
+        "мой прогресс",
+        "мои результаты",
+        "какие модули",
+        "какие задания",
     ]
 
     def __init__(self, db: AsyncSession):
@@ -190,8 +211,13 @@ class Orchestrator:
     def detect_intent(message: str) -> str:
         """Classify message intent."""
         lower = message.lower()
+        is_progress = any(kw in lower for kw in Orchestrator.PROGRESS_KEYWORDS)
         is_org = any(kw in lower for kw in Orchestrator.ORG_KEYWORDS)
         is_study = any(kw in lower for kw in Orchestrator.STUDY_KEYWORDS)
+        # Progress questions often overlap with organizational keywords (module/assignment).
+        # Treat them as a dedicated intent so we can answer from LMS progress directly.
+        if is_progress:
+            return "progress"
         if is_org and is_study:
             return "mixed"
         if is_org:
@@ -229,6 +255,101 @@ class Orchestrator:
             data = item.model_dump() if hasattr(item, "model_dump") else dict(item)
             result.append(data)
         return result
+
+    @staticmethod
+    def _build_progress_answer(
+        message: str,
+        lms_data: Dict[str, Any],
+        course_id: int,
+    ) -> tuple[str, List[Dict[str, Any]]]:
+        """Build a deterministic answer for progress-related questions."""
+        progress = lms_data.get("progress", {}) or {}
+        contents = lms_data.get("contents", []) or []
+        completion_status = progress.get("completion_status", "in_progress")
+
+        # Collect unique module names from course contents (section names).
+        # Skip generic section 0 names that duplicate module names (e.g. "Основы"
+        # vs "Модуль 1. Основы").
+        raw_sections: List[str] = []
+        seen_sections: set = set()
+        for item in contents:
+            section = (item.get("section_name") or "").strip()
+            if not section or section in seen_sections:
+                continue
+            seen_sections.add(section)
+            raw_sections.append(section)
+
+        # Drop sections that are substrings of a more specific module section.
+        modules: List[str] = []
+        lower_all = [s.lower() for s in raw_sections]
+        for section in raw_sections:
+            lower = section.lower()
+            if lower in ("общее", "general"):
+                continue
+            if any(other != lower and lower in other for other in lower_all):
+                continue
+            modules.append(section)
+
+        # Grade items for assignments.
+        grade_items = progress.get("grade_items", []) or []
+        assignments = [gi for gi in grade_items if gi.get("item_module") == "assign"]
+        graded = [gi for gi in assignments if gi.get("grade_raw") is not None]
+
+        # Overall grade summary.
+        grade = progress.get("overall_grade_formatted")
+        grade_line = f" Общая оценка: {grade}." if grade and grade != "-" else ""
+
+        lower_message = message.lower()
+        asks_modules = any(kw in lower_message for kw in ("модуль", "модули", "прошёл", "прошел", "завершил"))
+        asks_assignments = any(kw in lower_message for kw in ("задание", "задания", "сдал", "выполнил"))
+
+        # Lead with concrete completed assignments when available,
+        # because that is more informative than a vague "in_progress" status.
+        if graded:
+            body = "Вы уже сдали:\n" + "\n".join(
+                f"- {gi.get('name', 'Задание')}: {gi.get('grade_formatted') or gi.get('gradeformatted', '-')}" for gi in graded
+            )
+        elif completion_status == "completed":
+            body = f"Вы завершили курс.{grade_line}"
+        elif completion_status == "no_data":
+            body = "У меня нет данных о вашем прогрессе в этом курсе."
+        else:
+            body = f"Вы пока находитесь в процессе прохождения курса.{grade_line}"
+
+        # List modules when asked.
+        if asks_modules and modules:
+            body += "\n\nМодули курса:\n" + "\n".join(f"- {m}" for m in modules[:20])
+
+        # List graded assignments explicitly when asked, if not already shown.
+        if asks_assignments and not graded:
+            if assignments:
+                body += "\n\nСданные задания:\n" + "\n".join(
+                    f"- {gi.get('name', 'Задание')}: {gi.get('grade_formatted') or gi.get('gradeformatted', '-')}" for gi in assignments
+                )
+            else:
+                body += "\n\nПока нет сданных заданий с выставленной оценкой."
+
+        # Build sources: only unique course modules referenced in the answer.
+        # Use the deduplicated `modules` list so generic section 0 names are excluded.
+        sources: List[Dict[str, Any]] = []
+        seen_source_sections: set = set()
+        # Pick a representative URL for each module from the first matching content item.
+        module_url_map: Dict[str, Optional[str]] = {}
+        for item in contents:
+            section = (item.get("section_name") or "").strip()
+            if section in modules and section not in module_url_map:
+                module_url_map[section] = item.get("url")
+
+        for section in modules:
+            if section and section in body and section not in seen_source_sections:
+                seen_source_sections.add(section)
+                sources.append({
+                    "type": "lms",
+                    "title": section,
+                    "url": module_url_map.get(section),
+                })
+
+        return body, sources
 
     async def process(
         self,
@@ -300,7 +421,7 @@ class Orchestrator:
         intent = self.detect_intent(message)
 
         # Determine if we need LMS data and/or RAG context.
-        need_lms = intent in ("organizational", "mixed")
+        need_lms = intent in ("organizational", "mixed", "progress")
         need_rag = intent in ("study", "mixed")
 
         lms_data: Optional[Dict[str, Any]] = None
@@ -324,6 +445,42 @@ class Orchestrator:
                 lms_calls.append({"type": "deadlines", "course_id": target_course_id, "latency_ms": elapsed})
                 lms_calls.append({"type": "progress", "course_id": target_course_id, "user_id": user_id, "latency_ms": elapsed})
                 lms_calls.append({"type": "contents", "course_id": target_course_id, "module_count": len(contents), "latency_ms": elapsed})
+
+                # Short-circuit for progress questions: answer deterministically from LMS data.
+                if intent == "progress":
+                    progress_answer, progress_sources = self._build_progress_answer(
+                        message, lms_data, target_course_id
+                    )
+                    request = await self.logger.create_chat_request(
+                        session_id=session_id,
+                        role=role,
+                        course_id=target_course_id,
+                        difficulty=difficulty,
+                        message=message,
+                        intent=intent,
+                        lms_calls=lms_calls,
+                        rag_filters=rag_filters,
+                    )
+                    await self.logger.create_chat_log(
+                        request_id=request.id,
+                        answer=progress_answer,
+                        sources=progress_sources,
+                        llm_model=None,
+                        prompt_tokens=0,
+                        completion_tokens=0,
+                        total_tokens=0,
+                        latency_ms=elapsed,
+                        error=None,
+                    )
+                    return {
+                        "answer": progress_answer,
+                        "sources": progress_sources,
+                        "intent": intent,
+                        "model": None,
+                        "latency_ms": elapsed,
+                        "session_id": session_id,
+                        "error": None,
+                    }
 
                 # Short-circuit: if the user asks about deadlines/assignments and there are none.
                 if (
@@ -373,16 +530,23 @@ class Orchestrator:
             try:
                 rag = RagPipeline()
                 config = await self.ai_config_service.get_active()
+                # Difficulty is intentionally not used as a retrieval filter.
+                # Per spec, difficulty adaptation is handled by the prompt/LLM,
+                # while RAG returns all relevant course/context chunks.
                 rag_filters = {
                     "course_id": course_id,
-                    "difficulty": difficulty,
                 }
                 results = await rag.search(
                     query=message,
                     k=config.top_k_retrieval,
                     course_id=target_course_id,
-                    difficulty=difficulty,
                 )
+                # Filter to relevant chunks using a distance threshold so that
+                # out-of-scope questions do not carry unrelated context to the LLM.
+                # Cosine distances in this collection are typically 0.4-1.2; 1.35
+                # keeps clearly irrelevant chunks out without dropping borderline
+                # educational matches.
+                RAG_DISTANCE_THRESHOLD = 1.35
                 rag_context = [
                     {
                         "content": r.content,
@@ -390,9 +554,48 @@ class Orchestrator:
                         "distance": r.distance,
                     }
                     for r in results
+                    if r.distance is None or r.distance <= RAG_DISTANCE_THRESHOLD
                 ]
             except Exception as exc:
                 rag_context = []
+
+        # Short-circuit: if this is a pure study question and no relevant context
+        # was found, refuse immediately without calling the LLM.
+        if intent == "study" and not rag_context and not lms_data:
+            refusal = (
+                "У меня недостаточно данных, чтобы точно ответить. "
+                "Обратитесь к преподавателю."
+            )
+            request = await self.logger.create_chat_request(
+                session_id=session_id,
+                role=role,
+                course_id=target_course_id,
+                difficulty=difficulty,
+                message=message,
+                intent="out_of_scope",
+                lms_calls=lms_calls,
+                rag_filters=rag_filters,
+            )
+            await self.logger.create_chat_log(
+                request_id=request.id,
+                answer=refusal,
+                sources=[],
+                llm_model=None,
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                latency_ms=sum(c.get("latency_ms", 0) or 0 for c in lms_calls),
+                error=None,
+            )
+            return {
+                "answer": refusal,
+                "sources": [],
+                "intent": "out_of_scope",
+                "model": None,
+                "latency_ms": sum(c.get("latency_ms", 0) or 0 for c in lms_calls),
+                "session_id": session_id,
+                "error": None,
+            }
 
         # Persist request
         request = await self.logger.create_chat_request(
@@ -481,34 +684,41 @@ class Orchestrator:
                             "url": d.get("url"),
                         })
 
-        # KB sources: keep only referenced documents.
+        # KB sources: keep unique documents returned by RAG that are semantically relevant.
+        # We intentionally do NOT require the LLM to verbatim-cite the document title:
+        # educational answers often paraphrase concepts without repeating the KB title.
+        # Deduplication and non-empty context are enough to attribute the answer.
+        RAG_DISTANCE_THRESHOLD = 1.35  # cosine distance; values above this are considered irrelevant
         seen_kb_ids = set()
         for chunk in rag_context:
+            distance = chunk.get("distance")
+            if distance is not None and distance > RAG_DISTANCE_THRESHOLD:
+                continue
             meta = chunk.get("metadata", {})
             doc_id = meta.get("document_id")
             if doc_id in seen_kb_ids:
                 continue
+            seen_kb_ids.add(doc_id)
             title = meta.get("title") or f"Материал Knowledge Base (документ {doc_id})"
-            if _is_referenced(title) or _is_referenced(f"документ {doc_id}"):
-                seen_kb_ids.add(doc_id)
-                sources.append({
-                    "type": "kb",
-                    "title": title,
-                    "document_id": doc_id,
-                    "chunk_index": meta.get("chunk_index"),
-                })
+            sources.append({
+                "type": "kb",
+                "title": title,
+                "document_id": doc_id,
+                "chunk_index": meta.get("chunk_index"),
+            })
 
         # Validate answer
         validator = AnswerValidator(
             answer=llm_result.content,
             sources=sources,
             has_lms_or_rag_context=bool(lms_data or rag_context),
+            user_message=message,
         )
         validation = validator.validate()
 
         final_answer = validation.answer if validation.is_valid else validation.answer
-        # Do not show sources when the answer is a fallback/refusal.
-        final_sources = sources if validation.is_valid and not validation.fallback else []
+        # Do not show sources when the answer is a fallback/refusal/out-of-scope.
+        final_sources = sources if validation.is_valid and not validation.fallback and not validation.refusal else []
 
         total_latency = round(
             sum(c.get("latency_ms", 0) or 0 for c in lms_calls) + (llm_result.latency_ms or 0), 2
