@@ -159,6 +159,32 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 | `system_prompt` + `output_rules` | Размер prompt | Избыточный текст увеличивает prompt tokens и latency |
 | `max_history_messages` | Длина истории в prompt | Меньше сообщений — меньше токенов |
 
+### AI Config — default instructions backfill
+
+Backend автоматически подставляет дефолтные значения в `beginner_instructions` и `advanced_instructions`, если активная конфигурация не содержит этих полей (`NULL` или пустая строка). Это защищает от ситуации, когда учебный вопрос для beginner получает отказ из-за отсутствия чёткой инструкции отвечать на основе контекста.
+
+Рекомендуемое содержание `beginner_instructions`:
+
+```text
+Уровень подготовки: beginner. Объясняй просто и с примерами, но обязательно на основе предоставленных материалов. Если в контексте есть релевантная информация — ответь кратко, даже если она неполная. Не отказывайся от ответа, когда дан предоставленный контекст.
+```
+
+Проверить текущие инструкции активной конфигурации:
+
+```bash
+docker exec ai-curator-backend python3 -c "
+import asyncio
+from db import async_session_factory
+from services.ai_config import AiConfigService
+async def main():
+    async with async_session_factory() as db:
+        cfg = await AiConfigService(db).get_active()
+        print('beginner:', cfg.beginner_instructions)
+        print('advanced:', cfg.advanced_instructions)
+asyncio.run(main())
+"
+```
+
 ---
 
 ## 8. Retention и архивы
@@ -194,3 +220,4 @@ asyncio.run(main())
 | 2026-07-30 | 1.0 | Создан документ |
  | 2026-07-30 | 1.1 | Добавлены расширенные параметры AI Config, retention и архивирование логов |
 | 2026-07-30 | 1.2 | Добавлен раздел мониторинга latency: метрики из `analytics_events`, ручное профилирование через `scripts/profile_latency.py`, SLO/NFR, AI Config tuning для latency |
+| 2026-07-30 | 1.3 | Добавлен раздел AI Config default instructions backfill; задокументировано устранение критичного дефекта beginner-ответов в Sprint 4 |

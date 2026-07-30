@@ -22,7 +22,9 @@ DEFAULT_SYSTEM_PROMPT = """Ты — AI Curator, цифровой наставн�
 DEFAULT_BEGINNER_INSTRUCTIONS = (
     "Уровень подготовки: beginner. "
     "Объясняй простыми словами, избегай жаргона, давай конкретные примеры, используй аналогии. "
-    "Не углубляйся в технические детали."
+    "Не углубляйся в технические детали. "
+    "Обязательно отвечай на основе предоставленных материалов; если контекст неполный — всё равно дай краткий ответ на том, что есть. "
+    "Не отказывайся от ответа, когда предоставлен релевантный контекст."
 )
 
 DEFAULT_ADVANCED_INSTRUCTIONS = (
@@ -69,7 +71,12 @@ class AiConfigService:
         self.db = db
 
     async def get_active(self) -> AiConfig:
-        """Return the active AI config or create a default one if missing."""
+        """Return the active AI config or create a default one if missing.
+
+        If the active config exists but its optional instruction fields are empty,
+        fall back to the default values so that out-of-the-box deployments behave
+        consistently.
+        """
         stmt = select(AiConfig).where(AiConfig.is_active == True)
         result = await self.db.execute(stmt)
         config = result.scalar_one_or_none()
@@ -94,6 +101,18 @@ class AiConfigService:
             self.db.add(config)
             await self.db.commit()
             await self.db.refresh(config)
+        else:
+            # Backfill missing optional instruction fields with sane defaults.
+            updated = False
+            if not config.beginner_instructions:
+                config.beginner_instructions = DEFAULT_BEGINNER_INSTRUCTIONS
+                updated = True
+            if not config.advanced_instructions:
+                config.advanced_instructions = DEFAULT_ADVANCED_INSTRUCTIONS
+                updated = True
+            if updated:
+                await self.db.commit()
+                await self.db.refresh(config)
         return config
 
     async def list_configs(self, limit: int = 100, offset: int = 0) -> List[AiConfig]:
