@@ -39,8 +39,6 @@ class AiConfigIn(BaseModel):
     model: str = Field("gpt-4o-mini", max_length=100)
     temperature: float = Field(0.3, ge=0.0, le=2.0)
     max_tokens: int = Field(1024, ge=1, le=4096)
-    top_k_retrieval: int = Field(5, ge=1, le=20)
-    rag_distance_threshold: float = Field(1.35, ge=0.0, le=10.0)
     beginner_instructions: Optional[str] = None
     advanced_instructions: Optional[str] = None
     few_shot_examples: Optional[str] = None
@@ -59,8 +57,6 @@ class AiConfigOut(BaseModel):
     model: str
     temperature: float
     max_tokens: int
-    top_k_retrieval: int
-    rag_distance_threshold: float
     beginner_instructions: Optional[str]
     advanced_instructions: Optional[str]
     few_shot_examples: Optional[str]
@@ -99,8 +95,6 @@ async def create_config(
         model=payload.model,
         temperature=payload.temperature,
         max_tokens=payload.max_tokens,
-        top_k_retrieval=payload.top_k_retrieval,
-        rag_distance_threshold=payload.rag_distance_threshold,
         beginner_instructions=payload.beginner_instructions,
         advanced_instructions=payload.advanced_instructions,
         few_shot_examples=payload.few_shot_examples,

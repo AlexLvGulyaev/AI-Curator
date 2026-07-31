@@ -87,8 +87,6 @@ class AiConfigService:
                 model="gpt-4o-mini",
                 temperature=0.3,
                 max_tokens=1024,
-                top_k_retrieval=5,
-                rag_distance_threshold=1.35,
                 beginner_instructions=DEFAULT_BEGINNER_INSTRUCTIONS,
                 advanced_instructions=DEFAULT_ADVANCED_INSTRUCTIONS,
                 few_shot_examples=DEFAULT_FEW_SHOT_EXAMPLES,
@@ -109,6 +107,15 @@ class AiConfigService:
                 updated = True
             if not config.advanced_instructions:
                 config.advanced_instructions = DEFAULT_ADVANCED_INSTRUCTIONS
+                updated = True
+            if not config.few_shot_examples:
+                config.few_shot_examples = DEFAULT_FEW_SHOT_EXAMPLES
+                updated = True
+            if not config.output_rules:
+                config.output_rules = DEFAULT_OUTPUT_RULES
+                updated = True
+            if not config.refusal_answer_text:
+                config.refusal_answer_text = DEFAULT_REFUSAL_ANSWER_TEXT
                 updated = True
             if updated:
                 await self.db.commit()
@@ -133,8 +140,6 @@ class AiConfigService:
         model: str,
         temperature: float,
         max_tokens: int,
-        top_k_retrieval: int,
-        rag_distance_threshold: float = 1.35,
         beginner_instructions: Optional[str] = None,
         advanced_instructions: Optional[str] = None,
         few_shot_examples: Optional[str] = None,
@@ -150,8 +155,6 @@ class AiConfigService:
             model=model,
             temperature=temperature,
             max_tokens=max_tokens,
-            top_k_retrieval=top_k_retrieval,
-            rag_distance_threshold=rag_distance_threshold,
             beginner_instructions=beginner_instructions or DEFAULT_BEGINNER_INSTRUCTIONS,
             advanced_instructions=advanced_instructions or DEFAULT_ADVANCED_INSTRUCTIONS,
             few_shot_examples=few_shot_examples or DEFAULT_FEW_SHOT_EXAMPLES,

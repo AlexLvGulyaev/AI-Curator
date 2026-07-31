@@ -2,11 +2,13 @@ import { useState } from 'react';
 import useAuth from './hooks/useAuth';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
+import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
 import KbDocuments from './components/KbDocuments';
 import KbDocumentUpload from './components/KbDocumentUpload';
 import KbDocumentDetail from './components/KbDocumentDetail';
 import AiConfig from './components/AiConfig';
+import AiAndRetrievalConfig from './components/AiAndRetrievalConfig';
 import Analytics from './components/Analytics';
 import AuditLog from './components/AuditLog';
 
@@ -15,6 +17,20 @@ const KB_VIEWS = {
   upload: 'upload',
   detail: 'detail',
 };
+
+const PLACEHOLDER_PAGES = new Set(['logs', 'dialogs', 'reports']);
+
+function Placeholder({ page }) {
+  return (
+    <div className="flex h-full items-center justify-center text-ai-text-muted">
+      <div className="text-center">
+        <p className="text-4xl mb-4">🚧</p>
+        <p className="text-lg font-semibold">В разработке</p>
+        <p className="text-sm mt-2">Панель «{page}» будет реализована в следующем спринте.</p>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const { token, isReady, isLoggedIn, login, logout } = useAuth();
@@ -51,6 +67,9 @@ function App() {
   };
 
   const renderContent = () => {
+    if (PLACEHOLDER_PAGES.has(activePage)) {
+      return <Placeholder page={activePage} />;
+    }
     if (activePage === 'dashboard') return <Dashboard />;
     if (activePage === 'kb') {
       if (kbView === KB_VIEWS.upload) {
@@ -61,14 +80,14 @@ function App() {
       }
       return <KbDocuments onSelectDocument={handleSelectDocument} onUploadNew={handleUploadNew} />;
     }
-    if (activePage === 'ai-config') return <AiConfig />;
+    if (activePage === 'ai-config') return <AiAndRetrievalConfig />;
     if (activePage === 'analytics') return <Analytics />;
     if (activePage === 'audit') return <AuditLog />;
     return <Dashboard />;
   };
 
   return (
-    <div className="flex h-screen bg-ai-bg">
+    <div className="ai-layout">
       <Sidebar
         active={activePage === 'kb' ? 'kb' : activePage}
         onChange={(page) => {
@@ -80,9 +99,22 @@ function App() {
         }}
         onLogout={logout}
       />
-      <main className="flex-1 overflow-y-auto">
-        {renderContent()}
-      </main>
+      <div className="ai-main">
+        <div className="ai-header__wrapper">
+          <header className="ai-header">
+            <div>
+              <div className="ai-header__title">Admin Console</div>
+              <div className="ai-header__subtitle">FastAPI · консоль наблюдаемости</div>
+            </div>
+            <div className="ai-header__brand">Zerocoder</div>
+          </header>
+        </div>
+        <main className="ai-content">
+          <ErrorBoundary key={activePage}>
+            {renderContent()}
+          </ErrorBoundary>
+        </main>
+      </div>
     </div>
   );
 }

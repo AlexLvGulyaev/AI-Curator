@@ -41,6 +41,10 @@ export async function getMonitoringStatus() {
   return apiRequest('/api/v1/admin/monitoring/status');
 }
 
+export async function getRecentErrors(limit = 10) {
+  return apiRequest(`/api/v1/admin/monitoring/errors?limit=${limit}`);
+}
+
 // Knowledge Base
 export async function listKbDocuments(params = {}) {
   const qs = new URLSearchParams();
@@ -119,6 +123,88 @@ export async function activateAiConfig(id) {
   return apiRequest(`/api/v1/admin/ai-config/${id}/activate`, {
     method: 'POST',
   });
+}
+
+// AI Config — update active config (creates new version and activates it)
+export async function updateActiveAiConfig(data) {
+  const payload = {
+    name: data.name || 'Updated via Admin Console',
+    system_prompt: data.system_prompt || '',
+    model: data.model || 'gpt-4o-mini',
+    temperature: data.temperature ?? 0.3,
+    max_tokens: data.max_tokens ?? 1024,
+    beginner_instructions: data.beginner_instructions,
+    advanced_instructions: data.advanced_instructions,
+    few_shot_examples: data.few_shot_examples,
+    output_rules: data.output_rules,
+    refusal_answer_text: data.refusal_answer_text,
+    max_history_messages: data.max_history_messages ?? 6,
+  };
+  const created = await createAiConfig(payload);
+  return activateAiConfig(created.id);
+}
+
+// Retrieval Tuning
+export async function getRetrievalTuning() {
+  return apiRequest('/api/v1/admin/retrieval/tuning');
+}
+
+export async function updateRetrievalTuning(data) {
+  return apiRequest('/api/v1/admin/retrieval/tuning', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getRetrievalBackends() {
+  return apiRequest('/api/v1/admin/retrieval/backends');
+}
+
+export async function reindexKnowledgeBase() {
+  return apiRequest('/api/v1/admin/retrieval/reindex', {
+    method: 'POST',
+  });
+}
+
+// LLM Providers
+export async function getLlmProviders() {
+  return [
+    {
+      key: 'openai',
+      display_name: 'OpenAI',
+      is_active: true,
+      is_fallback: false,
+      implementation_status: 'implemented',
+      base_url: 'https://api.openai.com/v1',
+      model: 'gpt-4o-mini',
+      temperature: 0.3,
+      max_tokens: 1024,
+      is_enabled: true,
+    },
+    {
+      key: 'gigachat',
+      display_name: 'GigaChat',
+      is_active: false,
+      is_fallback: true,
+      implementation_status: 'not_implemented',
+      readiness_reason: 'Интеграция GigaChat не реализована в текущей версии.',
+      base_url: 'https://gigachat.devices.sberbank.ru/api/v1/chat/completions',
+      model: 'GigaChat-Max',
+      temperature: 0.1,
+      max_tokens: 500,
+      is_enabled: false,
+    },
+  ];
+}
+
+export async function updateLlmProvider(key, data) {
+  // Placeholder until provider settings backend is implemented.
+  return { key, ...data };
+}
+
+export async function testLlmProvider(key) {
+  // Placeholder until provider test backend is implemented.
+  return { ok: key === 'openai', message: key === 'openai' ? 'OpenAI доступен' : 'Provider не реализован' };
 }
 
 // Analytics

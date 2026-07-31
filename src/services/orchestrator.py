@@ -15,6 +15,7 @@ from services.llm_adapter import LLMAdapter, LlmResponse
 from services.logger import LoggerService
 from services.prompt_builder import PromptBuilder
 from services.rag_pipeline import RagPipeline
+from services.retrieval_tuning import RetrievalTuningService
 
 
 class OrchestratorError(Exception):
@@ -433,8 +434,9 @@ class Orchestrator:
 
         target_course_id = mentioned_course_id or explicit_course_id or default_course_id
 
-        # Load active AI configuration early; it drives refusals, thresholds and prompt rules.
+        # Load active AI configuration and retrieval tuning early.
         config = await self.ai_config_service.get_active()
+        retrieval_tuning = await RetrievalTuningService(self.db).get_or_create_default()
 
         # Early short-circuit for requests that must be refused (grades, deadlines).
         # This avoids wasting tokens and latency on LLM/RAG/LMS calls.
@@ -563,7 +565,7 @@ class Orchestrator:
             }
 
         # Pick retrieval size: smaller for chat to reduce prompt size and latency.
-        rag_k = 3 if intent in ("study", "mixed") else config.top_k_retrieval
+        rag_k = 3 if intent in ("study", "mixed") else retrieval_tuning.top_k
 
         # Gather LMS and RAG in parallel for mixed; otherwise run only needed phases.
         fetch_tasks: List[Any] = []
@@ -575,7 +577,7 @@ class Orchestrator:
                 query=message,
                 course_id=target_course_id,
                 k=rag_k,
-                threshold=config.rag_distance_threshold or 1.35,
+                threshold=retrieval_tuning.rag_distance_threshold,
             ))
         if fetch_tasks:
             gathered = await asyncio.gather(*fetch_tasks, return_exceptions=True)
@@ -881,7 +883,7 @@ class Orchestrator:
         # We intentionally do NOT require the LLM to verbatim-cite the document title:
         # educational answers often paraphrase concepts without repeating the KB title.
         # Deduplication and non-empty context are enough to attribute the answer.
-        rag_distance_threshold = config.rag_distance_threshold or 1.35
+        rag_distance_threshold = retrieval_tuning.rag_distance_threshold
         seen_kb_ids = set()
         for chunk in rag_context:
             distance = chunk.get("distance")

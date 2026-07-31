@@ -16,8 +16,6 @@ class AiConfig(Base):
     model: Mapped[str] = mapped_column(String(100), nullable=False, default="gpt-4o-mini")
     temperature: Mapped[float] = mapped_column(Float, nullable=False, default=0.3)
     max_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=1024)
-    top_k_retrieval: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
-    rag_distance_threshold: Mapped[float] = mapped_column(Float, nullable=False, default=1.35)
     beginner_instructions: Mapped[str] = mapped_column(Text, nullable=True)
     advanced_instructions: Mapped[str] = mapped_column(Text, nullable=True)
     few_shot_examples: Mapped[str] = mapped_column(Text, nullable=True)

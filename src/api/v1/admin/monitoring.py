@@ -1,14 +1,19 @@
 """Admin endpoints for system monitoring."""
 
 import time
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import text
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.lms_adapter import lms_adapter
+from config import settings
 from db import get_db
+from models.chat import ChatLog, ChatRequest, LlmCall
 from services.chroma_client import get_chroma_client
+from services.knowledge_base import KnowledgeBaseService
 from services.logger import LoggerService
 
 router = APIRouter(prefix="/monitoring", tags=["admin-monitoring"])
@@ -24,10 +29,115 @@ async def _log_audit(action: str, db):
     )
 
 
+def _llm_providers():
+    """Return configured LLM providers summary."""
+    providers = []
+    openai_ok = bool(settings.openai_api_key and not settings.openai_api_key.startswith("YOUR"))
+    providers.append({
+        "name": "OpenAI",
+        "active": True,
+        "status": "ok" if openai_ok else "error",
+        "detail": "Active provider" if openai_ok else "API key missing or placeholder",
+        "model": settings.openai_model or "gpt-4o-mini",
+    })
+    # GigaChat is reserved as fallback for future sprints.
+    gigachat_token = getattr(settings, "gigachat_token", None)
+    providers.append({
+        "name": "GigaChat",
+        "active": False,
+        "status": "ok" if gigachat_token else "disabled",
+        "detail": "Fallback provider (not configured)" if not gigachat_token else "Fallback configured",
+        "model": "GigaChat-Max",
+    })
+    return providers
+
+
+async def _ai_activity(db: AsyncSession):
+    """Return AI activity metrics for the last 24 hours."""
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
+
+    total_requests = await db.scalar(
+        select(func.count(ChatRequest.id)).where(ChatRequest.created_at >= since)
+    )
+
+    total_answers = await db.scalar(
+        select(func.count(ChatLog.id))
+        .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
+        .where(ChatRequest.created_at >= since)
+        .where(ChatLog.answer != None)
+    )
+
+    avg_latency = await db.scalar(
+        select(func.avg(ChatLog.latency_ms))
+        .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
+        .where(ChatRequest.created_at >= since)
+    )
+
+    total_tokens = await db.scalar(
+        select(func.sum(LlmCall.total_tokens))
+        .join(ChatRequest, LlmCall.request_id == ChatRequest.id)
+        .where(ChatRequest.created_at >= since)
+    )
+
+    intent_result = await db.execute(
+        select(ChatRequest.intent, func.count(ChatRequest.id).label("count"))
+        .where(ChatRequest.created_at >= since)
+        .group_by(ChatRequest.intent)
+        .order_by(func.count(ChatRequest.id).desc())
+    )
+
+    return {
+        "total_requests": total_requests or 0,
+        "total_answers": total_answers or 0,
+        "average_latency_ms": round(avg_latency, 2) if avg_latency else 0,
+        "total_tokens": total_tokens or 0,
+        "intent_breakdown": [
+            {"intent": intent or "unknown", "count": count}
+            for intent, count in intent_result.all()
+        ],
+    }
+
+
+async def _recent_errors(db: AsyncSession, limit: int = 10):
+    """Return recent non-empty error entries."""
+    result = await db.execute(
+        select(ChatLog.error, ChatRequest.intent, ChatRequest.created_at)
+        .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
+        .where(ChatLog.error != None)
+        .where(ChatLog.error != "")
+        .order_by(ChatRequest.created_at.desc())
+        .limit(limit)
+    )
+    errors = []
+    for error, intent, created_at in result.all():
+        errors.append({
+            "error": error[:200],
+            "intent": intent or "unknown",
+            "created_at": created_at.isoformat() if created_at else None,
+        })
+    return errors
+
+
+async def _kb_status(db: AsyncSession):
+    """Return Knowledge Base aggregate status."""
+    service = KnowledgeBaseService(db)
+    try:
+        status = await service.get_status()
+        return status
+    except Exception as exc:
+        return {
+            "total_documents": 0,
+            "published_documents": 0,
+            "total_versions": 0,
+            "indexed_chunks": 0,
+            "error": str(exc),
+        }
+
+
 @router.get("/status")
 async def monitoring_status(db: AsyncSession = Depends(get_db)):
     await _log_audit("view_status", db)
-    """Return health and latency for each integrated component."""
+    """Return health, latency, AI activity, KB status, providers and errors."""
     start = time.perf_counter()
     try:
         await db.execute(text("SELECT 1"))
@@ -60,23 +170,33 @@ async def monitoring_status(db: AsyncSession = Depends(get_db)):
         chroma_detail = str(exc)
     chroma_latency = round((time.perf_counter() - start) * 1000, 2)
 
-    llm_status = "ok"
-    llm_detail = "Configuration present; status verified on actual call."
-    from config import settings
-    if not settings.openai_api_key or settings.openai_api_key.startswith("YOUR"):
-        llm_status = "error"
-        llm_detail = "OpenAI API key is missing or placeholder."
+    openai_ok = bool(settings.openai_api_key and not settings.openai_api_key.startswith("YOUR"))
+    llm_status = "ok" if openai_ok else "error"
+    llm_detail = "Configuration present" if openai_ok else "OpenAI API key missing or placeholder"
 
-    overall = "ok" if all(s == "ok" for s in [db_status, lms_status, chroma_status, llm_status]) else "degraded"
+    api_status = "ok"
+    api_latency = round((time.perf_counter() - start) * 1000, 2)
+
+    overall = "ok" if all(s == "ok" for s in [api_status, db_status, lms_status, chroma_status, llm_status]) else "degraded"
+
+    ai_activity = await _ai_activity(db)
+    kb_status = await _kb_status(db)
+    providers = _llm_providers()
+    errors = await _recent_errors(db)
 
     return {
         "overall": overall,
         "components": {
+            "api": {"status": api_status, "latency_ms": api_latency},
             "database": {"status": db_status, "latency_ms": db_latency, "detail": db_detail},
             "lms": {"status": lms_status, "latency_ms": lms_latency, "detail": lms_detail},
             "chroma": {"status": chroma_status, "latency_ms": chroma_latency, "detail": chroma_detail},
             "llm": {"status": llm_status, "detail": llm_detail},
         },
+        "ai_activity": ai_activity,
+        "kb_status": kb_status,
+        "llm_providers": providers,
+        "recent_errors": errors,
     }
 
 
@@ -88,3 +208,13 @@ async def aggregated_health(db: AsyncSession = Depends(get_db)):
         "status": status_data["overall"],
         "components": status_data["components"],
     }
+
+
+@router.get("/errors")
+async def recent_errors(
+    limit: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    await _log_audit("view_errors", db)
+    return await _recent_errors(db, limit)
+

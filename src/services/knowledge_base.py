@@ -25,6 +25,7 @@ from models.knowledge_base import (
 from schemas.knowledge_base import KbDocumentCreate, KbDocumentUpdate
 from services.document_processor import DocumentProcessor
 from services.rag_pipeline import RagPipeline
+from services.retrieval_tuning import RetrievalTuningService
 
 KB_ROOT = Path(settings.doc_store_path)
 ALLOWED_MIME_TYPES = {
@@ -264,7 +265,11 @@ class KnowledgeBaseService:
 
         try:
             file_path = self.root_path / active_version.storage_path
-            processor = DocumentProcessor()
+            tuning = await RetrievalTuningService(self.db).get_or_create_default()
+            processor = DocumentProcessor(
+                chunk_size=tuning.chunk_size,
+                chunk_overlap=tuning.chunk_overlap,
+            )
             rag = RagPipeline()
 
             chunks = processor.process(file_path, active_version.mime_type)
@@ -320,6 +325,19 @@ class KnowledgeBaseService:
             raise KnowledgeBaseError(
                 f"Failed to process document {document_id}: {exc}"
             ) from exc
+
+    async def reindex_all_published(self) -> dict:
+        """Reindex all currently published documents."""
+        documents = await self.list_documents(is_published=True)
+        processed = 0
+        failed = 0
+        for document in documents:
+            try:
+                await self.process_document(document.id)
+                processed += 1
+            except Exception:
+                failed += 1
+        return {"processed": processed, "failed": failed, "total": len(documents)}
 
     async def get_status(self) -> dict:
         """Return aggregated Knowledge Base statistics."""
