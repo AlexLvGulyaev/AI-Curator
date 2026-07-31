@@ -205,14 +205,21 @@ class RagPipeline:
         topic_id: Optional[int] = None,
         difficulty: Optional[str] = None,
         status: Optional[str] = "indexed",
+        strict_course: bool = True,
     ) -> Optional[Dict[str, Any]]:
-        """Compose a Chroma where-clause from optional filters."""
+        """Compose a Chroma where-clause from optional filters.
+
+        Args:
+            strict_course: If False, course_id is omitted from the Chroma where-clause
+                so the semantic search can return relevant chunks from any course.
+                The caller is expected to boost course-matching chunks at ranking stage.
+        """
         filters: Dict[str, Any] = {}
         if document_id is not None:
             filters["document_id"] = document_id
         if version_id is not None:
             filters["version_id"] = version_id
-        if course_id is not None:
+        if course_id is not None and strict_course:
             filters["course_id"] = course_id
         if module_id is not None:
             filters["module_id"] = module_id
@@ -240,15 +247,29 @@ class RagPipeline:
         module_id: Optional[int] = None,
         topic_id: Optional[int] = None,
         difficulty: Optional[str] = None,
+        strict_course: bool = True,
+        course_boost_enabled: bool = False,
+        course_boost_factor: float = 0.15,
     ) -> tuple[List[SearchResult], Dict[str, float]]:
-        """Run semantic search and return ranked chunks."""
-        where = self._build_where_filter(
+        """Run semantic search and return ranked chunks.
+
+        Args:
+            strict_course: When True, Chroma query is filtered by course_id.
+                When False, the filter is relaxed and course-matching chunks are
+                boosted at the ranking stage (if course_boost_enabled is True).
+            course_boost_enabled: Whether to apply a distance penalty/bonus for
+                chunks whose course_id matches the requested course.
+            course_boost_factor: Fraction of the raw distance used as a boost for
+                course-matching chunks. Smaller values make the boost weaker.
+        """
+        where_strict = self._build_where_filter(
             document_id=document_id,
             version_id=version_id,
             course_id=course_id,
             module_id=module_id,
             topic_id=topic_id,
             difficulty=difficulty,
+            strict_course=True,
         )
 
         # Try process-level embedding cache first to avoid repeated OpenAI API calls.
@@ -261,29 +282,90 @@ class RagPipeline:
             self._embedding_cache.set(query, query_embedding)
         embedding_ms = round((time.perf_counter() - t_embed_start) * 1000, 2)
 
+        results: List[SearchResult] = []
+        seen_ids: set = set()
+
+        def _add_results(raw_results: Any) -> None:
+            ids = raw_results.get("ids", [[]])[0]
+            documents = raw_results.get("documents", [[]])[0]
+            metadatas = raw_results.get("metadatas", [[]])[0]
+            distances = raw_results.get("distances", [[]])[0]
+            for idx, chunk_id in enumerate(ids):
+                if chunk_id in seen_ids:
+                    continue
+                seen_ids.add(chunk_id)
+                meta = metadatas[idx] if idx < len(metadatas) else {}
+                distance = distances[idx] if idx < len(distances) else 0.0
+                if course_boost_enabled and course_id is not None:
+                    # Cosine distance: smaller is better. Reduce distance for
+                    # chunks that match the requested course_id.
+                    if meta.get("course_id") == course_id:
+                        distance = max(0.0, distance * (1.0 - course_boost_factor))
+                results.append(
+                    SearchResult(
+                        chunk_id=chunk_id,
+                        content=documents[idx] if idx < len(documents) else "",
+                        metadata=meta,
+                        distance=distance,
+                    )
+                )
+
         t_chroma_start = time.perf_counter()
-        results = self.collection.query(
-            query_embeddings=[query_embedding],
-            n_results=k,
-            where=where,
-            include=["documents", "metadatas", "distances"],
-        )
+        # Phase 1: strict search with course filter (when requested).
+        if strict_course and where_strict is not None:
+            strict_results = self.collection.query(
+                query_embeddings=[query_embedding],
+                n_results=k,
+                where=where_strict,
+                include=["documents", "metadatas", "distances"],
+            )
+            _add_results(strict_results)
+
+        # Phase 2: relaxed search without course filter to find relevant generic
+        # materials that may not be tagged with the exact course_id.
+        if not strict_course and course_id is not None:
+            where_relaxed = self._build_where_filter(
+                document_id=document_id,
+                version_id=version_id,
+                course_id=None,
+                module_id=module_id,
+                topic_id=topic_id,
+                difficulty=difficulty,
+                strict_course=False,
+            )
+            if where_relaxed is not None:
+                relaxed_results = self.collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=k * 2,
+                    where=where_relaxed,
+                    include=["documents", "metadatas", "distances"],
+                )
+                _add_results(relaxed_results)
+
+        # Phase 3: when strict_course is True but we still want a fallback to
+        # generic materials, run a second query without the course filter.
+        if strict_course and course_id is not None and len(results) < k:
+            where_relaxed = self._build_where_filter(
+                document_id=document_id,
+                version_id=version_id,
+                course_id=None,
+                module_id=module_id,
+                topic_id=topic_id,
+                difficulty=difficulty,
+                strict_course=False,
+            )
+            if where_relaxed is not None:
+                relaxed_results = self.collection.query(
+                    query_embeddings=[query_embedding],
+                    n_results=k * 2,
+                    where=where_relaxed,
+                    include=["documents", "metadatas", "distances"],
+                )
+                _add_results(relaxed_results)
+
         chroma_ms = round((time.perf_counter() - t_chroma_start) * 1000, 2)
 
-        output: List[SearchResult] = []
-        ids = results.get("ids", [[]])[0]
-        documents = results.get("documents", [[]])[0]
-        metadatas = results.get("metadatas", [[]])[0]
-        distances = results.get("distances", [[]])[0]
+        # Re-rank by adjusted distance (course-boosted chunks move up).
+        results.sort(key=lambda r: r.distance)
 
-        for idx, chunk_id in enumerate(ids):
-            output.append(
-                SearchResult(
-                    chunk_id=chunk_id,
-                    content=documents[idx] if idx < len(documents) else "",
-                    metadata=metadatas[idx] if idx < len(metadatas) else {},
-                    distance=distances[idx] if idx < len(distances) else 0.0,
-                )
-            )
-
-        return output, {"embedding_ms": embedding_ms, "chroma_ms": chroma_ms}
+        return results[:k], {"embedding_ms": embedding_ms, "chroma_ms": chroma_ms}

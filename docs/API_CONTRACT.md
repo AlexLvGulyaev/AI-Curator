@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.6  
+**Версия:** 1.7  
 **Дата:** 2026-07-31  
-**Статус:** Актуален для Sprint 5.2
+**Статус:** Актуален для Sprint 5.2 + LMS-KB linking contract
 
 ---
 
@@ -887,9 +887,9 @@
 | `id` | int | Идентификатор документа |
 | `title` | string | Название |
 | `document_type` | string | Тип документа |
-| `course_id` | int \| null | Курс |
-| `module_id` | int \| null | Модуль |
-| `topic_id` | int \| null | Тема |
+| `course_id` | int \| null | **Advisory retrieval-фильтр**: идентификатор курса, к которому материал желательно привязать. Не является foreign key из LMS; отсутствие значения не делает материал недействительным. |
+| `module_id` | int \| null | **Advisory retrieval-фильтр**: идентификатор модуля. |
+| `topic_id` | int \| null | **Advisory retrieval-фильтр**: идентификатор темы. |
 | `difficulty` | string | Уровень сложности |
 | `language` | string | Язык |
 | `description` | string \| null | Описание |
@@ -1050,3 +1050,4 @@
 | 2026-07-30 | 1.4 | Добавлен `POST /api/v1/chat`, административные endpoints (AI-config, analytics, monitoring, audit), разделы Web UI и Admin Console, авторизация admin |
 | 2026-07-30 | 1.5 | Расширены поля AI Configuration; добавлена структура analytics payload с `timings_ms` |
 | 2026-07-31 | 1.6 | Добавлены endpoints операционной консоли KB Documents: `/detail`, `/text`, `/chunks`, `/timeline`, `/activate`, `/reindex`, `/reindex-all`; обновлены модели `KbDocumentVersionOut`, добавлены `KbDocumentChunkOut`, `KbDocumentEventOut`, `KbVersionTextOut`, `KbDocumentExecutionOut`, `KbDocumentDetailOut`, `KbReindexAllOut` |
+| 2026-07-31 | 1.7 | Уточнена семантика `course_id`/`module_id`/`topic_id` в KB: advisory retrieval-фильтры, не foreign keys из LMS |

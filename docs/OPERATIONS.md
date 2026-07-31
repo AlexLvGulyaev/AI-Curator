@@ -247,6 +247,8 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 | `max_tokens` | Жёсткий потолок длины ответа LLM | 512–1024 для chat; выше — медленнее |
 | `top_k_retrieval` | Сколько RAG-чанков попадает в prompt | Для chat переопределяется кодом до 3; для Admin оставить 5 |
 | `rag_distance_threshold` | Фильтр шумных чанков | 1.35 по умолчанию; уменьшение ускоряет, но может снизить recall |
+| `course_boost_enabled` | Приоритизировать чанки, совпадающие по `course_id` | `true` — для учебных вопросов мягко повышает ранг материалов текущего курса, не отсекая общие материалы |
+| `course_boost_factor` | Сила курсового буста | 0.15 по умолчанию; 0 — отключить влияние `course_id` на ранжирование |
 | `system_prompt` + `output_rules` | Размер prompt | Избыточный текст увеличивает prompt tokens и latency |
 | `max_history_messages` | Длина истории в prompt | Меньше сообщений — меньше токенов |
 
@@ -314,3 +316,4 @@ asyncio.run(main())
 | 2026-07-30 | 1.3 | Добавлен раздел AI Config default instructions backfill; задокументировано устранение критичного дефекта beginner-ответов в Sprint 4 |
 | 2026-07-31 | 1.4 | Добавлен раздел 2.5 «Git workflow для материалов KB» и переменные окружения KB Content Git |
 | 2026-07-31 | 1.5 | Актуализирован раздел 2 под трёхпанельную операционную консоль KB Documents; добавлены подразделы про toolbar, ПАСПОРТ/ЭКСПЛУАТАЦИЯ, PREVIEW ТЕКСТА, ЧАНКИ и lifecycle |
+| 2026-07-31 | 1.6 | В таблицу AI Config tuning добавлены параметры `course_boost_enabled` и `course_boost_factor` для мягкой приоритизации курсовых материалов в RAG |

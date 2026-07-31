@@ -562,6 +562,10 @@ class Orchestrator:
         # Determine if we need LMS data and/or RAG context.
         need_lms = intent in ("organizational", "mixed", "progress", "deadline")
         need_rag = intent in ("study", "mixed")
+        # Study questions should not hard-filter by course_id in RAG so that
+        # generic KB materials can be used. Organizational/mixed questions
+        # keep the stricter filter because they combine LMS structure with KB.
+        strict_course_rag = intent != "study"
 
         lms_data: Optional[Dict[str, Any]] = None
         lms_calls: List[Dict[str, Any]] = []
@@ -603,15 +607,24 @@ class Orchestrator:
             course_id: int,
             k: int,
             threshold: float,
+            strict_course: bool = True,
         ) -> Dict[str, Any]:
-            """Search RAG and deduplicate chunks by content hash."""
+            """Search RAG and deduplicate chunks by content hash.
+
+            For study questions we relax the course_id filter so generic KB
+            materials (e.g. prompt-engineering FAQ, Claude Code glossary) can
+            be retrieved even if they are not tagged with the current course.
+            Course-matching chunks are boosted at ranking stage.
+            """
             t_rag = time.perf_counter()
             rag = RagPipeline()
-            # rag.search() returns results plus per-stage timings for embedding and chroma.
             results, search_timings = await rag.search(
                 query=query,
                 k=k,
                 course_id=course_id,
+                strict_course=strict_course,
+                course_boost_enabled=retrieval_tuning.course_boost_enabled,
+                course_boost_factor=retrieval_tuning.course_boost_factor,
             )
             t_post_start = time.perf_counter()
             seen_hashes = set()
@@ -648,12 +661,13 @@ class Orchestrator:
         if need_lms and target_course_id:
             fetch_tasks.append(_fetch_lms_data(target_course_id, user_id))
         if need_rag:
-            rag_filters = {"course_id": target_course_id}
+            rag_filters = {"course_id": target_course_id, "strict_course": strict_course_rag}
             fetch_tasks.append(_fetch_rag_context(
                 query=message,
                 course_id=target_course_id,
                 k=rag_k,
                 threshold=retrieval_tuning.rag_distance_threshold,
+                strict_course=strict_course_rag,
             ))
         if fetch_tasks:
             gathered = await asyncio.gather(*fetch_tasks, return_exceptions=True)

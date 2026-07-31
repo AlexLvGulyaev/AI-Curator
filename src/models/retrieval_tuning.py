@@ -23,3 +23,9 @@ class RetrievalTuning(Base):
     cache_ttl_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
     retrieval_timeout_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=5000)
     embedding_timeout_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=30000)
+    course_boost_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True,
+    )
+    course_boost_factor: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.15,
+    )

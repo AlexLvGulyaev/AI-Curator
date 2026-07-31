@@ -6,9 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import settings
 from db import get_db
-from models.ai_config import AiConfig
 from services.knowledge_base import KnowledgeBaseService
 from services.logger import LoggerService
 from services.retrieval_tuning import RetrievalTuningService
@@ -42,6 +40,8 @@ class RetrievalTuningIn(BaseModel):
     cache_ttl_seconds: Optional[int] = Field(None, ge=30, le=86400)
     retrieval_timeout_ms: Optional[int] = Field(None, ge=500, le=60000)
     embedding_timeout_ms: Optional[int] = Field(None, ge=1000, le=300000)
+    course_boost_enabled: Optional[bool] = None
+    course_boost_factor: Optional[float] = Field(None, ge=0.0, le=1.0)
 
     def model_post_init(self, __context):
         if self.chunk_size is not None and self.chunk_overlap is not None:
@@ -63,6 +63,8 @@ class RetrievalTuningOut(BaseModel):
     cache_ttl_seconds: int
     retrieval_timeout_ms: int
     embedding_timeout_ms: int
+    course_boost_enabled: bool
+    course_boost_factor: float
 
 
 class BackendInfo(BaseModel):

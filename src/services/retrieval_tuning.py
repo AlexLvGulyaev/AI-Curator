@@ -15,6 +15,8 @@ DEFAULT_CACHE_ENABLED = True
 DEFAULT_CACHE_TTL_SECONDS = 300
 DEFAULT_RETRIEVAL_TIMEOUT_MS = 5000
 DEFAULT_EMBEDDING_TIMEOUT_MS = 30000
+DEFAULT_COURSE_BOOST_ENABLED = True
+DEFAULT_COURSE_BOOST_FACTOR = 0.15
 
 
 class RetrievalTuningService:
@@ -38,6 +40,8 @@ class RetrievalTuningService:
                 cache_ttl_seconds=DEFAULT_CACHE_TTL_SECONDS,
                 retrieval_timeout_ms=DEFAULT_RETRIEVAL_TIMEOUT_MS,
                 embedding_timeout_ms=DEFAULT_EMBEDDING_TIMEOUT_MS,
+                course_boost_enabled=DEFAULT_COURSE_BOOST_ENABLED,
+                course_boost_factor=DEFAULT_COURSE_BOOST_FACTOR,
             )
             self.db.add(tuning)
             await self.db.commit()
@@ -54,6 +58,8 @@ class RetrievalTuningService:
         cache_ttl_seconds: Optional[int] = None,
         retrieval_timeout_ms: Optional[int] = None,
         embedding_timeout_ms: Optional[int] = None,
+        course_boost_enabled: Optional[bool] = None,
+        course_boost_factor: Optional[float] = None,
     ) -> RetrievalTuning:
         """Update the effective retrieval tuning row."""
         tuning = await self.get_or_create_default()
@@ -73,6 +79,10 @@ class RetrievalTuningService:
             tuning.retrieval_timeout_ms = retrieval_timeout_ms
         if embedding_timeout_ms is not None:
             tuning.embedding_timeout_ms = embedding_timeout_ms
+        if course_boost_enabled is not None:
+            tuning.course_boost_enabled = course_boost_enabled
+        if course_boost_factor is not None:
+            tuning.course_boost_factor = course_boost_factor
         await self.db.commit()
         await self.db.refresh(tuning)
         return tuning

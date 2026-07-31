@@ -532,6 +532,28 @@ function AiAndRetrievalConfig() {
               />
             </InputRow>
 
+            <InputRow label="Курсовый буст">
+              <div className="ai-checkbox-cell">
+                <input
+                  type="checkbox"
+                  checked={!!tuningForms.course_boost_enabled}
+                  onChange={(e) => updateTuningForm('course_boost_enabled', e.target.checked)}
+                />
+              </div>
+            </InputRow>
+
+            <InputRow label="Сила буста course_id">
+              <input
+                type="number"
+                className="ai-input"
+                min="0"
+                max="1"
+                step="0.05"
+                value={tuningForms.course_boost_factor ?? ''}
+                onChange={(e) => updateTuningForm('course_boost_factor', Number(e.target.value))}
+              />
+            </InputRow>
+
             {tuningForms.chunk_overlap >= tuningForms.chunk_size && (
               <p className="ai-field-error">Overlap должен быть меньше chunk size</p>
             )}
@@ -541,7 +563,7 @@ function AiAndRetrievalConfig() {
             <button
               type="button"
               className="ai-btn ai-btn--small"
-              onClick={() => saveTuningBlock(['top_k', 'rag_distance_threshold', 'chunk_size', 'chunk_overlap', 'cache_enabled', 'cache_ttl_seconds', 'retrieval_timeout_ms', 'embedding_timeout_ms'])}
+              onClick={() => saveTuningBlock(['top_k', 'rag_distance_threshold', 'chunk_size', 'chunk_overlap', 'cache_enabled', 'cache_ttl_seconds', 'retrieval_timeout_ms', 'embedding_timeout_ms', 'course_boost_enabled', 'course_boost_factor'])}
               disabled={saving.tuning || tuningForms.chunk_overlap >= tuningForms.chunk_size}
             >
               {saving.tuning ? 'Сохранение…' : 'Сохранить'}

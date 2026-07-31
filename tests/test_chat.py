@@ -110,6 +110,57 @@ async def test_chat_endpoint_study(client, tmp_path):
             assert any(s["type"] == "kb" for s in data["sources"])
 
 
+@pytest.mark.anyio
+async def test_chat_endpoint_study_uses_generic_kb_without_course_filter(client, tmp_path):
+    """Study questions retrieve KB materials even if their course_id does not match."""
+    content = (
+        "# Промпт-инжиниринг\n\n"
+        "Промпт-инжиниринг — это процесс составления эффективных запросов к языковым моделям."
+    )
+    file_path = tmp_path / "prompts.md"
+    file_path.write_text(content, encoding="utf-8")
+
+    with patch(
+        "services.llm_adapter.ChatOpenAI.ainvoke",
+        new=AsyncMock(return_value=type("R", (), {
+            "content": "Промпт-инжиниринг — это составление запросов к LLM.",
+            "response_metadata": {"model_name": "gpt-4o-mini", "token_usage": {}},
+        })()),
+    ):
+        async with client:
+            create_response = await client.post(
+                "/api/v1/admin/kb/documents",
+                data={
+                    "title": "Generic Prompt Engineering",
+                    "document_type": "lecture",
+                    # Explicitly different course_id from the student's current course.
+                    "course_id": 99,
+                    "difficulty": "beginner",
+                },
+                files={"file": ("prompts.md", file_path.read_bytes(), "text/markdown")},
+            )
+            assert create_response.status_code == 201
+            doc_id = create_response.json()["id"]
+
+            await client.post(f"/api/v1/admin/kb/documents/{doc_id}/publish?publish=true")
+            process_response = await client.post(f"/api/v1/admin/kb/documents/{doc_id}/process")
+            assert process_response.status_code == 200
+
+            response = await client.post(
+                "/api/v1/chat",
+                json={
+                    "message": "Что такое промпт-инжиниринг?",
+                    "role": "active_student",
+                    "difficulty": "beginner",
+                    "course_id": 3,
+                },
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["intent"] == "study"
+            assert any(s["type"] == "kb" for s in data["sources"])
+
+
 def test_detect_intent():
     assert Orchestrator.detect_intent("Какие дедлайны?") == "deadline"
     assert Orchestrator.detect_intent("Когда сдать задание?") == "deadline"
