@@ -43,6 +43,14 @@ ARCHIVE_DIR=/app/storage/archives
 HOT_RETENTION_DAYS=30
 TRACE_RETENTION_DAYS=7
 
+# KB Content Git repository
+KB_CONTENT_GIT_ENABLED=true
+KB_CONTENT_REPO_PATH=/app/kb-content
+# Leave empty for local-only mode, or set an SSH URL for production sync:
+KB_CONTENT_REPO_URL=
+KB_CONTENT_SSH_KEY_PATH=
+KB_CONTENT_DEFAULT_BRANCH=main
+
 # Moodle (only if the embedded LMS stack is used)
 MOODLE_DB_USER=moodle
 MOODLE_DB_PASSWORD=YOUR_MOODLE_DB_PASSWORD
@@ -113,6 +121,62 @@ In Moodle:
 
 Without published KB documents, study questions will return an out-of-scope refusal.
 
+### 4. KB Content Git repository (optional but recommended)
+
+By default `kb-content/` is mounted into the backend container at `/app/kb-content` and tracked as a local Git repository. This lets the backend commit every uploaded or edited KB source file and store `git_commit_hash` / `git_blob_hash` on the document version.
+
+#### Local-only mode (development / demo)
+
+With `KB_CONTENT_REPO_URL=` (empty) the backend initializes a local repo inside the container and commits locally. Nothing is pushed. The working copy is persisted on the Docker host via the bind mount, so commits survive container restarts.
+
+Verify the local repo:
+
+```bash
+docker exec ai-curator-backend git -C /app/kb-content log --oneline -3
+```
+
+Expected: recent commits from document uploads, for example:
+
+```text
+a1b2c3d feat(kb): upload "CC01. Установка и первый запуск Claude Code"
+01f72e9 init(kb-content): course materials for Claude Code training
+```
+
+#### Production mode with remote repository
+
+1. Create a dedicated repository (for example `git@github.com:your-org/ai-curator-kb-content.git`).
+2. Generate an SSH deploy key with **read/write** access and save the private key on the server, for example `/opt/ai-curator-kb-content-deploy.key`.
+3. Set in `.env`:
+
+```bash
+KB_CONTENT_REPO_URL=git@github.com:your-org/ai-curator-kb-content.git
+KB_CONTENT_SSH_KEY_PATH=/app/secrets/kb-content-deploy.key
+KB_CONTENT_GIT_ENABLED=true
+```
+
+4. Mount the deploy key into the backend container by adding to `docker-compose.yml` under `ai-curator-backend.volumes`:
+
+```yaml
+- ./secrets/kb-content-deploy.key:/app/secrets/kb-content-deploy.key:ro
+```
+
+5. Make sure the key is not committed to the repository (add `secrets/` to `.gitignore`).
+6. Restart the backend:
+
+```bash
+docker compose up -d ai-curator-backend
+```
+
+7. Upload or edit a KB document in Admin Console. The backend will clone/push to the remote repository and fill Git metadata on the version.
+
+#### Verifying remote sync
+
+```bash
+docker exec ai-curator-backend git -C /app/kb-content log --oneline --decorate -3
+```
+
+If remote is configured you should see `(origin/main)` on the latest commit.
+
 ## Important deployment notes
 
 ### Chroma persistence
@@ -153,3 +217,5 @@ After a fresh deployment, confirm:
 - [ ] A refusal request (`Выставь мне зачёт...`) returns `intent: refusal` and `latency_ms: 0`.
 - [ ] A deadline question returns a correct due date from LMS.
 - [ ] A study question returns a KB-based answer with sources.
+- [ ] After uploading a KB document, `docker exec ai-curator-backend git -C /app/kb-content log --oneline -3` shows a new commit.
+- [ ] The uploaded document version in Admin Console displays non-empty `git_commit_hash` and `git_blob_hash`.

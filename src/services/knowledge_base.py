@@ -107,14 +107,18 @@ class KnowledgeBaseService:
         if settings.kb_content_git_enabled:
             try:
                 git = KbGitService()
-                commit_result = git.add_commit_push(
+                commit_result = git.commit_file(
                     storage_path,
+                    document_type=document_type,
+                    course_id=course_id,
+                    filename=original_filename,
                     message=(
                         f"feat(kb): upload {original_filename} "
                         f"(doc {document_id}, v{version_number})"
                     ),
                 )
                 git_info["git_commit_hash"] = commit_result.get("commit_hash")
+                git_info["git_blob_hash"] = commit_result.get("git_blob_hash")
                 git_info["git_author"] = commit_result.get("author_name")
                 git_info["git_commit_message"] = commit_result.get("message")
                 committed_at = commit_result.get("committed_at")
@@ -574,6 +578,37 @@ class KnowledgeBaseService:
         cleaned_path.write_text(text, encoding="utf-8")
         version.cleaned_storage_path = str(cleaned_path.relative_to(self.root_path))
         version.sha256 = hashlib.sha256(cleaned_path.read_bytes()).hexdigest()
+
+        # Capture Git provenance for cleaned text if Git workflow is enabled.
+        if settings.kb_content_git_enabled:
+            try:
+                git = KbGitService()
+                cleaned_filename = f"{Path(version.original_filename).stem}.cleaned.md"
+                commit_result = git.commit_file(
+                    cleaned_path,
+                    document_type=document.document_type.value,
+                    course_id=document.course_id,
+                    filename=cleaned_filename,
+                    message=(
+                        f"feat(kb): update cleaned text for {version.original_filename} "
+                        f"(doc {document_id}, v{version.version_number})"
+                    ),
+                )
+                version.git_commit_hash = commit_result.get("commit_hash")
+                version.git_blob_hash = commit_result.get("git_blob_hash")
+                version.git_author = commit_result.get("author_name")
+                version.git_commit_message = commit_result.get("message")
+                committed_at = commit_result.get("committed_at")
+                if committed_at:
+                    if isinstance(committed_at, str):
+                        version.git_committed_at = datetime.fromisoformat(
+                            committed_at.replace("Z", "+00:00")
+                        )
+                    else:
+                        version.git_committed_at = committed_at
+            except Exception:
+                # Git commit must not break the save flow.
+                pass
 
         lifecycle = KbLifecycleService(self.db)
 

@@ -134,6 +134,37 @@ class KbGitService:
         directory.mkdir(parents=True, exist_ok=True)
         return directory / Path(filename).name
 
+    def commit_file(
+        self,
+        source_path: str | Path,
+        document_type: str,
+        course_id: int | None,
+        filename: str,
+        message: str,
+        author_name: str = "AI Curator",
+        author_email: str = "ai-curator@system.local",
+    ) -> Dict[str, Any]:
+        """Copy a source file to the canonical kb-content path, commit it and return metadata."""
+        source_path = Path(source_path)
+        if not source_path.exists():
+            raise KbGitError(f"Source file not found: {source_path}")
+
+        content_path = self.content_path(document_type, course_id, filename)
+        content_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_path, content_path)
+
+        commit_result = self.add_commit_push(
+            content_path,
+            message=message,
+            author_name=author_name,
+            author_email=author_email,
+        )
+        commit_hash = commit_result.get("commit_hash")
+        commit_result["git_blob_hash"] = self.get_blob_hash(
+            content_path, commit_hash
+        )
+        return commit_result
+
     # ------------------------------------------------------------------
     # Add / commit / push
     # ------------------------------------------------------------------

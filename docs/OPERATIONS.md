@@ -44,6 +44,45 @@
 2. Подтвердите действие.
 3. Документ и все версии мягко удаляются (status = `archived`).
 
+### 2.5. Git workflow для материалов KB
+
+Каждый загруженный или отредактированный файл материала сохраняется в отдельном Git-репозитории `kb-content/`. Это даёт:
+
+- версионирование исходников;
+- восстановление предыдущих редакций;
+- заполнение Git-метаданных версии документа (`git_commit_hash`, `git_blob_hash`).
+
+#### Режимы работы
+
+| Режим | `KB_CONTENT_REPO_URL` | `KB_CONTENT_GIT_ENABLED` | Поведение |
+|-------|----------------------|--------------------------|-----------|
+| Локальный (dev) | пусто | `true` | Backend делает локальные commit'ы в `./kb-content/`, push не выполняется. |
+| Remote (production) | `git@github.com:org/kb-content.git` | `true` | Клон/clone remote, pull перед commit, push после commit. |
+| Отключён | любое | `false` | Файлы сохраняются в `DOC_STORE_PATH`, Git-метаданные не заполняются. |
+
+#### Проверить Git-метаданные версии
+
+В Admin Console → Knowledge Base → Документы откройте карточку документа. В разделе **ПАСПОРТ** / **ЭКСПЛУАТАЦИЯ** должны отображаться:
+
+- `git_commit_hash` — хеш последнего commit'а, в котором участвовал файл;
+- `git_blob_hash` — хеш blob'а файла в HEAD;
+- `git_author` — автор commit'а (по умолчанию `AI Curator`).
+
+Если поля пустые после загрузки:
+
+1. Проверьте `KB_CONTENT_GIT_ENABLED=true` и `KB_CONTENT_REPO_PATH=/app/kb-content` в `.env`.
+2. Убедитесь, что в `docker-compose.yml` есть bind-mount `./kb-content:/app/kb-content` для `ai-curator-backend`.
+3. Перезапустите backend-контейнер.
+4. Перезагрузите файл — при успешном commit'е метаданные появятся.
+
+#### Редактирование cleaned-текста
+
+1. В карточке документа переключите **PREVIEW ТЕКСТА** в режим **ОЧИЩЕННЫЙ**.
+2. Нажмите **Открыть**.
+3. Отредактируйте текст в модальном редакторе.
+4. Нажмите **Сохранить и переиндексировать**.
+5. Backend сохранит новый cleaned-текст в `kb-content/`, сделает commit, обновит `sha256` и пересчитает чанки.
+
 ---
 
 ## 3. AI Configuration
@@ -146,6 +185,11 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 | `HOT_RETENTION_DAYS` | Срок хранения логов в PostgreSQL (по умолчанию 30) |
 | `TRACE_RETENTION_DAYS` | Срок хранения полных prompt/response traces (по умолчанию 7) |
 | `OPENAI_MODEL_MAX_TOKENS` | Fallback max output tokens для LLM (по умолчанию 1024) |
+| `KB_CONTENT_GIT_ENABLED` | Включить Git workflow для материалов KB (`true`/`false`) |
+| `KB_CONTENT_REPO_URL` | SSH URL удалённого Git-репозитория (`git@github.com:...`). Пусто = локальный режим. |
+| `KB_CONTENT_REPO_PATH` | Путь к рабочей копии внутри контейнера (по умолчанию `/app/kb-content`) |
+| `KB_CONTENT_SSH_KEY_PATH` | Путь к SSH-ключу для push в remote (внутри контейнера) |
+| `KB_CONTENT_DEFAULT_BRANCH` | Ветка по умолчанию (`main`) |
 
 ### AI Config tuning для latency
 
@@ -221,3 +265,4 @@ asyncio.run(main())
  | 2026-07-30 | 1.1 | Добавлены расширенные параметры AI Config, retention и архивирование логов |
 | 2026-07-30 | 1.2 | Добавлен раздел мониторинга latency: метрики из `analytics_events`, ручное профилирование через `scripts/profile_latency.py`, SLO/NFR, AI Config tuning для latency |
 | 2026-07-30 | 1.3 | Добавлен раздел AI Config default instructions backfill; задокументировано устранение критичного дефекта beginner-ответов в Sprint 4 |
+| 2026-07-31 | 1.4 | Добавлен раздел 2.5 «Git workflow для материалов KB» и переменные окружения KB Content Git |
