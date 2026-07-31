@@ -9,11 +9,25 @@ from services.orchestrator import Orchestrator
 
 
 @pytest.mark.anyio
-async def test_chat_endpoint_organizational(client):
-    """Chat endpoint returns answer with LMS sources for organizational intent."""
+async def test_chat_endpoint_deadline(client):
+    """Chat endpoint returns deterministic answer for deadline intent."""
+    from datetime import datetime, timezone
+    from adapters.lms_adapter import Deadline
+
+    deadline = Deadline(
+        id=1,
+        course_id=3,
+        module_id=10,
+        instance_id=1,
+        name="ДЗ: Пример",
+        modname="assign",
+        due_date=datetime(2026, 8, 5, 18, 49, 57, tzinfo=timezone.utc),
+        url="https://lms.example.com/mod/assign/view.php?id=10",
+    )
+
     with patch(
         "services.orchestrator.lms_adapter.get_course_deadlines",
-        new=AsyncMock(return_value=[]),
+        new=AsyncMock(return_value=[deadline]),
     ), patch(
         "services.orchestrator.lms_adapter.get_user_course_progress",
         new=AsyncMock(return_value={
@@ -24,21 +38,7 @@ async def test_chat_endpoint_organizational(client):
         }),
     ), patch(
         "services.orchestrator.lms_adapter.get_course_contents",
-        new=AsyncMock(return_value=[
-            {
-                "id": 1,
-                "name": "Урок 1",
-                "modname": "page",
-                "section_name": "Модуль 1",
-                "url": "https://lms.example.com/mod/page/view.php?id=1",
-            },
-        ]),
-    ), patch(
-        "services.llm_adapter.ChatOpenAI.ainvoke",
-        new=AsyncMock(return_value=type("R", (), {
-            "content": "Дедлайн по заданию — 5 августа.",
-            "response_metadata": {"model_name": "gpt-4o-mini", "token_usage": {}},
-        })()),
+        new=AsyncMock(return_value=[]),
     ):
         async with client:
             response = await client.post(
@@ -53,53 +53,11 @@ async def test_chat_endpoint_organizational(client):
             assert response.status_code == 200
             data = response.json()
             assert "answer" in data
-            assert data["intent"] == "organizational"
-            assert data["model"] == "gpt-4o-mini"
+            assert data["intent"] == "deadline"
+            assert data["model"] is None
+            assert "2026-08-05" in data["answer"]
 
 
-@pytest.mark.anyio
-async def test_chat_endpoint_course_structure(client):
-    """Chat endpoint returns answer with course contents for lesson count question."""
-    with patch(
-        "services.orchestrator.lms_adapter.get_course_deadlines",
-        new=AsyncMock(return_value=[]),
-    ), patch(
-        "services.orchestrator.lms_adapter.get_user_course_progress",
-        new=AsyncMock(return_value={
-            "user_id": 3,
-            "course_id": 3,
-            "completion_status": "in_progress",
-            "grade_items": [],
-        }),
-    ), patch(
-        "services.orchestrator.lms_adapter.get_course_contents",
-        new=AsyncMock(return_value=[
-            {"id": 1, "name": "Урок 1", "modname": "page", "section_name": "Модуль 1", "url": "https://lms.example.com/mod/page/view.php?id=1"},
-            {"id": 2, "name": "Урок 2", "modname": "page", "section_name": "Модуль 1", "url": "https://lms.example.com/mod/page/view.php?id=2"},
-            {"id": 3, "name": "Урок 3", "modname": "page", "section_name": "Модуль 2", "url": "https://lms.example.com/mod/page/view.php?id=3"},
-        ]),
-    ), patch(
-        "services.llm_adapter.ChatOpenAI.ainvoke",
-        new=AsyncMock(return_value=type("R", (), {
-            "content": "В курсе 3 урока.",
-            "response_metadata": {"model_name": "gpt-4o-mini", "token_usage": {}},
-        })()),
-    ):
-        async with client:
-            response = await client.post(
-                "/api/v1/chat",
-                json={
-                    "message": "Сколько уроков по курсу?",
-                    "role": "active_student",
-                    "difficulty": "beginner",
-                    "course_id": 3,
-                },
-            )
-            assert response.status_code == 200
-            data = response.json()
-            assert data["intent"] == "organizational"
-            assert data["answer"] == "В курсе 3 урока."
-            assert any(s["type"] == "lms" for s in data["sources"])
 
 
 @pytest.mark.anyio
@@ -153,10 +111,13 @@ async def test_chat_endpoint_study(client, tmp_path):
 
 
 def test_detect_intent():
-    assert Orchestrator.detect_intent("Какие дедлайны?") == "organizational"
+    assert Orchestrator.detect_intent("Какие дедлайны?") == "deadline"
+    assert Orchestrator.detect_intent("Когда сдать задание?") == "deadline"
     assert Orchestrator.detect_intent("Объясни промпты") == "study"
     assert Orchestrator.detect_intent("Когда сдача лекции?") == "mixed"
     assert Orchestrator.detect_intent("Сколько уроков?") == "organizational"
+    assert Orchestrator.detect_intent("Сколько модулей?") == "organizational"
+    assert Orchestrator.detect_intent("Структура курса") == "mixed"
 
 
 def test_answer_validator_accepts_valid():

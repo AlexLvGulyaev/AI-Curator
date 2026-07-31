@@ -223,6 +223,17 @@ class Orchestrator:
             return mention
         return None
 
+    DEADLINE_KEYWORDS = [
+        "дедлайн",
+        "когда сдать",
+        "до когда",
+        "когда нужно сдать",
+        "когда сдавать",
+        "срок сдачи",
+        "срок",
+        "когда deadline",
+    ]
+
     @staticmethod
     def detect_intent(message: str) -> str:
         """Classify message intent."""
@@ -230,11 +241,19 @@ class Orchestrator:
         is_progress = any(kw in lower for kw in Orchestrator.PROGRESS_KEYWORDS)
         is_org = any(kw in lower for kw in Orchestrator.ORG_KEYWORDS)
         is_study = any(kw in lower for kw in Orchestrator.STUDY_KEYWORDS)
+        is_deadline = any(kw in lower for kw in Orchestrator.DEADLINE_KEYWORDS)
+        # Deadline questions need deterministic answer from LMS data.
+        if is_deadline:
+            return "deadline"
         # Progress questions often overlap with organizational keywords (module/assignment).
         # Treat them as a dedicated intent so we can answer from LMS progress directly.
         if is_progress:
             return "progress"
         if is_org and is_study:
+            return "mixed"
+        # Pure structure questions ("сколько модулей", "из чего состоит курс") need
+        # both LMS contents and KB context to avoid hallucinated module counts.
+        if is_org and any(kw in lower for kw in ("модуль", "модули", "структура курса", "из чего состоит курс")):
             return "mixed"
         if is_org:
             return "organizational"
@@ -273,19 +292,8 @@ class Orchestrator:
         return result
 
     @staticmethod
-    def _build_progress_answer(
-        message: str,
-        lms_data: Dict[str, Any],
-        course_id: int,
-    ) -> tuple[str, List[Dict[str, Any]]]:
-        """Build a deterministic answer for progress-related questions."""
-        progress = lms_data.get("progress", {}) or {}
-        contents = lms_data.get("contents", []) or []
-        completion_status = progress.get("completion_status", "in_progress")
-
-        # Collect unique module names from course contents (section names).
-        # Skip generic section 0 names that duplicate module names (e.g. "Основы"
-        # vs "Модуль 1. Основы").
+    def _deduplicate_sections(contents: List[Dict[str, Any]]) -> List[str]:
+        """Return unique, meaningful course section names from LMS contents."""
         raw_sections: List[str] = []
         seen_sections: set = set()
         for item in contents:
@@ -295,7 +303,6 @@ class Orchestrator:
             seen_sections.add(section)
             raw_sections.append(section)
 
-        # Drop sections that are substrings of a more specific module section.
         modules: List[str] = []
         lower_all = [s.lower() for s in raw_sections]
         for section in raw_sections:
@@ -305,6 +312,19 @@ class Orchestrator:
             if any(other != lower and lower in other for other in lower_all):
                 continue
             modules.append(section)
+        return modules
+
+    @staticmethod
+    def _build_progress_answer(
+        message: str,
+        lms_data: Dict[str, Any],
+        course_id: int,
+    ) -> tuple[str, List[Dict[str, Any]]]:
+        """Build a deterministic answer for progress-related questions."""
+        progress = lms_data.get("progress", {}) or {}
+        contents = lms_data.get("contents", []) or []
+        completion_status = progress.get("completion_status", "in_progress")
+        modules = Orchestrator._deduplicate_sections(contents)
 
         # Grade items for assignments.
         grade_items = progress.get("grade_items", []) or []
@@ -346,10 +366,8 @@ class Orchestrator:
                 body += "\n\nПока нет сданных заданий с выставленной оценкой."
 
         # Build sources: only unique course modules referenced in the answer.
-        # Use the deduplicated `modules` list so generic section 0 names are excluded.
         sources: List[Dict[str, Any]] = []
         seen_source_sections: set = set()
-        # Pick a representative URL for each module from the first matching content item.
         module_url_map: Dict[str, Optional[str]] = {}
         for item in contents:
             section = (item.get("section_name") or "").strip()
@@ -365,6 +383,64 @@ class Orchestrator:
                     "url": module_url_map.get(section),
                 })
 
+        return body, sources
+
+    @staticmethod
+    def _build_deadline_answer(
+        message: str,
+        lms_data: Dict[str, Any],
+        course_id: int,
+    ) -> tuple[str, List[Dict[str, Any]]]:
+        """Build a deterministic answer for deadline questions from LMS data."""
+        deadlines = lms_data.get("deadlines", []) or []
+        contents = lms_data.get("contents", []) or []
+        message_lower = message.lower()
+
+        # Extract a quoted assignment name if present.
+        quoted_name = None
+        for match in re.finditer(r'["«]([^"«»]+)["»]', message):
+            quoted_name = match.group(1).strip()
+            break
+
+        # Fuzzy match by quoted name or by individual words from the message.
+        def _matches(d: Dict[str, Any]) -> bool:
+            name = (d.get("name") or "").lower()
+            if quoted_name:
+                return quoted_name.lower() in name
+            query_words = {w for w in re.findall(r"[а-яa-z0-9]+", message_lower) if len(w) > 3}
+            return any(w in name for w in query_words)
+
+        matched = [d for d in deadlines if _matches(d)]
+        if not matched:
+            # Fall back to all course deadlines sorted by date.
+            matched = sorted(
+                deadlines,
+                key=lambda d: d.get("due_date") or "",
+            )
+
+        if not matched:
+            body = (
+                "В курсе пока нет опубликованных заданий с дедлайнами. "
+                "Если вы ожидаете увидеть задание, обратитесь к преподавателю."
+            )
+            return body, []
+
+        lines: List[str] = []
+        sources: List[Dict[str, Any]] = []
+        seen_ids: set = set()
+        for d in matched[:5]:
+            due = d.get("due_date")
+            due_str = due[:10] if due else "не установлен"
+            lines.append(f"- «{d.get('name', 'Без названия')}»: {due_str}")
+            did = d.get("id") or d.get("module_id")
+            if did and did not in seen_ids:
+                seen_ids.add(did)
+                sources.append({
+                    "type": "lms",
+                    "title": d.get("name", "Задание"),
+                    "url": d.get("url"),
+                })
+        body = "Дедлайны заданий:\n" + "\n".join(lines)
         return body, sources
 
     async def process(
@@ -484,7 +560,7 @@ class Orchestrator:
         }
 
         # Determine if we need LMS data and/or RAG context.
-        need_lms = intent in ("organizational", "mixed", "progress")
+        need_lms = intent in ("organizational", "mixed", "progress", "deadline")
         need_rag = intent in ("study", "mixed")
 
         lms_data: Optional[Dict[str, Any]] = None
@@ -567,7 +643,7 @@ class Orchestrator:
         # Pick retrieval size: smaller for chat to reduce prompt size and latency.
         rag_k = 3 if intent in ("study", "mixed") else retrieval_tuning.top_k
 
-        # Gather LMS and RAG in parallel for mixed; otherwise run only needed phases.
+        # Gather LMS and RAG in parallel for mixed/deadline; otherwise run only needed phases.
         fetch_tasks: List[Any] = []
         if need_lms and target_course_id:
             fetch_tasks.append(_fetch_lms_data(target_course_id, user_id))
@@ -598,6 +674,62 @@ class Orchestrator:
             lms_errors = lms_data.pop("errors", [])
             for err in lms_errors:
                 lms_calls.append({"type": f"lms_error_{err['type']}", "error": err["error"]})
+
+            # Short-circuit for deadline questions: answer deterministically from LMS data.
+            if intent == "deadline":
+                deadline_answer, deadline_sources = self._build_deadline_answer(
+                    message, lms_data, target_course_id
+                )
+                total_lms_ms = round(
+                    timings.get("lms_deadlines_ms", 0)
+                    + timings.get("lms_progress_ms", 0)
+                    + timings.get("lms_contents_ms", 0),
+                    2,
+                )
+                request = await self.logger.create_chat_request(
+                    session_id=session_id,
+                    role=role,
+                    course_id=target_course_id,
+                    difficulty=difficulty,
+                    message=message,
+                    intent=intent,
+                    lms_calls=lms_calls,
+                    rag_filters=rag_filters,
+                )
+                await self.logger.create_chat_log(
+                    request_id=request.id,
+                    answer=deadline_answer,
+                    sources=deadline_sources,
+                    llm_model=None,
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    total_tokens=0,
+                    latency_ms=total_lms_ms,
+                    error=None,
+                )
+                await self.logger.log_analytics_event(
+                    event_type="chat_answer",
+                    session_id=session_id,
+                    course_id=target_course_id,
+                    difficulty=difficulty,
+                    intent=intent,
+                    payload={
+                        "has_lms_data": True,
+                        "rag_chunks": 0,
+                        "llm_status": "short_circuit",
+                        "validated": True,
+                        "timings_ms": timings,
+                    },
+                )
+                return {
+                    "answer": deadline_answer,
+                    "sources": deadline_sources,
+                    "intent": intent,
+                    "model": None,
+                    "latency_ms": total_lms_ms,
+                    "session_id": session_id,
+                    "error": None,
+                }
 
             # Short-circuit for progress questions: answer deterministically from LMS data.
             if intent == "progress":
