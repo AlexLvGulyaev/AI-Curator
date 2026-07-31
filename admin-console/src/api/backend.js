@@ -202,6 +202,18 @@ export async function updateActiveAiConfig(data) {
   return activateAiConfig(created.id);
 }
 
+// Orchestrator Config
+export async function getOrchestratorConfig() {
+  return apiRequest('/api/v1/admin/orchestrator/config');
+}
+
+export async function updateOrchestratorConfig(data) {
+  return apiRequest('/api/v1/admin/orchestrator/config', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
 // Retrieval Tuning
 export async function getRetrievalTuning() {
   return apiRequest('/api/v1/admin/retrieval/tuning');

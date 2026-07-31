@@ -171,6 +171,31 @@ def test_detect_intent():
     assert Orchestrator.detect_intent("Структура курса") == "mixed"
 
 
+def test_detect_intent_with_config():
+    """detect_intent respects keywords from orchestrator config."""
+    ocfg = {
+        "intent_rules": {
+            "deadline": {"keywords": ["дедлайн"], "priority": 1},
+            "progress": {"keywords": ["прошёл"], "priority": 2},
+            "study": {"keywords": ["объясни"], "priority": 3},
+            "mixed": {
+                "conditions": [
+                    {"and": ["is_org", "has_keyword", ["итоговый проект"]]},
+                ],
+                "priority": 4,
+            },
+            "organizational": {
+                "keywords": ["сколько"],
+                "conditions": [{"and": ["is_org"]}],
+                "priority": 5,
+            },
+        },
+        "default_intent": "study",
+    }
+    assert Orchestrator.detect_intent("Какие дедлайны?", ocfg=ocfg) == "deadline"
+    assert Orchestrator.detect_intent("о чём будет итоговый проект", ocfg=ocfg) == "mixed"
+
+
 def test_answer_validator_accepts_valid():
     validator = AnswerValidator("Ответ с источником", [{"type": "kb"}], True)
     result = validator.validate()

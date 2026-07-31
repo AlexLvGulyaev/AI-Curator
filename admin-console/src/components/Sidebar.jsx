@@ -5,6 +5,7 @@ const MENU_GROUPS = [
     items: [
       { id: 'dashboard', label: 'Панель состояния', icon: '📊' },
       { id: 'ai-config', label: 'AI & Retrieval', icon: '⚙️' },
+      { id: 'orchestrator', label: 'Orchestrator', icon: '🧭' },
     ],
   },
   {

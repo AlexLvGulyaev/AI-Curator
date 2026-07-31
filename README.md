@@ -69,7 +69,7 @@ AI Curator — цифровой наставник для студентов о�
 - Загрузка и управление учебными материалами Knowledge Base.
 - Управление метаданными, версиями и публикацией документов.
 - Запуск обработки, индексации и переиндексации.
-- Конфигурация AI, аналитика запросов, мониторинг системы.
+- Конфигурация AI и маршрутизации запросов (Orchestrator), аналитика запросов, мониторинг системы.
 
 ## Краткая архитектура
 
@@ -141,7 +141,7 @@ flowchart TB
 
 ## Статус проекта
 
-**Текущая стадия:** Implementation In Progress — Day 6 Done: LLM Chat, Admin Console, Logging, Analytics, Audit.
+**Текущая стадия:** Implementation In Progress — Sprint 6.1 In Progress: Configurable Orchestrator Routing.
 
 - ✅ Проект согласован с куратором.
 - ✅ Подготовлены PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md, IMPLEMENTATION_PLAN.md, PROMPT_ARCHITECTURE.md, OPERATIONS.md, ADMIN_CONSOLE.md.
@@ -153,15 +153,16 @@ flowchart TB
 - ✅ Реализован Knowledge Base scaffold: загрузка документов, версии, публикация, статус через Admin API (`/api/v1/admin/kb/*`).
 - ✅ Реализован RAG pipeline: chunking, OpenAI embeddings, индексация в Chroma, семантический поиск через `/api/v1/rag/search`.
 - ✅ Реализован LLM Chat: `POST /api/v1/chat` с orchestrator, prompt builder, answer validator и logging.
-- ✅ Реализованы admin endpoints: AI-config, analytics, monitoring, audit.
+- ✅ Реализованы admin endpoints: AI-config, analytics, monitoring, audit, orchestrator-config.
 - ✅ Логирование, аналитика и аудит пишутся в PostgreSQL.
 - ✅ AI-конфигурация версионируется и применяется.
+- ⏳ Конфигурация маршрутизации запросов (Orchestrator) вынесена из хардкода в Admin Console: модель, сервис, API, миграция, UI-конструктор, тесты.
 - ✅ Web UI: `https://curator.alex-n8n.site` — гостевой вход, чат через `POST /api/v1/chat`, markdown-рендеринг, история диалога, источники ответов, переключатель сложности.
-- ✅ Admin Console: `https://curator-admin.alex-n8n.site` — KB, AI-config, analytics, monitoring, audit.
+- ✅ Admin Console: `https://curator-admin.alex-n8n.site` — KB, AI-config, orchestrator-config, analytics, monitoring, audit.
 - ✅ Административные endpoints защищены Bearer-токеном.
-- ✅ Alembic-миграции Knowledge Base и Дня 6 применены в PostgreSQL.
-- ✅ Тесты `pytest` проходят (23 теста).
-- ⏳ Следующий шаг — День 7 IMPLEMENTATION_PLAN: E2E-тестирование, DEPLOYMENT_GUIDE.md, материалы для портфолио.
+- ✅ Alembic-миграции Knowledge Base, Дня 6 и `orchestrator_configs` подготовлены.
+- ⏳ Тесты `pytest` обновлены и расширены (23 + новые), но ещё не запускались в этой сессии.
+- ⏳ Следующий шаг — запуск тестов, применение миграций и деплой Sprint 6.1, затем День 7 IMPLEMENTATION_PLAN: E2E-тестирование, DEPLOYMENT_GUIDE.md, материалы для портфолио.
 
 ## Планируемые публичные точки входа
 

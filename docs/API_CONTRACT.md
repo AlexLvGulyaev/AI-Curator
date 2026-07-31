@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.7  
+**Версия:** 1.8  
 **Дата:** 2026-07-31  
-**Статус:** Актуален для Sprint 5.2 + LMS-KB linking contract
+**Статус:** Актуален для Sprint 5.2 + LMS-KB linking contract + Configurable Orchestrator Routing
 
 ---
 
@@ -815,6 +815,85 @@
 
 Административные endpoints защищены Bearer-токеном из переменной окружения `ADMIN_CONSOLE_TOKEN`, если она задана. Web UI и публичный чат не требуют авторизации.
 
+### 4.6. Orchestrator Configuration
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| `GET` | `/api/v1/admin/orchestrator/config` | Текущая конфигурация оркестратора |
+| `PUT` | `/api/v1/admin/orchestrator/config` | Обновить конфигурацию оркестратора |
+
+**Поля конфигурации (`PUT /api/v1/admin/orchestrator/config`):**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `intent_rules` | object | Правила интент-классификации: keywords и условия для каждого intent |
+| `default_intent` | string | Intent по умолчанию, когда ни одно правило не сработало |
+| `intent_source_map` | object | Маппинг intent → `{lms, rag, strict_course}` |
+| `non_course_starters` | array[string] | Слова, которые не считаются названиями курсов при экстракции |
+| `max_lms_contents` | int | Максимальное число элементов LMS contents в prompt |
+| `max_lms_deadlines` | int | Максимальное число дедлайнов в prompt |
+| `intent_max_tokens` | object | Маппинг intent-ключа → max output tokens |
+| `fallback_messages` | object | Сообщения для `no_lms_data`, `no_rag_context`, `out_of_scope_course` |
+
+**Пример ответа `GET /api/v1/admin/orchestrator/config`:**
+
+```json
+{
+  "id": 1,
+  "intent_rules": {
+    "deadline": {
+      "keywords": ["дедлайн", "дедлайны", "срок", "сдача", "когда", "до когда", "когда сдать"],
+      "priority": 1
+    },
+    "progress": {
+      "keywords": ["прошёл", "завершил", "сдал", "выполнил", "мой прогресс", "мои результаты"],
+      "priority": 2
+    },
+    "study": {
+      "keywords": ["лекция", "методичка", "объясни", "расскажи", "что такое", "как работает"],
+      "priority": 3
+    },
+    "mixed": {
+      "conditions": [
+        {"and": ["is_org", "is_study"]},
+        {"and": ["is_org", "has_keyword", ["модуль", "модули", "структура курса"]]}
+      ],
+      "priority": 4
+    },
+    "organizational": {
+      "conditions": [{"and": ["is_org"]}],
+      "priority": 5
+    }
+  },
+  "default_intent": "study",
+  "intent_source_map": {
+    "deadline": {"lms": true, "rag": false, "strict_course": true},
+    "progress": {"lms": true, "rag": false, "strict_course": true},
+    "organizational": {"lms": true, "rag": false, "strict_course": true},
+    "study": {"lms": false, "rag": true, "strict_course": false},
+    "mixed": {"lms": true, "rag": true, "strict_course": true}
+  },
+  "non_course_starters": ["когда", "сколько", "какой", "объясни", "расскажи"],
+  "max_lms_contents": 12,
+  "max_lms_deadlines": 5,
+  "intent_max_tokens": {
+    "organizational": 500,
+    "study_beginner": 650,
+    "mixed": 800,
+    "default": 750
+  },
+  "fallback_messages": {
+    "no_lms_data": "В курсе пока нет опубликованных заданий с дедлайнами. Если вы ожидаете увидеть задание, обратитесь к преподавателю.",
+    "no_rag_context": "У меня недостаточно данных, чтобы точно ответить. Обратитесь к преподавателю.",
+    "out_of_scope_course": "У меня нет данных о курсе «{course}» для вашей учётной записи. Обратитесь к преподавателю."
+  },
+  "created_at": "2026-07-31T12:00:00Z",
+  "updated_at": "2026-07-31T12:00:00Z"
+}
+```
+
+При отсутствии строки в таблице backend автоматически создаёт конфигурацию с defaults, идентичными текущему хардкоду, чтобы обеспечить graceful degradation.
+
 ---
 
 ## 5. Канонические модели данных
@@ -1051,3 +1130,4 @@
 | 2026-07-30 | 1.5 | Расширены поля AI Configuration; добавлена структура analytics payload с `timings_ms` |
 | 2026-07-31 | 1.6 | Добавлены endpoints операционной консоли KB Documents: `/detail`, `/text`, `/chunks`, `/timeline`, `/activate`, `/reindex`, `/reindex-all`; обновлены модели `KbDocumentVersionOut`, добавлены `KbDocumentChunkOut`, `KbDocumentEventOut`, `KbVersionTextOut`, `KbDocumentExecutionOut`, `KbDocumentDetailOut`, `KbReindexAllOut` |
 | 2026-07-31 | 1.7 | Уточнена семантика `course_id`/`module_id`/`topic_id` в KB: advisory retrieval-фильтры, не foreign keys из LMS |
+| 2026-07-31 | 1.8 | Добавлен раздел 4.6 «Orchestrator Configuration» с endpoints `GET/PUT /api/v1/admin/orchestrator/config` и JSON-схемой конфигурации оркестратора |

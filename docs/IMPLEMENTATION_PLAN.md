@@ -56,7 +56,8 @@ flowchart LR
     D3 --> D4[День 4: Knowledge Base + RAG через LangChain]
     D4 --> D5[День 5: Web UI студента]
     D5 --> D6[День 6: Admin Console + логи/аналитика]
-    D6 --> D7[День 7: E2E + деплой + документация]
+    D6 --> S6_1[Sprint 6.1: Configurable Orchestrator Routing]
+    S6_1 --> D7[День 7: E2E + деплой + документация]
 ```
 
 ### 2.1. Критический путь
@@ -64,7 +65,7 @@ flowchart LR
 ```
 День 1 (VPS + Moodle) → День 2 (Курс + роли) → День 3 (Backend + LMS Adapter)
                                                              ↓
-День 4 (Knowledge Base + RAG) → День 5 (Web UI) → День 6 (Admin Console) → День 7 (E2E + деплой)
+День 4 (Knowledge Base + RAG) → День 5 (Web UI) → День 6 (Admin Console) → Sprint 6.1 (Orchestrator Config) → День 7 (E2E + деплой)
 ```
 
 ---
@@ -343,7 +344,59 @@ flowchart LR
 
 ---
 
-## 9. День 7: E2E-тестирование, деплой и документация
+## 9. Sprint 6.1: Configurable Orchestrator Routing
+
+### Цель
+
+Вынести хардкодированную логику маршрутизации запросов из `orchestrator.py` в конфигурируемую настройку `orchestrator_configs`, управляемую через отдельную консоль Admin Console.
+
+### Результат спринта
+
+| Артефакт | Признак готовности |
+|----------|-------------------|
+| Модель БД | Таблица `orchestrator_configs` с JSON-полями |
+| Миграция | `alembic/versions/20260731h_add_orchestrator_config.py` применена |
+| Сервис | `OrchestratorConfigService` читает и обновляет конфигурацию |
+| Admin API | `GET/PUT /api/v1/admin/orchestrator/config` доступны и валидированы |
+| Интеграция | `orchestrator.py` использует конфиг для intent, source map, token budgets, fallback messages |
+| Prompt Builder | `prompt_builder.py` читает `max_lms_contents`/`max_lms_deadlines` из конфига |
+| Admin Console UI | Пункт меню «Orchestrator» и страница настроек работают |
+| Тесты | `test_orchestrator_config.py` + обновлённые `test_chat.py` проходят |
+| Документация | `ARCHITECTURE.md`, `API_CONTRACT.md`, `OPERATIONS.md`, `README.md` актуализированы |
+
+### Задачи
+
+1. Создать `src/models/orchestrator_config.py` с JSON-полями и defaults, идентичными текущему хардкоду.
+2. Создать `src/services/orchestrator_config.py` с `get_or_create_default()` и `update()`.
+3. Создать Alembic-миграцию для таблицы `orchestrator_configs`.
+4. Создать `src/api/v1/admin/orchestrator_config.py` с `GET`/`PUT` и Pydantic-схемами.
+5. Подключить роутер в `src/api/v1/admin/__init__.py`.
+6. Адаптировать `src/services/orchestrator.py`:
+   - загружать конфигурацию;
+   - использовать `intent_rules` в `detect_intent()`;
+   - использовать `intent_source_map` для `need_lms`/`need_rag`/`strict_course_rag`;
+   - использовать `intent_max_tokens`;
+   - использовать `fallback_messages`;
+   - использовать `non_course_starters`.
+7. Адаптировать `src/services/prompt_builder.py` для `max_lms_contents`/`max_lms_deadlines`.
+8. Создать `admin-console/src/components/OrchestratorConfig.jsx` с секциями Intent, Source Routing, Limits, Token Budgets, Fallbacks.
+9. Добавить пункт меню в `admin-console/src/components/Sidebar.jsx`.
+10. Подключить компонент в `admin-console/src/App.jsx`.
+11. Добавить API-функции в `admin-console/src/api/backend.js`.
+12. Написать/обновить тесты.
+13. Актуализировать `docs/API_CONTRACT.md`, `docs/OPERATIONS.md`, `docs/ARCHITECTURE.md`, `README.md`.
+
+### Критерий завершения
+
+- [ ] Конфигурация оркестратора доступна через Admin API и Admin Console.
+- [ ] Изменение `intent_rules` через API влияет на классификацию запросов.
+- [ ] Изменение `intent_source_map` влияет на выбор источников.
+- [ ] При отсутствии конфигурации orchestrator работает с hardcoded defaults.
+- [ ] `pytest` проходит.
+
+---
+
+## 10. День 7: E2E-тестирование, деплой и документация
 
 ### Цель
 
@@ -387,9 +440,9 @@ flowchart LR
 
 ---
 
-## 10. Зависимости и критический путь
+## 11. Зависимости и критический путь
 
-### 10.1. Внешние зависимости
+### 11.1. Внешние зависимости
 
 | Зависимость | Описание | Митигация |
 |-------------|----------|-----------|
@@ -399,7 +452,7 @@ flowchart LR
 | OpenAI API | Эмбеддинги и LLM | Мониторить лимиты и стоимость |
 | Knowledge Base content | Необходимы учебные материалы для RAG | Подготовить методистский контент заранее |
 
-### 10.2. Внутренние зависимости
+### 11.2. Внутренние зависимости
 
 | Этап | Зависит от | Почему |
 |------|------------|--------|
@@ -408,19 +461,20 @@ flowchart LR
 | День 4 | День 3 | Нужен backend и LMS Adapter |
 | День 5 | День 4 | Нужен работающий RAG |
 | День 6 | День 5 | Нужен Web UI для получения логов |
-| День 7 | День 6 | Нужен полный контур для E2E |
+| Sprint 6.1 | День 6 | Нужен работающий chat/orchestrator |
+| День 7 | Sprint 6.1 | Нужен полный контур и конфигурация оркестратора для E2E |
 
-### 10.3. Критический путь
+### 11.3. Критический путь
 
 ```
-День 1 → День 2 → День 3 → День 4 → День 5 → День 6 → День 7
+День 1 → День 2 → День 3 → День 4 → День 5 → День 6 → Sprint 6.1 → День 7
 ```
 
 Задержка на любом из дней сдвигает финальный деплой.
 
 ---
 
-## 11. Риски и митигация
+## 12. Риски и митигация
 
 | Риск | Вероятность | Влияние | Митигация |
 |------|-------------|--------|-----------|
@@ -433,22 +487,24 @@ flowchart LR
 
 ---
 
-## 12. Документация, создаваемая в ходе реализации
+## 13. Документация, создаваемая в ходе реализации
 
 | Документ | День | Назначение |
 |----------|------|------------|
 | `DEPLOYMENT_GUIDE.md` | День 7 | Source of Truth развёртывания |
-| `docs/API_CONTRACT.md` | День 3–6 | Контракты API |
+| `docs/API_CONTRACT.md` | День 3–6, Sprint 6.1 | Контракты API |
 | `docs/PROMPT_ARCHITECTURE.md` | День 6 | Структура промптов и few-shot примеры |
-| `docs/OPERATIONS.md` | День 6–7 | Эксплуатация, обновление Knowledge Base |
+| `docs/OPERATIONS.md` | День 6–7, Sprint 6.1 | Эксплуатация, обновление Knowledge Base и конфигурация оркестратора |
+| `docs/ARCHITECTURE.md` | Sprint 6.1 | Архитектурные решения, включая конфигурируемую маршрутизацию |
 | `README.md` | День 7 | Актуализация публичного описания |
 
 ---
 
-## 13. История изменений
+## 14. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
 | 2026-07-29 | 2.0 | Пересоздан IMPLEMENTATION_PLAN.md на основе AI_CURATOR_SYSTEM_SPECIFICATION.md: Knowledge Base загружается через Admin Console, Web UI — отдельный публичный сервис на VPS, Backend как единый оркестратор |
 | 2026-07-29 | 2.0 (Approved) | Документ согласован куратором. Статус изменён на Approved. |
 | 2026-07-29 | 1.0 | Первая версия IMPLEMENTATION_PLAN на 7 дней |
+| 2026-07-31 | 2.1 | Добавлен Sprint 6.1 «Configurable Orchestrator Routing»: вынесение интент-классификации, source routing, context limits, token budgets и fallback-сообщений в конфигурируемую подсистему `orchestrator_configs` с отдельной консолью Admin Console; обновлены диаграмма этапов, зависимости и критический путь |

@@ -6,6 +6,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
 import KbDocuments from './components/KbDocuments';
 import AiAndRetrievalConfig from './components/AiAndRetrievalConfig';
+import OrchestratorConfig from './components/OrchestratorConfig';
 import Analytics from './components/Analytics';
 import AuditLog from './components/AuditLog';
 
@@ -42,6 +43,7 @@ function App() {
     if (activePage === 'dashboard') return <Dashboard />;
     if (activePage === 'kb') return <KbDocuments />;
     if (activePage === 'ai-config') return <AiAndRetrievalConfig />;
+    if (activePage === 'orchestrator') return <OrchestratorConfig />;
     if (activePage === 'analytics') return <Analytics />;
     if (activePage === 'audit') return <AuditLog />;
     return <Dashboard />;

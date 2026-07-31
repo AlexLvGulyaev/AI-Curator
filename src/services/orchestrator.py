@@ -13,6 +13,7 @@ from services.ai_config import AiConfigService
 from services.answer_validator import AnswerValidator
 from services.llm_adapter import LLMAdapter, LlmResponse
 from services.logger import LoggerService
+from services.orchestrator_config import OrchestratorConfigService
 from services.prompt_builder import PromptBuilder
 from services.rag_pipeline import RagPipeline
 from services.retrieval_tuning import RetrievalTuningService
@@ -104,15 +105,12 @@ class Orchestrator:
         self.db = db
         self.logger = LoggerService(db)
         self.ai_config_service = AiConfigService(db)
+        self.orchestrator_config_service = OrchestratorConfigService(db)
+        self._ocfg: dict = {}
 
-    # Common Russian sentence starters that are NOT course names.
-    _NON_COURSE_STARTERS = {
-        "когда", "сколько", "какой", "какая", "какое", "какие", "как", "что",
-        "почему", "зачем", "где", "куда", "откуда", "кто", "чей", "чьё", "чьи",
-        "объясни", "расскажи", "покажи", "скажи", "дай", "перечисли", "укажи",
-        "выведи", "напиши", "сделай", "поставь", "выставь", "перенеси", "сообщи",
-        "пройди", "прочитай", "повтори", "изучи", "опиши", "привет", "спасибо",
-    }
+    def _non_course_starters(self) -> set:
+        """Return common Russian sentence starters that are NOT course names."""
+        return set(getattr(self, "_ocfg", {}).get("non_course_starters", []))
 
     @staticmethod
     def _extract_course_mentions(message: str) -> List[str]:
@@ -157,6 +155,76 @@ class Orchestrator:
             return Orchestrator.ROLE_CONFIG[role]
         # Fallback to legacy student_demo if role is missing/unknown.
         return Orchestrator.ROLE_CONFIG["student_demo"]
+
+    def _set_config(self, ocfg) -> None:
+        """Store the effective orchestrator config dict for the request lifetime."""
+        self._ocfg = {
+            "intent_rules": getattr(ocfg, "intent_rules", {}),
+            "default_intent": getattr(ocfg, "default_intent", "study"),
+            "intent_source_map": getattr(ocfg, "intent_source_map", {}),
+            "non_course_starters": getattr(ocfg, "non_course_starters", []),
+            "max_lms_contents": getattr(ocfg, "max_lms_contents", 12),
+            "max_lms_deadlines": getattr(ocfg, "max_lms_deadlines", 5),
+            "intent_max_tokens": getattr(ocfg, "intent_max_tokens", {}),
+            "fallback_messages": getattr(ocfg, "fallback_messages", {}),
+        }
+
+    def _intent_keywords(self, intent: str) -> List[str]:
+        """Return keywords for an intent from the active config."""
+        rules = self._ocfg.get("intent_rules", {})
+        return list(rules.get(intent, {}).get("keywords", []))
+
+    def _eval_condition(self, condition: List[Any], message_lower: str) -> bool:
+        """Evaluate a simple condition list from intent_rules.
+
+        Supported forms:
+        - ["is_org"] / ["is_study"] / ["is_progress"]
+        - ["has_keyword", ["word1", "word2"]]
+        - {"and": [...conditions...]}
+        """
+        if isinstance(condition, dict) and "and" in condition:
+            parts = condition["and"]
+            return all(self._eval_condition(part, message_lower) for part in parts)
+
+        if not isinstance(condition, (list, tuple)) or not condition:
+            return False
+
+        head = condition[0]
+        if head in ("is_org", "is_study", "is_progress"):
+            intent_map = {
+                "is_org": "organizational",
+                "is_study": "study",
+                "is_progress": "progress",
+            }
+            keywords = self._intent_keywords(intent_map[head])
+            # Fallback for is_org: if organizational has no keywords, use deadline+progress keywords.
+            if head == "is_org" and not keywords:
+                keywords = self._intent_keywords("deadline") + self._intent_keywords("progress")
+            return any(kw in message_lower for kw in keywords)
+
+        if head == "has_keyword" and len(condition) >= 2:
+            words = condition[1]
+            return any(w.lower() in message_lower for w in words)
+
+        return False
+
+    def _intent_from_conditions(self, message_lower: str) -> Optional[str]:
+        """Return the first intent whose conditions match, ordered by priority."""
+        rules = self._ocfg.get("intent_rules", {})
+        candidates = []
+        for intent, rule in rules.items():
+            conditions = rule.get("conditions")
+            if not conditions:
+                continue
+            priority = rule.get("priority", 99)
+            for cond in conditions:
+                if self._eval_condition(cond, message_lower):
+                    candidates.append((priority, intent))
+                    break
+        if not candidates:
+            return None
+        candidates.sort(key=lambda x: x[0])
+        return candidates[0][1]
 
     async def _get_available_courses(self, course_ids: List[int]) -> List[Dict[str, Any]]:
         """Return LMS course info for the given course ids."""
@@ -223,25 +291,66 @@ class Orchestrator:
             return mention
         return None
 
-    DEADLINE_KEYWORDS = [
-        "дедлайн",
-        "когда сдать",
-        "до когда",
-        "когда нужно сдать",
-        "когда сдавать",
-        "срок сдачи",
-        "срок",
-        "когда deadline",
-    ]
-
     @staticmethod
-    def detect_intent(message: str) -> str:
-        """Classify message intent."""
+    def detect_intent(message: str, ocfg: Optional[Dict[str, Any]] = None) -> str:
+        """Classify message intent using the provided orchestrator config.
+
+        When `ocfg` is None, falls back to hardcoded defaults so that the
+        classifier can be used without a database session (e.g. in tests).
+        """
         lower = message.lower()
-        is_progress = any(kw in lower for kw in Orchestrator.PROGRESS_KEYWORDS)
-        is_org = any(kw in lower for kw in Orchestrator.ORG_KEYWORDS)
-        is_study = any(kw in lower for kw in Orchestrator.STUDY_KEYWORDS)
-        is_deadline = any(kw in lower for kw in Orchestrator.DEADLINE_KEYWORDS)
+
+        def _intent_keywords(intent: str) -> List[str]:
+            rules = (ocfg or {}).get("intent_rules", {})
+            return list(rules.get(intent, {}).get("keywords", []))
+
+        def _eval_condition(condition):
+            if isinstance(condition, dict) and "and" in condition:
+                return all(_eval_condition(part) for part in condition["and"])
+            if not isinstance(condition, (list, tuple)) or not condition:
+                return False
+            head = condition[0]
+            if head in ("is_org", "is_study", "is_progress"):
+                intent_map = {
+                    "is_org": "organizational",
+                    "is_study": "study",
+                    "is_progress": "progress",
+                }
+                keywords = _intent_keywords(intent_map[head])
+                if head == "is_org" and not keywords:
+                    keywords = _intent_keywords("deadline") + _intent_keywords("progress")
+                return any(kw in lower for kw in keywords)
+            if head == "has_keyword" and len(condition) >= 2:
+                words = condition[1]
+                return any(w.lower() in lower for w in words)
+            return False
+
+        def _intent_from_conditions() -> Optional[str]:
+            rules = (ocfg or {}).get("intent_rules", {})
+            candidates = []
+            for intent, rule in rules.items():
+                conditions = rule.get("conditions")
+                if not conditions:
+                    continue
+                priority = rule.get("priority", 99)
+                for cond in conditions:
+                    if _eval_condition(cond):
+                        candidates.append((priority, intent))
+                        break
+            if not candidates:
+                return None
+            candidates.sort(key=lambda x: x[0])
+            return candidates[0][1]
+
+        is_deadline = any(kw in lower for kw in _intent_keywords("deadline"))
+        is_progress = any(kw in lower for kw in _intent_keywords("progress"))
+        is_study = any(kw in lower for kw in _intent_keywords("study"))
+
+        org_keywords = _intent_keywords("organizational")
+        if not org_keywords:
+            org_keywords = _intent_keywords("deadline") + _intent_keywords("progress")
+        is_org = any(kw in lower for kw in org_keywords)
+
         # Deadline questions need deterministic answer from LMS data.
         if is_deadline:
             return "deadline"
@@ -259,8 +368,12 @@ class Orchestrator:
             return "organizational"
         if is_study:
             return "study"
-        # Default to study to leverage RAG for general course questions.
-        return "study"
+        # Fallback to explicit conditions-based classification for extensibility.
+        condition_intent = _intent_from_conditions()
+        if condition_intent:
+            return condition_intent
+        # Default to leverage RAG for general course questions.
+        return (ocfg or {}).get("default_intent", "study")
 
     @staticmethod
     def _to_dict_list(items: List[Any]) -> List[Dict[str, Any]]:
@@ -473,10 +586,13 @@ class Orchestrator:
         # Check whether the user is asking about a course they are not enrolled in.
         other_course = self._looks_like_other_course(message, available_courses)
         if other_course:
-            refusal = (
-                f"У меня нет данных о курсе «{other_course}» для вашей учётной записи. "
-                "Обратитесь к преподавателю, если вопрос касается другого курса."
+            out_of_scope_template = self._ocfg.get(
+                "fallback_messages", {}
+            ).get(
+                "out_of_scope_course",
+                "У меня нет данных о курсе «{course}» для вашей учётной записи. Обратитесь к преподавателю."
             )
+            refusal = out_of_scope_template.format(course=other_course)
             request = await self.logger.create_chat_request(
                 session_id=session_id,
                 role=role,
@@ -510,9 +626,11 @@ class Orchestrator:
 
         target_course_id = mentioned_course_id or explicit_course_id or default_course_id
 
-        # Load active AI configuration and retrieval tuning early.
+        # Load active AI configuration, retrieval tuning and orchestrator config early.
         config = await self.ai_config_service.get_active()
         retrieval_tuning = await RetrievalTuningService(self.db).get_or_create_default()
+        ocfg = await self.orchestrator_config_service.get_or_create_default()
+        self._set_config(ocfg)
 
         # Early short-circuit for requests that must be refused (grades, deadlines).
         # This avoids wasting tokens and latency on LLM/RAG/LMS calls.
@@ -554,18 +672,20 @@ class Orchestrator:
             }
 
         t_start = time.perf_counter()
-        intent = self.detect_intent(message)
+        intent = self.detect_intent(message, ocfg=self._ocfg)
         timings: Dict[str, float] = {
             "intent_detect_ms": round((time.perf_counter() - t_start) * 1000, 2),
         }
 
-        # Determine if we need LMS data and/or RAG context.
-        need_lms = intent in ("organizational", "mixed", "progress", "deadline")
-        need_rag = intent in ("study", "mixed")
+        # Determine if we need LMS data and/or RAG context from config.
+        source_map = self._ocfg.get("intent_source_map", {})
+        intent_sources = source_map.get(intent, {})
+        need_lms = bool(intent_sources.get("lms", intent in ("organizational", "mixed", "progress", "deadline")))
+        need_rag = bool(intent_sources.get("rag", intent in ("study", "mixed")))
         # Study questions should not hard-filter by course_id in RAG so that
         # generic KB materials can be used. Organizational/mixed questions
         # keep the stricter filter because they combine LMS structure with KB.
-        strict_course_rag = intent != "study"
+        strict_course_rag = bool(intent_sources.get("strict_course", intent != "study"))
 
         lms_data: Optional[Dict[str, Any]] = None
         lms_calls: List[Dict[str, Any]] = []
@@ -809,10 +929,13 @@ class Orchestrator:
                  or "срок" in message.lower())
                 and not deadlines
             ):
-                no_deadline_answer = (
-                    "В курсе пока нет опубликованных заданий с дедлайнами. "
-                    "Если вы ожидаете увидеть задание, обратитесь к преподавателю."
+                no_lms_data_template = self._ocfg.get(
+                    "fallback_messages", {}
+                ).get(
+                    "no_lms_data",
+                    "В курсе пока нет опубликованных заданий с дедлайнами. Если вы ожидаете увидеть задание, обратитесь к преподавателю."
                 )
+                no_deadline_answer = no_lms_data_template
                 total_lms_ms = round(
                     timings.get("lms_deadlines_ms", 0)
                     + timings.get("lms_progress_ms", 0)
@@ -867,10 +990,13 @@ class Orchestrator:
         # Short-circuit: if this is a pure study question and no relevant context
         # was found, refuse immediately without calling the LLM.
         if intent == "study" and not rag_context and not lms_data:
-            refusal = (
-                "У меня недостаточно данных, чтобы точно ответить. "
-                "Обратитесь к преподавателю."
+            no_rag_template = self._ocfg.get(
+                "fallback_messages", {}
+            ).get(
+                "no_rag_context",
+                "У меня недостаточно данных, чтобы точно ответить. Обратитесь к преподавателю."
             )
+            refusal = no_rag_template
             short_latency = round(
                 timings.get("lms_deadlines_ms", 0)
                 + timings.get("lms_progress_ms", 0)
@@ -936,7 +1062,7 @@ class Orchestrator:
         )
 
         # Build prompt and call LLM
-        prompt_builder = PromptBuilder(config)
+        prompt_builder = PromptBuilder(config, orchestrator_config=ocfg)
         prompt = prompt_builder.build(
             message=message,
             role=role,
@@ -947,20 +1073,21 @@ class Orchestrator:
             history=history,
         )
 
-        # Choose output token budget by intent/difficulty to reduce generation latency.
+        # Choose output token budget by intent/difficulty from config.
         # The actual limit is clamped to the active config's max_tokens in LLMAdapter.
+        token_budgets = self._ocfg.get("intent_max_tokens", {})
         if intent == "organizational":
-            llm_max_tokens = 500
+            llm_max_tokens = token_budgets.get("organizational", 500)
         elif intent == "study" and difficulty and difficulty.lower() in (
             "beginner", "начинающий", "базовый"
         ):
-            llm_max_tokens = 650
+            llm_max_tokens = token_budgets.get("study_beginner", 650)
         elif intent == "mixed":
-            llm_max_tokens = 800
+            llm_max_tokens = token_budgets.get("mixed", 800)
         else:
             # Advanced study and any other intent: cap below the config default
             # to keep latency under the NFR ceiling.
-            llm_max_tokens = 750
+            llm_max_tokens = token_budgets.get("default", 750)
 
         llm = LLMAdapter(config)
         llm_result: LlmResponse = await llm.generate(prompt, max_tokens=llm_max_tokens)

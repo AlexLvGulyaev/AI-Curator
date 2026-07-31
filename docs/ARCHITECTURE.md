@@ -1,8 +1,8 @@
 # ARCHITECTURE.md — AI Curator
 
 **Проект:** ai-curator
-**Версия:** 2.0
-**Дата:** 2026-07-29
+**Версия:** 2.4
+**Дата:** 2026-07-31
 **Статус:** Approved
 
 ---
@@ -23,6 +23,7 @@ AI Curator — самостоятельная подсистема образо�
 - **Пользовательские интерфейсы не обращаются напрямую** к LMS, Knowledge Base, векторному индексу или LLM.
 - **Векторный индекс** — производное хранилище, восстанавливаемое из документов Knowledge Base.
 - **Параметры промптов и retrieval** (system prompt, output rules, few-shot, distance threshold, top-k, course boost и др.) управляются через Admin Console и таблицы `ai_configs` / `retrieval_tuning`, а не захардкожены в коде.
+- **Параметры интент-классификации и маршрутизации запросов** (keywords, intent → LMS/RAG/strict_course, token бюджеты по intent, fallback-сообщения, размеры LMS-контекста) управляются через Admin Console и таблицу `orchestrator_configs`, а не захардкожены в коде.
 
 ---
 
@@ -211,7 +212,7 @@ Backend отвечает за:
 - вызов LLM через LangChain;
 - проверку и оформление ответа;
 - логирование, аналитику, аудит;
-- административное API для Knowledge Base и AI-конфигурации.
+- административное API для Knowledge Base, AI-конфигурации и конфигурации оркестратора.
 
 ---
 
@@ -627,7 +628,7 @@ Admin Console отображает:
 | Admin Console AI Curator | Отдельный публичный административный интерфейс |
 | HTTPS для всех сервисов | Traefik + Let's Encrypt |
 | Пользовательские интерфейсы не обращаются напрямую к источникам | Все внешние обращения маршрутизируются через Backend |
-| NFR latency ≤ 5 сек | Комбинация embedding cache, parallel LMS+RAG, reduced top_k, intent-based max_tokens, prompt trimming |
+| NFR latency ≤ 5 сек | Комбинация embedding cache, parallel LMS+RAG, reduced top_k, intent-based max_tokens, prompt trimming; размеры LMS-контекста и token-бюджеты по intent читаются из `orchestrator_configs` |
 | Course-aware RAG | `course_id` в KB — advisory retrieval-фильтр; для study-вопросов применяется мягкий приоритет (boost), не hard filter |
 
 ---
@@ -655,3 +656,4 @@ Admin Console отображает:
 | 2026-07-30 | 2.1 | Добавлены разделы retention и архивирования логов; параметризация промптов через `ai_configs`; детальная разбивка latency в analytics events |
 | 2026-07-30 | 2.2 | Добавлен раздел **Latency Architecture** (Sprint 4): embedding cache, parallel LMS+RAG, intent-based max_tokens, reduced top_k, prompt trimming; фактические результаты профилирования; NFR ≤ 5 сек подтверждён |
 | 2026-07-31 | 2.3 | Добавлен раздел 5.1.1 «LMS-KB Linking Contract»: course_id/module_id/topic_id в KB — advisory retrieval-фильтры, не foreign keys; course-aware RAG через мягкий приоритет |
+| 2026-07-31 | 2.4 | Добавлен архитектурный принцип конфигурируемой маршрутизации запросов; параметры интент-классификации, source routing, context limits, token budgets и fallback-сообщений управляются через таблицу `orchestrator_configs` |

@@ -5,11 +5,16 @@ from typing import Any, Dict, List, Optional
 from models.ai_config import AiConfig
 
 
+DEFAULT_MAX_LMS_CONTENTS = 12
+DEFAULT_MAX_LMS_DEADLINES = 5
+
+
 class PromptBuilder:
     """Assemble a structured prompt for the LLM from context and rules."""
 
-    def __init__(self, config: AiConfig):
+    def __init__(self, config: AiConfig, orchestrator_config: Optional[Any] = None):
         self.config = config
+        self.orchestrator_config = orchestrator_config
 
     def build(
         self,
@@ -71,8 +76,17 @@ class PromptBuilder:
 
         return "\n\n---\n\n".join(parts)
 
-    @staticmethod
-    def _format_lms_data(lms_data: Dict[str, Any]) -> str:
+    def _format_lms_data(self, lms_data: Dict[str, Any]) -> str:
+        max_contents = DEFAULT_MAX_LMS_CONTENTS
+        max_deadlines = DEFAULT_MAX_LMS_DEADLINES
+        if self.orchestrator_config is not None:
+            max_contents = getattr(
+                self.orchestrator_config, "max_lms_contents", DEFAULT_MAX_LMS_CONTENTS
+            )
+            max_deadlines = getattr(
+                self.orchestrator_config, "max_lms_deadlines", DEFAULT_MAX_LMS_DEADLINES
+            )
+
         lines = ["Данные из LMS:"]
         contents = lms_data.get("contents", [])
         if contents:
@@ -80,7 +94,7 @@ class PromptBuilder:
                          "Считай количество модулей ТОЛЬКО по уникальным названиям разделов ниже, "
                          "а не по количеству уроков. Не объединяй и не разделяй модули самостоятельно.")
             current_section = None
-            for item in contents[:22]:
+            for item in contents[:max_contents]:
                 section = item.get("section_name") or "Раздел"
                 if section != current_section:
                     lines.append(f"\n### {section}")
@@ -92,7 +106,7 @@ class PromptBuilder:
         deadlines = lms_data.get("deadlines", [])
         if deadlines:
             lines.append("\nБлижайшие дедлайны:")
-            for d in deadlines[:5]:
+            for d in deadlines[:max_deadlines]:
                 due = d.get("due_date") or "нет даты"
                 lines.append(f"- {d.get('name', 'Без названия')}: {due} (URL: {d.get('url', '-')})")
         progress = lms_data.get("progress", {})
