@@ -1,6 +1,6 @@
 """Admin API endpoints for Knowledge Base management."""
 
-from typing import List
+from typing import Any, List
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,10 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import get_db
 from models.knowledge_base import KbDocument, KbDocumentVersion
 from schemas.knowledge_base import (
+    KbDocumentChunkOut,
     KbDocumentCreate,
+    KbDocumentDetailOut,
+    KbDocumentEventOut,
+    KbDocumentExecutionOut,
     KbDocumentOut,
     KbDocumentUpdate,
+    KbDocumentVersionOut,
+    KbReindexAllOut,
     KbStatusOut,
+    KbVersionTextOut,
 )
 from services.knowledge_base import (
     DocumentNotFoundError,
@@ -57,6 +64,16 @@ def _document_out(document: KbDocument) -> KbDocumentOut:
     data = KbDocumentOut.model_validate(document)
     data.active_version_id = active_version_id
     return data
+
+
+def _version_out(version: KbDocumentVersion) -> KbDocumentVersionOut:
+    """Convert an ORM version to the output schema."""
+    return KbDocumentVersionOut.model_validate(version)
+
+
+def _event_out(event: Any) -> KbDocumentEventOut:
+    """Convert an ORM lifecycle event to the output schema."""
+    return KbDocumentEventOut.model_validate(event)
 
 
 # ------------------------------------------------------------------
@@ -243,6 +260,198 @@ async def process_document(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+
+# ------------------------------------------------------------------
+# Operational console endpoints
+# ------------------------------------------------------------------
+
+
+@router.get(
+    "/documents/{document_id}/detail",
+    response_model=KbDocumentDetailOut,
+)
+async def get_document_detail(
+    document_id: int,
+    service: KnowledgeBaseService = Depends(get_kb_service),
+):
+    """Return document metadata, active version, chunks and lifecycle timeline."""
+    try:
+        bundle = await service.get_document_detail_bundle(document_id)
+        await _log_audit("view_detail", "kb_document", document_id, service.db)
+        return KbDocumentDetailOut(
+            document=_document_out(bundle["document"]),
+            active_version=_version_out(bundle["active_version"])
+            if bundle["active_version"]
+            else None,
+            chunks=[KbDocumentChunkOut.model_validate(c) for c in bundle["chunks"]],
+            timeline=[_event_out(e) for e in bundle["timeline"]],
+            execution=KbDocumentExecutionOut(**bundle["execution"]),
+        )
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+
+@router.get(
+    "/documents/{document_id}/versions/{version_id}/text",
+    response_model=KbVersionTextOut,
+)
+async def get_version_text(
+    document_id: int,
+    version_id: int,
+    full: bool = Query(False),
+    stage: str = Query("cleaned"),
+    service: KnowledgeBaseService = Depends(get_kb_service),
+):
+    """Return raw or cleaned text preview for a document version."""
+    try:
+        limit = 10_000_000 if full else 262144
+        preview = await service.get_version_text_preview(
+            version_id, limit=limit, stage=stage
+        )
+        await _log_audit("view_text", "kb_document_version", version_id, service.db)
+        return KbVersionTextOut(**preview)
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except KnowledgeBaseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.get(
+    "/documents/{document_id}/versions/{version_id}/chunks",
+    response_model=List[KbDocumentChunkOut],
+)
+async def get_version_chunks(
+    document_id: int,
+    version_id: int,
+    service: KnowledgeBaseService = Depends(get_kb_service),
+):
+    """Return traceability chunks for a document version."""
+    try:
+        chunks = await service.get_version_chunks(version_id)
+        await _log_audit("view_chunks", "kb_document_version", version_id, service.db)
+        return [KbDocumentChunkOut.model_validate(c) for c in chunks]
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+
+@router.get(
+    "/documents/{document_id}/timeline",
+    response_model=List[KbDocumentEventOut],
+)
+async def get_document_timeline(
+    document_id: int,
+    limit: int = Query(100, ge=1, le=500),
+    service: KnowledgeBaseService = Depends(get_kb_service),
+):
+    """Return lifecycle timeline for a document."""
+    from services.kb_lifecycle import KbLifecycleService
+
+    lifecycle = KbLifecycleService(service.db)
+    events = await lifecycle.get_timeline(document_id, limit=limit)
+    return [_event_out(e) for e in events]
+
+
+@router.post(
+    "/documents/{document_id}/versions/{version_id}/activate",
+    response_model=KbDocumentOut,
+)
+async def activate_version(
+    document_id: int,
+    version_id: int,
+    service: KnowledgeBaseService = Depends(get_kb_service),
+):
+    """Activate a specific document version without reindexing."""
+    try:
+        document = await service.activate_version(document_id, version_id)
+        await _log_audit("activate_version", "kb_document", document.id, service.db)
+        return _document_out(document)
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except KnowledgeBaseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/documents/{document_id}/versions/{version_id}/reindex",
+    response_model=KbDocumentOut,
+)
+async def reindex_version(
+    document_id: int,
+    version_id: int,
+    service: KnowledgeBaseService = Depends(get_kb_service),
+):
+    """Activate and reindex a specific document version."""
+    try:
+        document = await service.reindex_version(document_id, version_id)
+        await _log_audit("reindex_version", "kb_document", document.id, service.db)
+        return _document_out(document)
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except KnowledgeBaseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post("/documents/{document_id}/reindex", response_model=KbDocumentOut)
+async def reindex_document(
+    document_id: int,
+    service: KnowledgeBaseService = Depends(get_kb_service),
+):
+    """Reindex the currently active version of a document."""
+    try:
+        document = await service.get_document(document_id)
+        active_version = document.active_version
+        if active_version is None:
+            raise KnowledgeBaseError(
+                f"Document {document_id} has no active version to reindex."
+            )
+        document = await service.reindex_version(document_id, active_version.id)
+        await _log_audit("reindex", "kb_document", document.id, service.db)
+        return _document_out(document)
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except KnowledgeBaseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post("/reindex-all", response_model=KbReindexAllOut)
+async def reindex_all(
+    service: KnowledgeBaseService = Depends(get_kb_service),
+):
+    """Reindex all currently published documents."""
+    result = await service.reindex_all_published()
+    await _log_audit("reindex_all", "kb_document", None, service.db)
+    return KbReindexAllOut(**result)
 
 
 # ------------------------------------------------------------------

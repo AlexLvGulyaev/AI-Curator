@@ -136,7 +136,7 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://ai_curator:AICPG3hfpf2100@ai-curator-postgres:5432/ai_curator
     volumes:
-      - ai-curator-doc-store:/app/storage/documents
+      - ./storage/documents:/app/storage/documents
     networks:
       - ai-curator-network
       - n8n_default

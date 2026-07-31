@@ -93,6 +93,54 @@ export async function uploadKbVersion(id, formData) {
   });
 }
 
+export async function getKbDocumentDetail(id) {
+  return apiRequest(`/api/v1/admin/kb/documents/${id}/detail`);
+}
+
+export async function getKbVersionText(documentId, versionId, full = false) {
+  return apiRequest(
+    `/api/v1/admin/kb/documents/${documentId}/versions/${versionId}/text?full=${full}`
+  );
+}
+
+export async function getKbVersionChunks(documentId, versionId) {
+  return apiRequest(
+    `/api/v1/admin/kb/documents/${documentId}/versions/${versionId}/chunks`
+  );
+}
+
+export async function getKbDocumentTimeline(documentId, limit = 100) {
+  return apiRequest(
+    `/api/v1/admin/kb/documents/${documentId}/timeline?limit=${limit}`
+  );
+}
+
+export async function reindexKbVersion(documentId, versionId) {
+  return apiRequest(
+    `/api/v1/admin/kb/documents/${documentId}/versions/${versionId}/reindex`,
+    { method: 'POST' }
+  );
+}
+
+export async function activateKbVersion(documentId, versionId) {
+  return apiRequest(
+    `/api/v1/admin/kb/documents/${documentId}/versions/${versionId}/activate`,
+    { method: 'POST' }
+  );
+}
+
+export async function reindexKbDocument(documentId) {
+  return apiRequest(`/api/v1/admin/kb/documents/${documentId}/reindex`, {
+    method: 'POST',
+  });
+}
+
+export async function reindexAllKbDocuments() {
+  return apiRequest('/api/v1/admin/kb/reindex-all', {
+    method: 'POST',
+  });
+}
+
 export async function deleteKbDocument(id) {
   return apiRequest(`/api/v1/admin/kb/documents/${id}`, {
     method: 'DELETE',

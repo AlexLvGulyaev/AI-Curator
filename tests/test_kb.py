@@ -83,3 +83,164 @@ async def test_publish_document(client, tmp_path):
         response = await client.post(f"/api/v1/admin/kb/documents/{doc_id}/publish?publish=true")
         assert response.status_code == 200
         assert response.json()["is_published"] is True
+
+
+@pytest.mark.anyio
+async def test_document_detail_bundle(client, tmp_path):
+    content = "# Детальная лекция\n\nПример текста для preview.\n"
+    file_path = _make_markdown_file(tmp_path, content)
+
+    async with client:
+        create_response = await client.post(
+            "/api/v1/admin/kb/documents",
+            data={"title": "Detail Bundle Test", "document_type": "lecture"},
+            files={"file": ("lecture.md", file_path.read_bytes(), "text/markdown")},
+        )
+        doc_id = create_response.json()["id"]
+
+        await client.post(f"/api/v1/admin/kb/documents/{doc_id}/process")
+
+        detail_response = await client.get(f"/api/v1/admin/kb/documents/{doc_id}/detail")
+        assert detail_response.status_code == 200
+        detail = detail_response.json()
+        assert detail["document"]["id"] == doc_id
+        assert detail["active_version"]["version_number"] == 1
+        assert detail["active_version"]["sha256"] is not None
+        assert detail["active_version"]["cleaned_storage_path"] is not None
+        assert detail["execution"]["provider"] == "OpenAI"
+        assert detail["execution"]["backend"] == "Chroma"
+        assert detail["execution"]["sha256"] == detail["active_version"]["sha256"]
+        assert detail["execution"]["postgres_status"] == "indexed"
+
+
+@pytest.mark.anyio
+async def test_version_text_and_chunks(client, tmp_path):
+    content = "# Claude Code\n\nБыстрый старт с Claude Code.\n"
+    file_path = _make_markdown_file(tmp_path, content)
+
+    async with client:
+        create_response = await client.post(
+            "/api/v1/admin/kb/documents",
+            data={"title": "Version Preview Test", "document_type": "lecture"},
+            files={"file": ("lecture.md", file_path.read_bytes(), "text/markdown")},
+        )
+        doc_id = create_response.json()["id"]
+        version_id = create_response.json()["versions"][0]["id"]
+
+        process_response = await client.post(f"/api/v1/admin/kb/documents/{doc_id}/process")
+        assert process_response.status_code == 200
+
+        text_response = await client.get(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions/{version_id}/text"
+        )
+        assert text_response.status_code == 200
+        text_data = text_response.json()
+        assert text_data["stage"] == "cleaned"
+        assert "Claude Code" in text_data["preview"]
+
+        raw_response = await client.get(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions/{version_id}/text?stage=raw"
+        )
+        assert raw_response.status_code == 200
+        raw_data = raw_response.json()
+        assert raw_data["stage"] == "raw"
+        assert "Claude Code" in raw_data["preview"]
+
+        chunks_response = await client.get(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions/{version_id}/chunks"
+        )
+        assert chunks_response.status_code == 200
+        chunks = chunks_response.json()
+        assert len(chunks) >= 1
+        assert chunks[0]["content_preview"] is not None
+
+
+@pytest.mark.anyio
+async def test_document_timeline(client, tmp_path):
+    content = "# Timeline test\n\nContent.\n"
+    file_path = _make_markdown_file(tmp_path, content)
+
+    async with client:
+        create_response = await client.post(
+            "/api/v1/admin/kb/documents",
+            data={"title": "Timeline Test", "document_type": "lecture"},
+            files={"file": ("lecture.md", file_path.read_bytes(), "text/markdown")},
+        )
+        doc_id = create_response.json()["id"]
+
+        await client.post(f"/api/v1/admin/kb/documents/{doc_id}/process")
+
+        timeline_response = await client.get(f"/api/v1/admin/kb/documents/{doc_id}/timeline")
+        assert timeline_response.status_code == 200
+        timeline = timeline_response.json()
+        assert any(event["event_type"] == "upload" for event in timeline)
+        index_event = next(
+            (e for e in timeline if e["event_type"] == "index_start"), None
+        )
+        assert index_event is not None
+        assert index_event["status"] == "success"
+        assert index_event["duration_ms"] is not None
+        assert index_event["duration_ms"] >= 0
+
+
+@pytest.mark.anyio
+async def test_activate_and_reindex_version(client, tmp_path):
+    v1_content = "# Версия 1\n\nКонтент первой версии."
+    v2_content = "# Версия 2\n\nКонтент второй версии."
+
+    v1_path = tmp_path / "v1.md"
+    v1_path.write_text(v1_content, encoding="utf-8")
+    v2_path = tmp_path / "v2.md"
+    v2_path.write_text(v2_content, encoding="utf-8")
+
+    async with client:
+        create_response = await client.post(
+            "/api/v1/admin/kb/documents",
+            data={"title": "Activate Test", "document_type": "lecture"},
+            files={"file": ("v1.md", v1_path.read_bytes(), "text/markdown")},
+        )
+        doc_id = create_response.json()["id"]
+        v1_id = create_response.json()["versions"][0]["id"]
+
+        await client.post(f"/api/v1/admin/kb/documents/{doc_id}/process")
+
+        add_version_response = await client.post(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions",
+            files={"file": ("v2.md", v2_path.read_bytes(), "text/markdown")},
+        )
+        v2_id = add_version_response.json()["versions"][-1]["id"]
+
+        activate_response = await client.post(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions/{v2_id}/activate"
+        )
+        assert activate_response.status_code == 200
+        assert activate_response.json()["active_version_id"] == v2_id
+
+        reindex_response = await client.post(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions/{v1_id}/reindex"
+        )
+        assert reindex_response.status_code == 200
+        assert reindex_response.json()["active_version_id"] == v1_id
+
+
+@pytest.mark.anyio
+async def test_reindex_all(client, tmp_path):
+    content = "# Reindex all test\n\nContent.\n"
+    file_path = _make_markdown_file(tmp_path, content)
+
+    async with client:
+        create_response = await client.post(
+            "/api/v1/admin/kb/documents",
+            data={"title": "Reindex All Test", "document_type": "lecture"},
+            files={"file": ("lecture.md", file_path.read_bytes(), "text/markdown")},
+        )
+        doc_id = create_response.json()["id"]
+
+        await client.post(f"/api/v1/admin/kb/documents/{doc_id}/process")
+        await client.post(f"/api/v1/admin/kb/documents/{doc_id}/publish?publish=true")
+
+        reindex_all_response = await client.post("/api/v1/admin/kb/reindex-all")
+        assert reindex_all_response.status_code == 200
+        result = reindex_all_response.json()
+        assert result["total"] >= 1
+        assert result["processed"] >= 1

@@ -93,8 +93,8 @@ class DocumentProcessor:
             length_function=len,
         )
 
-    def load_text(self, file_path: Path, mime_type: str | None = None) -> str:
-        """Return normalized text from a supported file."""
+    def load_raw_text(self, file_path: Path, mime_type: str | None = None) -> str:
+        """Return raw (not normalized) text from a supported file."""
         path = Path(file_path)
         if not path.exists():
             raise DocumentProcessorError(f"File not found: {file_path}")
@@ -103,19 +103,25 @@ class DocumentProcessor:
         suffix = path.suffix.lower()
 
         if mime in ("text/markdown", "text/plain") or suffix in (".md", ".markdown", ".txt"):
-            raw_text = _load_text_file(path)
+            return _load_text_file(path)
         elif mime == "application/pdf" or suffix == ".pdf":
-            raw_text = _load_pdf_file(path)
+            return _load_pdf_file(path)
         else:
             # Fallback: try to read as UTF-8 text for any unknown file.
             try:
-                raw_text = path.read_text(encoding="utf-8")
+                return path.read_text(encoding="utf-8")
             except UnicodeDecodeError as exc:
                 raise UnsupportedDocumentError(
                     f"Cannot process file with MIME type '{mime}' and suffix '{suffix}'."
                 ) from exc
 
-        return _normalize_text(raw_text)
+    def load_cleaned_text(self, file_path: Path, mime_type: str | None = None) -> str:
+        """Return normalized/cleaned text from a supported file."""
+        return _normalize_text(self.load_raw_text(file_path, mime_type))
+
+    def load_text(self, file_path: Path, mime_type: str | None = None) -> str:
+        """Return normalized text from a supported file (backward-compatible alias)."""
+        return self.load_cleaned_text(file_path, mime_type)
 
     def split_text(self, text: str) -> List[ProcessedChunk]:
         """Split normalized text into overlapping chunks with positions."""

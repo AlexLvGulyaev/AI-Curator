@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     # Document store for Knowledge Base
     doc_store_path: str = "./storage/documents"
 
+    # KB Content Git repository
+    kb_content_repo_url: str = ""
+    kb_content_repo_path: str = "./storage/documents"
+    kb_content_git_enabled: bool = False
+    kb_content_ssh_key_path: str = ""
+    kb_content_default_branch: str = "main"
+
     # LMS Adapter
     lms_base_url: str = "https://lms.example.com"
     lms_api_token: str = "YOUR_MOODLE_API_TOKEN"

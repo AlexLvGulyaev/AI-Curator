@@ -6,8 +6,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
 import KbDocuments from './components/KbDocuments';
 import KbDocumentUpload from './components/KbDocumentUpload';
-import KbDocumentDetail from './components/KbDocumentDetail';
-import AiConfig from './components/AiConfig';
 import AiAndRetrievalConfig from './components/AiAndRetrievalConfig';
 import Analytics from './components/Analytics';
 import AuditLog from './components/AuditLog';
@@ -15,7 +13,6 @@ import AuditLog from './components/AuditLog';
 const KB_VIEWS = {
   list: 'list',
   upload: 'upload',
-  detail: 'detail',
 };
 
 const PLACEHOLDER_PAGES = new Set(['logs', 'dialogs', 'reports']);
@@ -33,10 +30,9 @@ function Placeholder({ page }) {
 }
 
 function App() {
-  const { token, isReady, isLoggedIn, login, logout } = useAuth();
+  const { isReady, isLoggedIn, login, logout } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
   const [kbView, setKbView] = useState(KB_VIEWS.list);
-  const [selectedDocumentId, setSelectedDocumentId] = useState(null);
 
   if (!isReady) {
     return null;
@@ -49,21 +45,14 @@ function App() {
   const handleSelectKb = () => {
     setActivePage('kb');
     setKbView(KB_VIEWS.list);
-    setSelectedDocumentId(null);
   };
 
   const handleUploadNew = () => {
     setKbView(KB_VIEWS.upload);
   };
 
-  const handleSelectDocument = (doc) => {
-    setSelectedDocumentId(doc.id);
-    setKbView(KB_VIEWS.detail);
-  };
-
   const handleKbDone = () => {
     setKbView(KB_VIEWS.list);
-    setSelectedDocumentId(null);
   };
 
   const renderContent = () => {
@@ -75,10 +64,7 @@ function App() {
       if (kbView === KB_VIEWS.upload) {
         return <KbDocumentUpload onDone={handleKbDone} />;
       }
-      if (kbView === KB_VIEWS.detail && selectedDocumentId) {
-        return <KbDocumentDetail documentId={selectedDocumentId} onBack={handleKbDone} />;
-      }
-      return <KbDocuments onSelectDocument={handleSelectDocument} onUploadNew={handleUploadNew} />;
+      return <KbDocuments onUploadNew={handleUploadNew} />;
     }
     if (activePage === 'ai-config') return <AiAndRetrievalConfig />;
     if (activePage === 'analytics') return <Analytics />;

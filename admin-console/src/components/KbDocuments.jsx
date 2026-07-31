@@ -1,175 +1,138 @@
-import { useEffect, useState } from 'react';
-import { listKbDocuments, publishKbDocument, processKbDocument, deleteKbDocument } from '../api/backend';
+import { useState } from 'react';
+import KbDocumentToolbar from './KbDocumentToolbar';
+import KbDocumentList from './KbDocumentList';
+import KbDocumentSummary from './KbDocumentSummary';
+import KbDocumentLifecycle from './KbDocumentLifecycle';
+import KbDocumentUpload from './KbDocumentUpload';
+import {
+  getKbStatus,
+  reindexAllKbDocuments,
+  reindexKbDocument,
+} from '../api/backend';
 
-const STATUSES = {
-  draft: 'Черновик',
-  pending: 'В ожидании',
-  processing: 'Обработка',
-  indexed: 'Индексирован',
-  error: 'Ошибка',
-  archived: 'Архив',
-};
-
-function KbDocuments({ onSelectDocument, onUploadNew }) {
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+function KbDocuments({ onUploadNew }) {
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [filters, setFilters] = useState({
+    status: '',
+    document_type: '',
+    search: '',
+  });
+  const [status, setStatus] = useState(null);
+  const [refreshTick, setRefreshTick] = useState(0);
   const [actionLoading, setActionLoading] = useState(null);
+  const [error, setError] = useState(null);
+  const [showUpload, setShowUpload] = useState(false);
 
-  async function load() {
-    setLoading(true);
-    setError(null);
+  async function refreshStatus() {
     try {
-      const data = await listKbDocuments({ limit: 200 });
-      setDocuments(data);
+      const data = await getKbStatus();
+      setStatus(data);
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
     }
   }
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  const handlePublish = async (doc) => {
-    setActionLoading(`publish-${doc.id}`);
+  async function handleRefresh() {
+    setActionLoading('refresh');
+    setError(null);
     try {
-      await publishKbDocument(doc.id, !doc.is_published);
-      await load();
+      await refreshStatus();
+      setRefreshTick((t) => t + 1);
     } catch (err) {
       setError(err.message);
     } finally {
       setActionLoading(null);
     }
-  };
+  }
 
-  const handleProcess = async (id) => {
-    setActionLoading(`process-${id}`);
+  async function handleReindexAll() {
+    setActionLoading('reindex-all');
+    setError(null);
     try {
-      await processKbDocument(id);
-      await load();
+      await reindexAllKbDocuments();
+      setRefreshTick((t) => t + 1);
+      await refreshStatus();
     } catch (err) {
       setError(err.message);
     } finally {
       setActionLoading(null);
     }
-  };
+  }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Удалить документ? Это действие необратимо.')) return;
-    setActionLoading(`delete-${id}`);
+  async function handleReindexSelected() {
+    if (!selectedDocument) return;
+    setActionLoading('reindex-selected');
+    setError(null);
     try {
-      await deleteKbDocument(id);
-      await load();
+      await reindexKbDocument(selectedDocument.id);
+      setRefreshTick((t) => t + 1);
+      await refreshStatus();
     } catch (err) {
       setError(err.message);
     } finally {
       setActionLoading(null);
     }
+  }
+
+  const handleUpload = () => {
+    setShowUpload(true);
   };
 
-  if (loading) {
+  const handleUploadDone = () => {
+    setShowUpload(false);
+    setRefreshTick((t) => t + 1);
+    refreshStatus();
+    onUploadNew?.();
+  };
+
+  if (showUpload) {
     return (
-      <div className="p-8 text-ai-text-muted">
-        <span className="mr-2 inline-block animate-pulse">●</span>
-        Загрузка документов…
+      <div className="ai-config-page">
+        <KbDocumentUpload onDone={handleUploadDone} />
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="font-display text-xl font-bold text-ai-text">Knowledge Base</h2>
-          <p className="text-sm text-ai-text-muted">Управление учебными материалами.</p>
-        </div>
-        <button
-          onClick={onUploadNew}
-          className="ai-btn px-4 py-2"
-        >
-          + Загрузить документ
-        </button>
-      </div>
+    <div className="ai-config-page">
+      <KbDocumentToolbar
+        status={status}
+        filters={filters}
+        onFiltersChange={setFilters}
+        onRefresh={handleRefresh}
+        onUpload={handleUpload}
+        onReindexAll={handleReindexAll}
+        selectedDocument={selectedDocument}
+        onReindexSelected={handleReindexSelected}
+        actionLoading={actionLoading}
+      />
 
       {error && (
-        <div className="mb-4 rounded-ai border border-ai-error/20 bg-red-500/10 p-4 text-sm text-ai-error">
-          {error}
-        </div>
+        <div className="ai-error mb-3 text-sm">{error}</div>
       )}
 
-      <div className="ai-card overflow-hidden">
-        <div className="max-h-[calc(100vh-220px)] overflow-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 bg-ai-surface">
-              <tr className="border-b border-ai-border text-ai-text-muted">
-                <th className="px-4 py-3">ID</th>
-                <th className="px-4 py-3">Название</th>
-                <th className="px-4 py-3">Тип</th>
-                <th className="px-4 py-3">Курс/Модуль</th>
-                <th className="px-4 py-3">Сложность</th>
-                <th className="px-4 py-3">Статус</th>
-                <th className="px-4 py-3">Публикация</th>
-                <th className="px-4 py-3">Действия</th>
-              </tr>
-            </thead>
-            <tbody className="text-ai-text-secondary">
-              {documents.map((doc) => (
-                <tr key={doc.id} className="border-b border-ai-border-subtle">
-                  <td className="px-4 py-3">{doc.id}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => onSelectDocument(doc)}
-                      className="text-left font-medium text-ai-text hover:text-ai-primary"
-                    >
-                      {doc.title}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">{doc.document_type}</td>
-                  <td className="px-4 py-3">{doc.course_id || '—'} / {doc.module_id || '—'}</td>
-                  <td className="px-4 py-3 capitalize">{doc.difficulty}</td>
-                  <td className="px-4 py-3">
-                    {STATUSES[doc.status] || doc.status}
-                    {doc.last_error && (
-                      <span className="ml-2 text-xs text-ai-error">({doc.last_error})</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={doc.is_published ? 'text-ai-success' : 'text-ai-text-muted'}>
-                      {doc.is_published ? 'Опубликован' : 'Не опубликован'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleProcess(doc.id)}
-                        disabled={actionLoading === `process-${doc.id}`}
-                        className="ai-btn-outline px-2 py-1 text-xs"
-                      >
-                        {actionLoading === `process-${doc.id}` ? '…' : 'Обработать'}
-                      </button>
-                      <button
-                        onClick={() => handlePublish(doc)}
-                        disabled={actionLoading === `publish-${doc.id}`}
-                        className="ai-btn-outline px-2 py-1 text-xs"
-                      >
-                        {actionLoading === `publish-${doc.id}` ? '…' : doc.is_published ? 'Снять' : 'Опубликовать'}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(doc.id)}
-                        disabled={actionLoading === `delete-${doc.id}`}
-                        className="ai-btn-outline px-2 py-1 text-xs text-ai-error hover:text-ai-error"
-                      >
-                        {actionLoading === `delete-${doc.id}` ? '…' : 'Удалить'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 flex-1">
+        <div className="lg:col-span-3 min-h-0">
+          <KbDocumentList
+            filters={filters}
+            selectedDocument={selectedDocument}
+            onSelectDocument={setSelectedDocument}
+            refreshTick={refreshTick}
+          />
+        </div>
+
+        <div className="lg:col-span-5 min-h-0">
+          <KbDocumentSummary
+            documentId={selectedDocument?.id}
+            onAction={() => {
+              setRefreshTick((t) => t + 1);
+              refreshStatus();
+            }}
+          />
+        </div>
+
+        <div className="lg:col-span-4 min-h-0">
+          <KbDocumentLifecycle documentId={selectedDocument?.id} />
         </div>
       </div>
     </div>
