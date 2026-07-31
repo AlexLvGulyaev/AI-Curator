@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.4  
-**Дата:** 2026-07-30  
-**Статус:** Актуален для Дня 6
+**Версия:** 1.6  
+**Дата:** 2026-07-31  
+**Статус:** Актуален для Sprint 5.2
 
 ---
 
@@ -330,6 +330,16 @@
       "status": "pending",
       "chunk_count": null,
       "is_active": true,
+      "raw_storage_path": "31/v1_raw_... .md",
+      "cleaned_storage_path": null,
+      "sha256": "a1b2c3...",
+      "indexed_at": null,
+      "embedding_model": null,
+      "git_commit_hash": null,
+      "git_blob_hash": null,
+      "git_author": null,
+      "git_commit_message": null,
+      "git_committed_at": null,
       "created_at": "2026-07-29T21:38:00Z",
       "updated_at": "2026-07-29T21:38:00Z"
     }
@@ -467,7 +477,205 @@
 
 ---
 
-### 3.15. `POST /api/v1/rag/search`
+### 3.15. `GET /api/v1/admin/kb/documents/{document_id}/detail`
+
+Полный операционный bundle документа: метаданные, активная версия, чанки, lifecycle timeline и технические параметры выполнения. Используется центральной панелью консоли KB Documents.
+
+**Параметры пути:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `document_id` | int | Идентификатор документа |
+
+**Ответ 200 OK:** объект `KbDocumentDetailOut`.
+
+**Возможные ошибки:**
+
+- `404 Not Found` — документ не найден.
+
+---
+
+### 3.16. `GET /api/v1/admin/kb/documents/{document_id}/versions/{version_id}/text`
+
+Возвращает preview RAW или cleaned текста версии документа.
+
+**Параметры пути:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `document_id` | int | Идентификатор документа |
+| `version_id` | int | Идентификатор версии |
+
+**Параметры запроса:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `stage` | string | `raw` или `cleaned` (по умолчанию `cleaned`) |
+| `full` | bool | `true` — вернуть полный текст в пределах лимита 10 МБ; `false` — первые 262 144 символа |
+
+**Ответ 200 OK:** объект `KbVersionTextOut`.
+
+**Возможные ошибки:**
+
+- `404 Not Found` — документ или версия не найдены.
+- `400 Bad Request` — некорректное значение `stage` или ошибка чтения файла.
+
+---
+
+### 3.17. `POST /api/v1/admin/kb/documents/{document_id}/versions/{version_id}/text`
+
+Сохранение отредактированного очищенного (cleaned) текста версии с опциональной переиндексацией.
+
+**Параметры пути:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `document_id` | int | Идентификатор документа |
+| `version_id` | int | Идентификатор версии |
+
+**Параметры запроса:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `stage` | string | Только `cleaned` (по умолчанию) |
+| `reindex` | bool | `true` (по умолчанию) — пересчитать чанки и проиндексировать; `false` — только сохранить текст |
+
+**Тело запроса (JSON):**
+
+```json
+{
+  "text": "# Claude Code: быстрый старт\n\nУстановите пакет..."
+}
+```
+
+**Ответ 200 OK:** обновлённый объект `KbDocumentOut`.
+
+**Возможные ошибки:**
+
+- `400 Bad Request` — `stage` не равен `cleaned`, либо версия заархивирована, либо документ не найден.
+- `404 Not Found` — документ или версия не найдены.
+
+---
+
+### 3.18. `GET /api/v1/admin/kb/documents/{document_id}/versions/{version_id}/chunks`
+
+Возвращает чанки (фрагменты) конкретной версии с `content_preview`.
+
+**Параметры пути:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `document_id` | int | Идентификатор документа |
+| `version_id` | int | Идентификатор версии |
+
+**Ответ 200 OK:** массив объектов `KbDocumentChunkOut`.
+
+**Возможные ошибки:**
+
+- `404 Not Found` — документ или версия не найдены.
+
+---
+
+### 3.19. `GET /api/v1/admin/kb/documents/{document_id}/timeline`
+
+Возвращает lifecycle timeline документа: загрузка, обработка, индексация, публикация, ошибки и др.
+
+**Параметры пути:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `document_id` | int | Идентификатор документа |
+
+**Параметры запроса:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `limit` | int | Лимит событий, по умолчанию 100, макс. 500 |
+
+**Ответ 200 OK:** массив объектов `KbDocumentEventOut`.
+
+**Возможные ошибки:**
+
+- `404 Not Found` — документ не найден.
+
+---
+
+### 3.20. `POST /api/v1/admin/kb/documents/{document_id}/versions/{version_id}/activate`
+
+Делает указанную версию активной без переиндексации. Используется в таблице версий операционной консоли.
+
+**Параметры пути:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `document_id` | int | Идентификатор документа |
+| `version_id` | int | Идентификатор версии |
+
+**Ответ 200 OK:** обновлённый объект `KbDocumentOut`.
+
+**Возможные ошибки:**
+
+- `404 Not Found` — документ или версия не найдены.
+- `400 Bad Request` — ошибка активации.
+
+---
+
+### 3.21. `POST /api/v1/admin/kb/documents/{document_id}/versions/{version_id}/reindex`
+
+Активирует указанную версию и запускает её переиндексацию.
+
+**Параметры пути:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `document_id` | int | Идентификатор документа |
+| `version_id` | int | Идентификатор версии |
+
+**Ответ 200 OK:** обновлённый объект `KbDocumentOut`.
+
+**Возможные ошибки:**
+
+- `404 Not Found` — документ или версия не найдены.
+- `400 Bad Request` — ошибка переиндексации.
+
+---
+
+### 3.22. `POST /api/v1/admin/kb/documents/{document_id}/reindex`
+
+Переиндексирует активную версию документа. Эквивалент нажатия **Переиндексировать** в toolbar.
+
+**Параметры пути:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `document_id` | int | Идентификатор документа |
+
+**Ответ 200 OK:** обновлённый объект `KbDocumentOut`.
+
+**Возможные ошибки:**
+
+- `404 Not Found` — документ не найден.
+- `400 Bad Request` — нет активной версии или ошибка переиндексации.
+
+---
+
+### 3.23. `POST /api/v1/admin/kb/reindex-all`
+
+Массовая переиндексация всех опубликованных документов. Используется при смене embedding model или массовом обновлении контента.
+
+**Ответ 200 OK:**
+
+```json
+{
+  "processed": 18,
+  "failed": 1,
+  "total": 19
+}
+```
+
+---
+
+### 3.24. `POST /api/v1/rag/search`
 
 Семантический поиск по индексированным фрагментам Knowledge Base.
 
@@ -508,7 +716,7 @@
 
 ---
 
-### 3.16. `POST /api/v1/chat`
+### 3.25. `POST /api/v1/chat`
 
 Публичный чат со студентами. Backend классифицирует запрос, получает данные из LMS и/или Knowledge Base, формирует промпт, вызывает LLM и возвращает ответ с источниками.
 
@@ -611,7 +819,7 @@
 
 ## 5. Канонические модели данных
 
-### 4.1. `Course`
+### 5.1. `Course`
 
 | Поле | Тип | Описание |
 |------|-----|----------|
@@ -625,7 +833,7 @@
 | `end_date` | ISO-8601 \| null | Дата окончания |
 | `url` | string \| null | Прямая ссылка на курс в LMS |
 
-### 4.2. `Deadline`
+### 5.2. `Deadline`
 
 | Поле | Тип | Описание |
 |------|-----|----------|
@@ -640,7 +848,7 @@
 | `cutoff_date` | ISO-8601 \| null | Жёсткий дедлайн |
 | `url` | string \| null | Ссылка на задание в LMS |
 
-### 4.3. `UserCourseProgress`
+### 5.3. `UserCourseProgress`
 
 | Поле | Тип | Описание |
 |------|-----|----------|
@@ -653,7 +861,7 @@
 | `overall_grade_max` | float \| null | Максимальный общий балл |
 | `overall_grade_formatted` | string \| null | Отформатированная итоговая оценка |
 
-### 4.4. `GradeItem`
+### 5.4. `GradeItem`
 
 | Поле | Тип | Описание |
 |------|-----|----------|
@@ -672,7 +880,7 @@
 | `submitted_at` | ISO-8601 \| null | Время сдачи |
 | `graded_at` | ISO-8601 \| null | Время оценивания |
 
-### 4.5. `KbDocumentOut`
+### 5.5. `KbDocumentOut`
 
 | Поле | Тип | Описание |
 |------|-----|----------|
@@ -694,7 +902,7 @@
 | `created_at` | ISO-8601 | Дата создания |
 | `updated_at` | ISO-8601 | Дата обновления |
 
-### 4.6. `KbDocumentVersionOut`
+### 5.6. `KbDocumentVersionOut`
 
 | Поле | Тип | Описание |
 |------|-----|----------|
@@ -707,8 +915,91 @@
 | `status` | string | Статус версии |
 | `chunk_count` | int \| null | Количество фрагментов |
 | `is_active` | bool | Активна ли версия |
+| `raw_storage_path` | string \| null | Путь к RAW-оригиналу |
+| `cleaned_storage_path` | string \| null | Путь к очищенной копии |
+| `sha256` | string \| null | SHA-256 файла |
+| `indexed_at` | ISO-8601 \| null | Время последней индексации |
+| `embedding_model` | string \| null | Модель embeddings |
+| `git_commit_hash` | string \| null | Git commit hash версии |
+| `git_blob_hash` | string \| null | Git blob hash версии |
+| `git_author` | string \| null | Автор commit'а |
+| `git_commit_message` | string \| null | Сообщение commit'а |
+| `git_committed_at` | ISO-8601 \| null | Время commit'а |
 | `created_at` | ISO-8601 | Дата создания |
 | `updated_at` | ISO-8601 | Дата обновления |
+
+### 5.7. `KbDocumentChunkOut`
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | int | Идентификатор чанка |
+| `chunk_index` | int | Порядковый номер чанка |
+| `char_start` | int \| null | Символ начала в оригинале |
+| `char_end` | int \| null | Символ конца в оригинале |
+| `token_count` | int \| null | Количество токенов |
+| `content_preview` | string \| null | Первые символы текста чанка |
+| `status` | string | Статус чанка |
+| `created_at` | ISO-8601 \| null | Дата создания |
+
+### 5.8. `KbDocumentEventOut`
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | int | Идентификатор события |
+| `document_id` | int | Идентификатор документа |
+| `version_id` | int \| null | Идентификатор версии |
+| `event_type` | string | Тип события (`upload`, `preprocess_start`, `preprocess_done`, `preprocess_error`, `index_start`, `index_done`, `index_error`, `reindex_start`, `reindex_done`, `reindex_error`, `publish`, `unpublish`, `metadata_update`, `version_activate`, `delete`, `error` и др.) |
+| `status` | string | `success`, `error`, `pending` |
+| `message` | string \| null | Описание / ошибка |
+| `details` | object \| null | JSON с техническими подробностями |
+| `created_at` | ISO-8601 | Время события |
+| `started_at` | ISO-8601 \| null | Время начала операции |
+| `finished_at` | ISO-8601 \| null | Время окончания операции |
+| `duration_ms` | int \| null | Длительность в миллисекундах |
+
+### 5.9. `KbVersionTextOut`
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `version_id` | int | Идентификатор версии |
+| `version_number` | int | Номер версии |
+| `stage` | string | `raw` или `cleaned` |
+| `original_filename` | string | Исходное имя файла |
+| `mime_type` | string \| null | MIME-тип |
+| `total_length` | int | Полная длина текста |
+| `preview_length` | int | Длина возвращённого preview |
+| `preview` | string | Текст (или его начало) |
+
+### 5.10. `KbDocumentExecutionOut`
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `provider` | string \| null | Провайдер embeddings / LLM |
+| `model` | string \| null | Модель embeddings |
+| `backend` | string \| null | Backend retrieval (например, `chroma`) |
+| `sha256` | string \| null | SHA-256 активной версии |
+| `indexed_at` | ISO-8601 \| null | Время индексации |
+| `raw_size` | int \| null | Размер RAW-файла |
+| `cleaned_size` | int \| null | Размер cleaned-файла |
+| `postgres_status` | string \| null | Статус документа в PostgreSQL |
+
+### 5.11. `KbDocumentDetailOut`
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `document` | KbDocumentOut | Метаданные документа и все версии |
+| `active_version` | KbDocumentVersionOut \| null | Активная версия |
+| `chunks` | list[KbDocumentChunkOut] | Чанки активной версии |
+| `timeline` | list[KbDocumentEventOut] | Lifecycle timeline |
+| `execution` | KbDocumentExecutionOut | Технические параметры выполнения |
+
+### 5.12. `KbReindexAllOut`
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `processed` | int | Количество успешно обработанных |
+| `failed` | int | Количество неудач |
+| `total` | int | Общее количество |
 
 ---
 
@@ -731,7 +1022,7 @@
 - Аутентификация по Bearer-токену из переменной окружения `ADMIN_CONSOLE_TOKEN`.
 - Возможности:
   - панель состояния системы;
-  - управление Knowledge Base (загрузка, версии, обработка, публикация);
+  - управление Knowledge Base через трёхпанельную операционную консоль: загрузка, версии, переиндексация, lifecycle, preview текста и чанков, редактирование cleaned-текста;
   - AI Configuration (версионирование, активация);
   - аналитика запросов и оценок;
   - журнал аудита.
@@ -758,3 +1049,4 @@
 | 2026-07-29 | 1.3 | Добавлен раздел Web UI, обновлено допущение по Chroma v2 |
 | 2026-07-30 | 1.4 | Добавлен `POST /api/v1/chat`, административные endpoints (AI-config, analytics, monitoring, audit), разделы Web UI и Admin Console, авторизация admin |
 | 2026-07-30 | 1.5 | Расширены поля AI Configuration; добавлена структура analytics payload с `timings_ms` |
+| 2026-07-31 | 1.6 | Добавлены endpoints операционной консоли KB Documents: `/detail`, `/text`, `/chunks`, `/timeline`, `/activate`, `/reindex`, `/reindex-all`; обновлены модели `KbDocumentVersionOut`, добавлены `KbDocumentChunkOut`, `KbDocumentEventOut`, `KbVersionTextOut`, `KbDocumentExecutionOut`, `KbDocumentDetailOut`, `KbReindexAllOut` |
