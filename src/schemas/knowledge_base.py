@@ -129,6 +129,12 @@ class KbVersionTextOut(BaseModel):
     preview: str
 
 
+class KbVersionTextSaveIn(BaseModel):
+    """Payload for saving edited cleaned text."""
+
+    text: str
+
+
 class KbDocumentExecutionOut(BaseModel):
     """Technical execution metadata shown in the central console panel."""
 

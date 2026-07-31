@@ -97,9 +97,19 @@ export async function getKbDocumentDetail(id) {
   return apiRequest(`/api/v1/admin/kb/documents/${id}/detail`);
 }
 
-export async function getKbVersionText(documentId, versionId, full = false) {
+export async function getKbVersionText(documentId, versionId, full = false, stage = 'cleaned') {
   return apiRequest(
-    `/api/v1/admin/kb/documents/${documentId}/versions/${versionId}/text?full=${full}`
+    `/api/v1/admin/kb/documents/${documentId}/versions/${versionId}/text?full=${full}&stage=${encodeURIComponent(stage)}`
+  );
+}
+
+export async function saveKbVersionText(documentId, versionId, text, stage = 'cleaned', reindex = true) {
+  return apiRequest(
+    `/api/v1/admin/kb/documents/${documentId}/versions/${versionId}/text?stage=${encodeURIComponent(stage)}&reindex=${reindex}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }
   );
 }
 

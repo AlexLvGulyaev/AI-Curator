@@ -119,6 +119,10 @@ class DocumentProcessor:
         """Return normalized/cleaned text from a supported file."""
         return _normalize_text(self.load_raw_text(file_path, mime_type))
 
+    def load_cleaned_text_from_text(self, text: str) -> str:
+        """Return normalized/cleaned text from a raw string."""
+        return _normalize_text(text)
+
     def load_text(self, file_path: Path, mime_type: str | None = None) -> str:
         """Return normalized text from a supported file (backward-compatible alias)."""
         return self.load_cleaned_text(file_path, mime_type)

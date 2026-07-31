@@ -19,6 +19,7 @@ from schemas.knowledge_base import (
     KbReindexAllOut,
     KbStatusOut,
     KbVersionTextOut,
+    KbVersionTextSaveIn,
 )
 from services.knowledge_base import (
     DocumentNotFoundError,
@@ -314,6 +315,42 @@ async def get_version_text(
         )
         await _log_audit("view_text", "kb_document_version", version_id, service.db)
         return KbVersionTextOut(**preview)
+    except DocumentNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except KnowledgeBaseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/documents/{document_id}/versions/{version_id}/text",
+    response_model=KbDocumentOut,
+)
+async def save_version_text(
+    document_id: int,
+    version_id: int,
+    payload: KbVersionTextSaveIn,
+    stage: str = Query("cleaned"),
+    reindex: bool = Query(True),
+    service: KnowledgeBaseService = Depends(get_kb_service),
+):
+    """Save edited cleaned text for a document version and optionally reindex it."""
+    if stage != "cleaned":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only 'cleaned' stage can be saved.",
+        )
+    try:
+        document = await service.save_version_text(
+            document_id, version_id, payload.text, reindex=reindex
+        )
+        await _log_audit("save_cleaned_text", "kb_document_version", version_id, service.db)
+        return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -1,130 +1,89 @@
-import { useState } from 'react';
-
-const STATUS_OPTIONS = [
-  { value: '', label: 'Все статусы' },
-  { value: 'draft', label: 'Черновик' },
-  { value: 'pending', label: 'В ожидании' },
-  { value: 'processing', label: 'Обработка' },
-  { value: 'indexed', label: 'Индексирован' },
-  { value: 'error', label: 'Ошибка' },
-  { value: 'archived', label: 'Архив' },
-];
-
-const TYPE_OPTIONS = [
-  { value: '', label: 'Все типы' },
-  { value: 'lecture', label: 'Лекция' },
-  { value: 'methodical', label: 'Методичка' },
-  { value: 'faq', label: 'FAQ' },
-  { value: 'instruction', label: 'Инструкция' },
-  { value: 'glossary', label: 'Глоссарий' },
-  { value: 'example', label: 'Пример' },
-  { value: 'external', label: 'Внешний ресурс' },
-];
+import { useEffect, useState } from 'react';
 
 function KbDocumentToolbar({
   status,
-  filters,
-  onFiltersChange,
-  onRefresh,
+  selectedDocument,
   onUpload,
   onReindexAll,
-  selectedDocument,
   onReindexSelected,
+  onEdit,
+  onUploadVersion,
   actionLoading,
 }) {
-  const [search, setSearch] = useState('');
+  const [backendName, setBackendName] = useState('CHROMA');
 
-  const handleSearchChange = (event) => {
-    setSearch(event.target.value);
-    onFiltersChange({ ...filters, search: event.target.value });
-  };
+  useEffect(() => {
+    if (status?.active_retrieval_backend) {
+      setBackendName(String(status.active_retrieval_backend).toUpperCase());
+    }
+  }, [status]);
+
+  const statusClass =
+    'inline-flex min-w-[120px] items-center justify-center whitespace-nowrap px-3 py-1.5 text-sm';
 
   return (
-    <div className="ai-card mb-3">
-      <div className="flex flex-col gap-3">
-        {/* Top row: status + actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-4">
-            <div>
-              <div className="text-xs text-ai-text-muted uppercase tracking-wide">ACTIVE BACKEND</div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-ai-text">
-                <span className="ai-status ai-status--ok">CHROMA</span>
-                <span className="text-ai-text-secondary font-normal">
-                  {status?.indexed_chunks ?? 0} чанков
-                </span>
-              </div>
-            </div>
-            <div className="hidden sm:block h-8 w-px bg-ai-border" />
-            <div>
-              <div className="text-xs text-ai-text-muted uppercase tracking-wide">Embedding model</div>
-              <div className="text-sm text-ai-text-secondary">text-embedding-3-small</div>
+    <div className="ai-card mb-2 py-2 px-3">
+      <div className="flex items-start gap-4">
+        <div className="flex items-center gap-4 min-w-0 flex-shrink-0">
+          <div>
+            <div className="text-[0.65rem] text-ai-text-muted uppercase tracking-wide">ACTIVE BACKEND</div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-ai-text">
+              <span className="ai-status ai-status--ok">{backendName}</span>
+              <span className="text-ai-text-secondary font-normal">
+                {status?.indexed_chunks ?? 0} чанков
+              </span>
             </div>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={onUpload}
-              className="ai-btn px-3 py-1.5 text-sm"
-              type="button"
-            >
-              + Загрузить файл
-            </button>
-            <button
-              onClick={onReindexSelected}
-              disabled={!selectedDocument || actionLoading === 'reindex-selected'}
-              className="ai-btn-outline px-3 py-1.5 text-sm"
-              type="button"
-            >
-              {actionLoading === 'reindex-selected' ? '…' : 'Переиндексировать документ'}
-            </button>
-            <button
-              onClick={onReindexAll}
-              disabled={actionLoading === 'reindex-all'}
-              className="ai-btn-outline px-3 py-1.5 text-sm"
-              type="button"
-            >
-              {actionLoading === 'reindex-all' ? '…' : 'Переиндексировать всё'}
-            </button>
-            <button
-              onClick={onRefresh}
-              disabled={actionLoading === 'refresh'}
-              className="ai-btn-outline px-3 py-1.5 text-sm"
-              type="button"
-            >
-              {actionLoading === 'refresh' ? '…' : 'Обновить'}
-            </button>
+          <div className="hidden sm:block h-8 w-px bg-ai-border flex-shrink-0" />
+          <div className="hidden md:block">
+            <div className="text-[0.65rem] text-ai-text-muted uppercase tracking-wide">Embedding model</div>
+            <div className="text-sm text-ai-text-secondary truncate max-w-[200px]">
+              {status?.embedding_model || 'text-embedding-3-small'}
+            </div>
           </div>
         </div>
 
-        {/* Bottom row: filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={filters.status || ''}
-            onChange={(event) => onFiltersChange({ ...filters, status: event.target.value })}
-            className="ai-select w-auto min-w-[140px]"
+        <div className="flex flex-wrap items-center gap-2 flex-1">
+          <button
+            onClick={onUpload}
+            disabled={actionLoading === 'upload'}
+            className={`ai-btn ${statusClass}`}
+            type="button"
           >
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-
-          <select
-            value={filters.document_type || ''}
-            onChange={(event) => onFiltersChange({ ...filters, document_type: event.target.value })}
-            className="ai-select w-auto min-w-[140px]"
+            {actionLoading === 'upload' ? '…' : '+ Загрузить файл'}
+          </button>
+          <button
+            onClick={onUploadVersion}
+            disabled={!selectedDocument || actionLoading === 'upload-version'}
+            className={`ai-btn-outline ${statusClass}`}
+            type="button"
           >
-            {TYPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-
-          <input
-            type="text"
-            value={search}
-            onChange={handleSearchChange}
-            placeholder="Поиск по имени файла, статусу, версии..."
-            className="ai-input flex-1 min-w-[200px]"
-          />
+            {actionLoading === 'upload-version' ? '…' : 'Загрузить версию'}
+          </button>
+          <button
+            onClick={onEdit}
+            disabled={!selectedDocument || actionLoading === 'edit'}
+            className={`ai-btn-outline ${statusClass}`}
+            type="button"
+          >
+            {actionLoading === 'edit' ? '…' : 'Редактировать'}
+          </button>
+          <button
+            onClick={onReindexSelected}
+            disabled={!selectedDocument || actionLoading === 'reindex'}
+            className={`ai-btn-outline ${statusClass}`}
+            type="button"
+          >
+            {actionLoading === 'reindex' ? '…' : 'Переиндексировать'}
+          </button>
+          <button
+            onClick={onReindexAll}
+            disabled={actionLoading === 'reindex-all'}
+            className={`ai-btn-outline ${statusClass}`}
+            type="button"
+          >
+            {actionLoading === 'reindex-all' ? '…' : 'Переиндексировать всё'}
+          </button>
         </div>
       </div>
     </div>

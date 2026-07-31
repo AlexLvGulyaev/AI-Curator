@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { uploadKbDocument, uploadKbVersion } from '../api/backend';
+import { useEffect, useState } from 'react';
+import { updateKbDocument } from '../api/backend';
 
 const DOCUMENT_TYPES = [
   { id: 'lecture', label: 'Лекция' },
@@ -17,12 +17,11 @@ const DIFFICULTIES = [
   { id: 'advanced', label: 'Углублённый' },
 ];
 
-function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
-  const isVersion = mode === 'version';
+function KbDocumentEditModal({ document, onDone, onCancel }) {
   const [form, setForm] = useState({
     title: '',
     document_type: 'lecture',
-    course_id: 3,
+    course_id: '',
     module_id: '',
     topic_id: '',
     difficulty: 'beginner',
@@ -30,9 +29,24 @@ function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
     description: '',
     source_url: '',
   });
-  const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (document) {
+      setForm({
+        title: document.title || '',
+        document_type: document.document_type || 'lecture',
+        course_id: document.course_id || '',
+        module_id: document.module_id || '',
+        topic_id: document.topic_id || '',
+        difficulty: document.difficulty || 'beginner',
+        language: document.language || 'ru',
+        description: document.description || '',
+        source_url: document.source_url || '',
+      });
+    }
+  }, [document]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -42,35 +56,21 @@ function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
     event.preventDefault();
     setError(null);
 
-    if (!file) {
-      setError('Выберите файл.');
-      return;
-    }
-
-    const formData = new FormData();
-
-    if (isVersion) {
-      formData.append('file', file);
-    } else {
-      formData.append('title', form.title);
-      formData.append('document_type', form.document_type);
-      formData.append('course_id', form.course_id || '');
-      formData.append('module_id', form.module_id || '');
-      formData.append('topic_id', form.topic_id || '');
-      formData.append('difficulty', form.difficulty);
-      formData.append('language', form.language);
-      formData.append('description', form.description);
-      formData.append('source_url', form.source_url);
-      formData.append('file', file);
-    }
+    const payload = {
+      title: form.title,
+      document_type: form.document_type,
+      course_id: form.course_id ? parseInt(form.course_id, 10) : null,
+      module_id: form.module_id ? parseInt(form.module_id, 10) : null,
+      topic_id: form.topic_id ? parseInt(form.topic_id, 10) : null,
+      difficulty: form.difficulty,
+      language: form.language,
+      description: form.description || null,
+      source_url: form.source_url || null,
+    };
 
     setLoading(true);
     try {
-      if (isVersion) {
-        await uploadKbVersion(documentId, formData);
-      } else {
-        await uploadKbDocument(formData);
-      }
+      await updateKbDocument(document.id, payload);
       onDone();
     } catch (err) {
       setError(err.message);
@@ -79,16 +79,35 @@ function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
     }
   };
 
-  const formContent = (
-    <>
-      {error && (
-        <div className="mb-4 rounded-ai border border-ai-error/20 bg-red-500/10 p-4 text-sm text-ai-error">
-          {error}
+  return (
+    <div
+      className="ai-modal-overlay"
+      onClick={onCancel}
+      role="presentation"
+    >
+      <div
+        className="ai-modal"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="ai-modal__header">
+          <h4 className="ai-modal__title">Редактирование метаданных</h4>
+          <button
+            onClick={onCancel}
+            className="ai-modal__close"
+            type="button"
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
         </div>
-      )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {!isVersion && (
+        <form onSubmit={handleSubmit} className="p-4">
+          {error && (
+            <div className="ai-error mb-4 text-sm">{error}</div>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className="mb-1 block text-sm text-ai-text-secondary">Название</label>
@@ -187,80 +206,28 @@ function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
               />
             </div>
           </div>
-        )}
 
-        <div>
-          <label className="mb-1 block text-sm text-ai-text-secondary">Файл</label>
-          <input
-            type="file"
-            accept=".md,.txt,.pdf"
-            onChange={(event) => setFile(event.target.files[0])}
-            required
-            className="ai-input w-full text-sm"
-          />
-          <p className="mt-1 text-xs text-ai-text-muted">Поддерживаются Markdown, TXT, PDF.</p>
-        </div>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <button
-            type="button"
-            onClick={onDone}
-            className="ai-btn-outline px-5 py-2"
-            disabled={loading}
-          >
-            Отмена
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="ai-btn px-5 py-2"
-          >
-            {loading ? 'Загрузка…' : isVersion ? 'Загрузить версию' : 'Сохранить документ'}
-          </button>
-        </div>
-      </form>
-    </>
-  );
-
-  if (isVersion) {
-    return (
-      <div
-        className="ai-modal-overlay"
-        onClick={onDone}
-        role="presentation"
-      >
-        <div
-          className="ai-modal"
-          onClick={(event) => event.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="ai-modal__header">
-            <h4 className="ai-modal__title">Загрузка новой версии</h4>
+          <div className="ai-modal__actions mt-4">
             <button
-              onClick={onDone}
-              className="ai-modal__close"
               type="button"
-              aria-label="Закрыть"
+              onClick={onCancel}
+              className="ai-btn-outline px-5 py-2"
+              disabled={loading}
             >
-              ×
+              Отмена
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="ai-btn px-5 py-2"
+            >
+              {loading ? 'Сохранение…' : 'Сохранить'}
             </button>
           </div>
-          <div className="p-4">{formContent}</div>
-        </div>
+        </form>
       </div>
-    );
-  }
-
-  return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h2 className="font-display text-xl font-bold text-ai-text">Загрузка документа</h2>
-        <p className="text-sm text-ai-text-muted">Создайте карточку документа и загрузите файл.</p>
-      </div>
-      <div className="ai-card max-w-3xl p-5">{formContent}</div>
     </div>
   );
 }
 
-export default KbDocumentUpload;
+export default KbDocumentEditModal;

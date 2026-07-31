@@ -26,7 +26,7 @@ from models.knowledge_base import (
     KbDocumentVersion,
 )
 from schemas.knowledge_base import KbDocumentCreate, KbDocumentUpdate
-from services.document_processor import DocumentProcessor
+from services.document_processor import DocumentProcessor, DocumentProcessorError
 from services.kb_git import KbGitService
 from services.kb_lifecycle import KbLifecycleService
 from services.rag_pipeline import RagPipeline
@@ -349,7 +349,6 @@ class KnowledgeBaseService:
         document = await self.get_document(document_id)
         document.is_published = publish
         if publish:
-            document.status = DocumentStatus.PENDING
             # Activate the most recent pending/indexed version, deactivate others.
             candidates = [
                 version
@@ -363,6 +362,12 @@ class KnowledgeBaseService:
             latest = max(candidates, key=lambda v: v.version_number)
             for version in document.versions:
                 version.is_active = version.id == latest.id
+            # If the activated version is already indexed, keep the document status
+            # indexed. Otherwise mark it pending so it will be processed.
+            if latest.status == DocumentStatus.INDEXED:
+                document.status = DocumentStatus.INDEXED
+            else:
+                document.status = DocumentStatus.PENDING
         else:
             document.status = DocumentStatus.DRAFT
             for version in document.versions:
@@ -383,6 +388,73 @@ class KnowledgeBaseService:
             },
         )
         return document
+
+    async def _index_cleaned_text(
+        self,
+        document: KbDocument,
+        version: KbDocumentVersion,
+        cleaned_text: str,
+        *,
+        commit: bool = True,
+    ) -> int:
+        """Split cleaned text into chunks, persist them and index in Chroma.
+
+        Returns the number of indexed chunks. The caller controls the final
+        transaction commit so this helper can be reused inside larger flows.
+        """
+        tuning = await RetrievalTuningService(self.db).get_or_create_default()
+        processor = DocumentProcessor(
+            chunk_size=tuning.chunk_size,
+            chunk_overlap=tuning.chunk_overlap,
+        )
+        rag = RagPipeline()
+
+        chunks = processor.split_text(cleaned_text)
+
+        # Remove any previously indexed chunks for this document.
+        # Only the currently active version should remain searchable.
+        try:
+            rag.collection.delete(where={"document_id": document.id})
+        except Exception:
+            # Collection may be empty or not exist yet; safe to ignore.
+            pass
+
+        # Clean up old chunk traceability records for the version.
+        for old_chunk in version.chunks:
+            await self.db.delete(old_chunk)
+
+        indexed_count = await rag.index_chunks(
+            chunks=chunks,
+            document_id=document.id,
+            version_id=version.id,
+            course_id=document.course_id,
+            module_id=document.module_id,
+            topic_id=document.topic_id,
+            difficulty=document.difficulty.value,
+        )
+
+        for chunk in chunks:
+            db_chunk = KbDocumentChunk(
+                version_id=version.id,
+                chunk_index=chunk.chunk_index,
+                char_start=chunk.char_start,
+                char_end=chunk.char_end,
+                token_count=chunk.token_count,
+                content_preview=(chunk.content[:4000] if chunk.content else None),
+                status=DocumentStatus.INDEXED,
+            )
+            self.db.add(db_chunk)
+
+        version.chunk_count = indexed_count
+        version.status = DocumentStatus.INDEXED
+        version.indexed_at = datetime.now(timezone.utc)
+        version.embedding_model = settings.openai_embedding_model
+        document.status = DocumentStatus.INDEXED
+        document.last_error = None
+
+        if commit:
+            await self.db.commit()
+        return indexed_count
 
     async def process_document(self, document_id: int) -> KbDocument:
         """Process the active version of a document: chunk, embed and index in Chroma."""
@@ -414,16 +486,10 @@ class KnowledgeBaseService:
 
         try:
             file_path = self.root_path / active_version.storage_path
-            tuning = await RetrievalTuningService(self.db).get_or_create_default()
-            processor = DocumentProcessor(
-                chunk_size=tuning.chunk_size,
-                chunk_overlap=tuning.chunk_overlap,
-            )
-            rag = RagPipeline()
+            processor = DocumentProcessor()
 
-            # Load raw and cleaned text. Persist the cleaned copy so the console
+            # Load cleaned text. Persist the cleaned copy so the console
             # can show both RAW and cleaned previews without re-processing.
-            raw_text = processor.load_raw_text(file_path, active_version.mime_type)
             cleaned_text = processor.load_cleaned_text(file_path, active_version.mime_type)
 
             storage_dir = self._storage_dir(document_id)
@@ -434,54 +500,15 @@ class KnowledgeBaseService:
                 cleaned_path.relative_to(self.root_path)
             )
 
-            chunks = processor.split_text(cleaned_text)
-
-            # Remove any previously indexed chunks for this document.
-            # Only the currently active version should remain searchable.
-            try:
-                rag.collection.delete(where={"document_id": document.id})
-            except Exception:
-                # Collection may be empty or not exist yet; safe to ignore.
-                pass
-
-            # Clean up old chunk traceability records for the active version.
-            for old_chunk in active_version.chunks:
-                await self.db.delete(old_chunk)
-
-            indexed_count = await rag.index_chunks(
-                chunks=chunks,
-                document_id=document.id,
-                version_id=active_version.id,
-                course_id=document.course_id,
-                module_id=document.module_id,
-                topic_id=document.topic_id,
-                difficulty=document.difficulty.value,
+            await self._index_cleaned_text(
+                document, active_version, cleaned_text, commit=False
             )
-
-            for chunk in chunks:
-                db_chunk = KbDocumentChunk(
-                    version_id=active_version.id,
-                    chunk_index=chunk.chunk_index,
-                    char_start=chunk.char_start,
-                    char_end=chunk.char_end,
-                    token_count=chunk.token_count,
-                    content_preview=(chunk.content[:4000] if chunk.content else None),
-                    status=DocumentStatus.INDEXED,
-                )
-                self.db.add(db_chunk)
-
-            active_version.chunk_count = indexed_count
-            active_version.status = DocumentStatus.INDEXED
-            active_version.indexed_at = datetime.now(timezone.utc)
-            active_version.embedding_model = settings.openai_embedding_model
-            document.status = DocumentStatus.INDEXED
-            document.last_error = None
 
             await lifecycle.finish_event(
                 event_id=start_event.id,
                 status="success",
-                message=f"Indexed {indexed_count} chunks",
-                details={"chunk_count": indexed_count},
+                message=f"Indexed {active_version.chunk_count} chunks",
+                details={"chunk_count": active_version.chunk_count},
                 commit=False,
             )
 
@@ -517,6 +544,129 @@ class KnowledgeBaseService:
             raise KnowledgeBaseError(
                 f"Failed to process document {document_id}: {exc}"
             ) from exc
+
+    async def save_version_text(
+        self,
+        document_id: int,
+        version_id: int,
+        text: str,
+        *,
+        reindex: bool = True,
+    ) -> KbDocument:
+        """Persist edited cleaned text for a version and optionally reindex it."""
+        document = await self.get_document(document_id)
+        version = next(
+            (v for v in document.versions if v.id == version_id),
+            None,
+        )
+        if version is None:
+            raise DocumentNotFoundError(
+                f"Version {version_id} not found for document {document_id}"
+            )
+        if version.status == DocumentStatus.ARCHIVED:
+            raise KnowledgeBaseError(f"Version {version_id} is archived")
+
+        # Persist the edited cleaned text to disk and update provenance.
+        storage_dir = self._storage_dir(document_id)
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        cleaned_filename = f"v{version.version_number}_{uuid4().hex}.cleaned.md"
+        cleaned_path = storage_dir / cleaned_filename
+        cleaned_path.write_text(text, encoding="utf-8")
+        version.cleaned_storage_path = str(cleaned_path.relative_to(self.root_path))
+        version.sha256 = hashlib.sha256(cleaned_path.read_bytes()).hexdigest()
+
+        lifecycle = KbLifecycleService(self.db)
+
+        if reindex:
+            # Activate the edited version and index the new cleaned text.
+            for v in document.versions:
+                v.is_active = v.id == version_id
+            version.status = DocumentStatus.PROCESSING
+            document.status = DocumentStatus.PROCESSING
+            await self.db.commit()
+
+            start_event = await lifecycle.start_event(
+                document_id=document.id,
+                version_id=version.id,
+                event_type="reindex_start",
+                message=(
+                    f"Started reindexing edited cleaned text for version "
+                    f"{version.version_number}"
+                ),
+                details={
+                    "version_id": version.id,
+                    "version_number": version.version_number,
+                    "char_count": len(text),
+                },
+                commit=False,
+            )
+
+            try:
+                await self._index_cleaned_text(
+                    document, version, text, commit=False
+                )
+                await lifecycle.finish_event(
+                    event_id=start_event.id,
+                    status="success",
+                    message=(
+                        f"Reindexed version {version.version_number} after "
+                        f"cleaned text edit"
+                    ),
+                    details={"chunk_count": version.chunk_count},
+                    commit=False,
+                )
+                await self.db.commit()
+            except Exception as exc:
+                await self.db.rollback()
+
+                # Refresh objects after rollback to record the failure.
+                document = await self.get_document(document_id)
+                version = next(
+                    (v for v in document.versions if v.id == version_id),
+                    None,
+                )
+                if version is None:
+                    raise KnowledgeBaseError(
+                        f"Version {version_id} not found after rollback"
+                    ) from exc
+
+                document.status = DocumentStatus.ERROR
+                version.status = DocumentStatus.ERROR
+                document.last_error = f"{type(exc).__name__}: {exc}"
+
+                await lifecycle.finish_event(
+                    event_id=start_event.id,
+                    status="error",
+                    message=str(exc),
+                    details={"error": f"{type(exc).__name__}: {exc}"},
+                    commit=False,
+                )
+                await self.db.commit()
+                await self.db.refresh(document)
+                raise KnowledgeBaseError(
+                    f"Failed to reindex edited cleaned text: {exc}"
+                ) from exc
+        else:
+            version.status = DocumentStatus.PENDING
+            document.status = DocumentStatus.PENDING
+            await self.db.commit()
+            await lifecycle.record_event(
+                document_id=document.id,
+                version_id=version.id,
+                event_type="metadata_update",
+                status="success",
+                message=(
+                    f"Saved cleaned text for version {version.version_number}"
+                ),
+                details={
+                    "version_id": version.id,
+                    "version_number": version.version_number,
+                    "char_count": len(text),
+                    "reindex": False,
+                },
+            )
+
+        return await self.get_document(document_id)
 
     async def reindex_all_published(self) -> dict:
         """Reindex all currently published documents."""
@@ -667,7 +817,12 @@ class KnowledgeBaseService:
             # Prefer the persisted cleaned copy when available.
             if version.cleaned_storage_path:
                 file_path = self.root_path / version.cleaned_storage_path
-                text = processor.load_cleaned_text(file_path, version.mime_type)
+                try:
+                    text = processor.load_cleaned_text(file_path, version.mime_type)
+                except DocumentProcessorError:
+                    # Persisted cleaned copy missing; fall back to raw.
+                    file_path = self.root_path / version.storage_path
+                    text = processor.load_cleaned_text(file_path, version.mime_type)
             else:
                 # Legacy fallback: clean on the fly from the original file.
                 file_path = self.root_path / version.storage_path

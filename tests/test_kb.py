@@ -244,3 +244,125 @@ async def test_reindex_all(client, tmp_path):
         result = reindex_all_response.json()
         assert result["total"] >= 1
         assert result["processed"] >= 1
+
+
+@pytest.mark.anyio
+async def test_save_cleaned_text_and_reindex(client, tmp_path):
+    content = "# Original\n\nFirst paragraph.\n\nSecond paragraph.\n"
+    file_path = _make_markdown_file(tmp_path, content)
+
+    async with client:
+        create_response = await client.post(
+            "/api/v1/admin/kb/documents",
+            data={"title": "Cleaned Edit Test", "document_type": "lecture"},
+            files={"file": ("lecture.md", file_path.read_bytes(), "text/markdown")},
+        )
+        doc_id = create_response.json()["id"]
+        version_id = create_response.json()["versions"][0]["id"]
+
+        await client.post(f"/api/v1/admin/kb/documents/{doc_id}/process")
+
+        # Fetch original cleaned preview to determine sha256 before edit.
+        detail_before = await client.get(f"/api/v1/admin/kb/documents/{doc_id}/detail")
+        sha256_before = detail_before.json()["active_version"]["sha256"]
+
+        edited_text = "# Edited\n\nCompletely rewritten content for testing.\n"
+        save_response = await client.post(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions/{version_id}/text",
+            params={"stage": "cleaned", "reindex": "true"},
+            json={"text": edited_text},
+        )
+        assert save_response.status_code == 200
+        saved = save_response.json()
+        assert saved["active_version_id"] == version_id
+        assert saved["status"] == "indexed"
+
+        detail_after = await client.get(f"/api/v1/admin/kb/documents/{doc_id}/detail")
+        version_after = detail_after.json()["active_version"]
+        assert version_after["sha256"] != sha256_before
+        assert version_after["cleaned_storage_path"] is not None
+        assert detail_after.json()["execution"]["postgres_status"] == "indexed"
+
+        chunks_response = await client.get(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions/{version_id}/chunks"
+        )
+        chunks = chunks_response.json()
+        assert len(chunks) >= 1
+        assert any("Completely rewritten" in (c["content_preview"] or "") for c in chunks)
+
+
+@pytest.mark.anyio
+async def test_save_cleaned_text_without_reindex(client, tmp_path):
+    content = "# Original\n\nContent.\n"
+    file_path = _make_markdown_file(tmp_path, content)
+
+    async with client:
+        create_response = await client.post(
+            "/api/v1/admin/kb/documents",
+            data={"title": "Cleaned Edit No Reindex", "document_type": "lecture"},
+            files={"file": ("lecture.md", file_path.read_bytes(), "text/markdown")},
+        )
+        doc_id = create_response.json()["id"]
+        version_id = create_response.json()["versions"][0]["id"]
+
+        edited_text = "# Edited without reindex\n\nNew content.\n"
+        save_response = await client.post(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions/{version_id}/text",
+            params={"stage": "cleaned", "reindex": "false"},
+            json={"text": edited_text},
+        )
+        assert save_response.status_code == 200
+        saved = save_response.json()
+        assert saved["status"] == "pending"
+
+        text_response = await client.get(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions/{version_id}/text?stage=cleaned"
+        )
+        assert text_response.status_code == 200
+        assert "New content." in text_response.json()["preview"]
+
+
+@pytest.mark.anyio
+async def test_save_cleaned_text_rejects_raw_stage(client, tmp_path):
+    content = "# Original\n\nContent.\n"
+    file_path = _make_markdown_file(tmp_path, content)
+
+    async with client:
+        create_response = await client.post(
+            "/api/v1/admin/kb/documents",
+            data={"title": "Raw Save Rejected", "document_type": "lecture"},
+            files={"file": ("lecture.md", file_path.read_bytes(), "text/markdown")},
+        )
+        doc_id = create_response.json()["id"]
+        version_id = create_response.json()["versions"][0]["id"]
+
+        save_response = await client.post(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions/{version_id}/text",
+            params={"stage": "raw", "reindex": "false"},
+            json={"text": "should fail"},
+        )
+        assert save_response.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_save_cleaned_text_rejects_archived_version(client, tmp_path):
+    content = "# Original\n\nContent.\n"
+    file_path = _make_markdown_file(tmp_path, content)
+
+    async with client:
+        create_response = await client.post(
+            "/api/v1/admin/kb/documents",
+            data={"title": "Archived Save Rejected", "document_type": "lecture"},
+            files={"file": ("lecture.md", file_path.read_bytes(), "text/markdown")},
+        )
+        doc_id = create_response.json()["id"]
+        version_id = create_response.json()["versions"][0]["id"]
+
+        await client.delete(f"/api/v1/admin/kb/documents/{doc_id}")
+
+        save_response = await client.post(
+            f"/api/v1/admin/kb/documents/{doc_id}/versions/{version_id}/text",
+            params={"stage": "cleaned", "reindex": "false"},
+            json={"text": "should fail"},
+        )
+        assert save_response.status_code == 400

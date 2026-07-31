@@ -282,14 +282,17 @@
     cursor: not-allowed;
   }
 
-  .ai-btn--secondary {
+  .ai-btn--secondary,
+  .ai-btn-outline {
     background-color: transparent;
     border: 1px solid var(--ai-border);
     color: var(--ai-text);
   }
 
-  .ai-btn--secondary:hover:not(:disabled) {
+  .ai-btn--secondary:hover:not(:disabled),
+  .ai-btn-outline:hover:not(:disabled) {
     background-color: var(--ai-surface-hover);
+    border-color: var(--ai-text-muted);
   }
 
   .ai-btn--small {

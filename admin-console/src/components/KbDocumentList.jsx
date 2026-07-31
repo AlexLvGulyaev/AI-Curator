@@ -19,13 +19,34 @@ const STATUS_VARIANTS = {
   archived: 'muted',
 };
 
+const STATUS_OPTIONS = [
+  { value: '', label: 'Все статусы' },
+  { value: 'draft', label: 'Черновик' },
+  { value: 'pending', label: 'В ожидании' },
+  { value: 'processing', label: 'Обработка' },
+  { value: 'indexed', label: 'Индексирован' },
+  { value: 'error', label: 'Ошибка' },
+  { value: 'archived', label: 'Архив' },
+];
+
+const TYPE_OPTIONS = [
+  { value: '', label: 'Все типы' },
+  { value: 'lecture', label: 'Лекция' },
+  { value: 'methodical', label: 'Методичка' },
+  { value: 'faq', label: 'FAQ' },
+  { value: 'instruction', label: 'Инструкция' },
+  { value: 'glossary', label: 'Глоссарий' },
+  { value: 'example', label: 'Пример' },
+  { value: 'external', label: 'Внешний ресурс' },
+];
+
 function StatusBadge({ status }) {
   const variant = STATUS_VARIANTS[status] || 'muted';
   const label = STATUSES[status] || status;
   return <span className={`ai-status ai-status--${variant}`}>{label}</span>;
 }
 
-function KbDocumentList({ filters, selectedDocument, onSelectDocument, refreshTick }) {
+function KbDocumentList({ filters, onFiltersChange, selectedDocument, onSelectDocument, refreshTick }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -67,6 +88,18 @@ function KbDocumentList({ filters, selectedDocument, onSelectDocument, refreshTi
   const totalPages = Math.max(1, Math.ceil(filteredDocuments.length / PAGE_SIZE));
   const paginatedDocuments = filteredDocuments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  // Auto-focus on first document when list loads and nothing is selected
+  useEffect(() => {
+    if (!selectedDocument && paginatedDocuments.length > 0) {
+      onSelectDocument(paginatedDocuments[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginatedDocuments.map((d) => d.id).join(','), selectedDocument?.id]);
+
+  const handleSearchChange = (event) => {
+    onFiltersChange({ ...filters, search: event.target.value });
+  };
+
   if (loading) {
     return (
       <div className="ai-card flex h-full items-center justify-center p-4">
@@ -85,58 +118,41 @@ function KbDocumentList({ filters, selectedDocument, onSelectDocument, refreshTi
   }
 
   return (
-    <div className="ai-card flex h-full flex-col overflow-hidden">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="ai-section__title">Документы</h3>
-        <span className="text-xs text-ai-text-muted">
-          {filteredDocuments.length} документов
-        </span>
+    <div className="ai-card flex h-full flex-col overflow-hidden p-3">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <select
+          value={filters.status || ''}
+          onChange={(event) => onFiltersChange({ ...filters, status: event.target.value })}
+          className="ai-select w-auto min-w-[130px]"
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+        <select
+          value={filters.document_type || ''}
+          onChange={(event) => onFiltersChange({ ...filters, document_type: event.target.value })}
+          className="ai-select w-auto min-w-[130px]"
+        >
+          {TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1">
-        {paginatedDocuments.length === 0 ? (
-          <div className="ai-empty py-8">Документы не найдены.</div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {paginatedDocuments.map((doc) => {
-              const activeVersion = doc.versions?.find((v) => v.id === doc.active_version_id);
-              const isSelected = selectedDocument?.id === doc.id;
-              return (
-                <button
-                  key={doc.id}
-                  onClick={() => onSelectDocument(doc)}
-                  className={`text-left rounded-ai border p-3 transition-colors ${
-                    isSelected
-                      ? 'border-ai-primary bg-ai-primary-light'
-                      : 'border-ai-border bg-ai-surface hover:border-ai-primary'
-                  }`}
-                  type="button"
-                >
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <StatusBadge status={doc.status} />
-                    <span className="text-xs text-ai-text-muted">
-                      {new Date(doc.created_at).toLocaleDateString('ru-RU')}
-                    </span>
-                  </div>
-                  <div className="mb-1 text-sm font-medium text-ai-text line-clamp-2">
-                    {doc.title}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ai-text-secondary">
-                    <span className="capitalize">{doc.document_type}</span>
-                    <span>{doc.difficulty}</span>
-                    <span>
-                      v{activeVersion?.version_number || '?'} · {activeVersion?.chunk_count || 0} чанков
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* Search */}
+      <input
+        type="text"
+        value={filters.search || ''}
+        onChange={handleSearchChange}
+        placeholder="Поиск по имени файла, статусу, версии..."
+        className="ai-input w-full mb-2"
+      />
 
+      {/* Pagination on top */}
       {totalPages > 1 && (
-        <div className="mt-3 flex items-center justify-between border-t border-ai-border pt-2 text-xs">
+        <div className="flex items-center justify-between border-b border-ai-border pb-2 mb-2 text-xs">
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
@@ -158,6 +174,54 @@ function KbDocumentList({ filters, selectedDocument, onSelectDocument, refreshTi
           </button>
         </div>
       )}
+
+      {/* Document list */}
+      <div className="flex-1 overflow-y-auto pr-1 min-h-0">
+        {paginatedDocuments.length === 0 ? (
+          <div className="ai-empty py-8">Документы не найдены.</div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {paginatedDocuments.map((doc) => {
+              const activeVersion = doc.versions?.find((v) => v.id === doc.active_version_id);
+              const isSelected = selectedDocument?.id === doc.id;
+              return (
+                <button
+                  key={doc.id}
+                  onClick={() => onSelectDocument(doc)}
+                  className={`text-left rounded-ai border p-2 transition-colors ${
+                    isSelected
+                      ? 'border-ai-primary bg-ai-primary-light'
+                      : 'border-ai-border bg-ai-surface hover:border-ai-primary'
+                  }`}
+                  type="button"
+                >
+                  {/* Row 1: date + status */}
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-xs text-ai-text-muted">
+                      {new Date(doc.created_at).toLocaleString('ru-RU')}
+                    </span>
+                    <StatusBadge status={doc.status} />
+                  </div>
+                  {/* Row 2: file name */}
+                  <div className="text-sm font-medium text-ai-text line-clamp-2 mb-1">
+                    {doc.title}
+                  </div>
+                  {/* Row 3: version / chunks / embedding */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ai-text-secondary">
+                    <span>v{activeVersion?.version_number || '?'}</span>
+                    <span>·</span>
+                    <span>{activeVersion?.chunk_count || 0} чанков</span>
+                    <span>·</span>
+                    <span className="truncate max-w-[120px]">
+                      {activeVersion?.embedding_model || '—'}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

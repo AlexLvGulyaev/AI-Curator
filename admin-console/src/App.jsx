@@ -5,15 +5,9 @@ import Sidebar from './components/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard from './components/Dashboard';
 import KbDocuments from './components/KbDocuments';
-import KbDocumentUpload from './components/KbDocumentUpload';
 import AiAndRetrievalConfig from './components/AiAndRetrievalConfig';
 import Analytics from './components/Analytics';
 import AuditLog from './components/AuditLog';
-
-const KB_VIEWS = {
-  list: 'list',
-  upload: 'upload',
-};
 
 const PLACEHOLDER_PAGES = new Set(['logs', 'dialogs', 'reports']);
 
@@ -32,7 +26,6 @@ function Placeholder({ page }) {
 function App() {
   const { isReady, isLoggedIn, login, logout } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
-  const [kbView, setKbView] = useState(KB_VIEWS.list);
 
   if (!isReady) {
     return null;
@@ -42,30 +35,12 @@ function App() {
     return <Login onLogin={login} />;
   }
 
-  const handleSelectKb = () => {
-    setActivePage('kb');
-    setKbView(KB_VIEWS.list);
-  };
-
-  const handleUploadNew = () => {
-    setKbView(KB_VIEWS.upload);
-  };
-
-  const handleKbDone = () => {
-    setKbView(KB_VIEWS.list);
-  };
-
   const renderContent = () => {
     if (PLACEHOLDER_PAGES.has(activePage)) {
       return <Placeholder page={activePage} />;
     }
     if (activePage === 'dashboard') return <Dashboard />;
-    if (activePage === 'kb') {
-      if (kbView === KB_VIEWS.upload) {
-        return <KbDocumentUpload onDone={handleKbDone} />;
-      }
-      return <KbDocuments onUploadNew={handleUploadNew} />;
-    }
+    if (activePage === 'kb') return <KbDocuments />;
     if (activePage === 'ai-config') return <AiAndRetrievalConfig />;
     if (activePage === 'analytics') return <Analytics />;
     if (activePage === 'audit') return <AuditLog />;
@@ -76,13 +51,7 @@ function App() {
     <div className="ai-layout">
       <Sidebar
         active={activePage === 'kb' ? 'kb' : activePage}
-        onChange={(page) => {
-          if (page === 'kb') {
-            handleSelectKb();
-          } else {
-            setActivePage(page);
-          }
-        }}
+        onChange={setActivePage}
         onLogout={logout}
       />
       <div className="ai-main">

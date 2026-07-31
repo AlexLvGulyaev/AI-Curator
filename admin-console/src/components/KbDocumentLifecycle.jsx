@@ -1,29 +1,48 @@
 import { useEffect, useState } from 'react';
 import { getKbDocumentTimeline } from '../api/backend';
 
-const EVENT_ICONS = {
-  upload: '📤',
-  preprocess_start: '⚙️',
-  preprocess_done: '✅',
-  preprocess_error: '❌',
-  index_start: '🔍',
-  index_done: '✅',
-  index_error: '❌',
-  reindex_start: '🔄',
-  reindex_done: '✅',
-  reindex_error: '❌',
-  publish: '📢',
-  unpublish: '🔕',
-  metadata_update: '✏️',
-  version_activate: '▶️',
-  delete: '🗑️',
-  error: '❌',
-};
-
 const STATUS_VARIANTS = {
   success: 'ok',
   error: 'error',
   pending: 'warning',
+};
+
+const EVENT_ICONS = {
+  upload: '↑',
+  preprocess_start: '⚙',
+  preprocess_done: '⚙',
+  preprocess_error: '⚙',
+  index_start: '🔍',
+  index_done: '🔍',
+  index_error: '🔍',
+  reindex_start: '↻',
+  reindex_done: '↻',
+  reindex_error: '↻',
+  publish: '📢',
+  unpublish: '🔕',
+  metadata_update: '✎',
+  version_activate: '▶',
+  delete: '🗑',
+  error: '⚠',
+};
+
+const EVENT_TYPE_LABELS = {
+  upload: 'Загрузка документа',
+  preprocess_start: 'Preprocessing',
+  preprocess_done: 'Preprocessing',
+  preprocess_error: 'Ошибка preprocessing',
+  index_start: 'Индексация',
+  index_done: 'Индексация',
+  index_error: 'Ошибка индексации',
+  reindex_start: 'Переиндексация',
+  reindex_done: 'Переиндексация',
+  reindex_error: 'Ошибка переиндексации',
+  publish: 'Публикация',
+  unpublish: 'Снятие публикации',
+  metadata_update: 'Обновление метаданных',
+  version_activate: 'Активация версии',
+  delete: 'Удаление',
+  error: 'Ошибка',
 };
 
 function StatusBadge({ status }) {
@@ -35,11 +54,20 @@ function StatusBadge({ status }) {
   );
 }
 
+function formatDuration(ms) {
+  if (ms === null || ms === undefined) return null;
+  if (ms < 1000) return `${ms} мс`;
+  if (ms < 60000) return `${Math.round(ms / 100) / 10} с`;
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.round((ms % 60000) / 1000);
+  return `${minutes} м${seconds ? ` ${seconds} с` : ''}`;
+}
+
 function KbDocumentLifecycle({ documentId }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [expandedEventId, setExpandedEventId] = useState(null);
 
   async function load() {
     if (!documentId) {
@@ -82,94 +110,75 @@ function KbDocumentLifecycle({ documentId }) {
   }
 
   return (
-    <div className="ai-card flex h-full flex-col overflow-hidden">
-      <div className="mb-3">
+    <div className="ai-card flex h-full flex-col overflow-hidden p-1.5">
+      <div className="mb-1.5 border-b border-ai-border pb-1.5">
         <h3 className="ai-section__title">ЖИЗНЕННЫЙ ЦИКЛ</h3>
-        <p className="ai-section__subtitle">Хронология событий документа</p>
       </div>
 
       <div className="flex-1 overflow-y-auto pr-1">
         {events.length === 0 ? (
-          <div className="ai-empty py-8">Событий пока нет.</div>
+          <div className="ai-empty py-8 text-xs">Событий пока нет.</div>
         ) : (
-          <div className="relative flex flex-col gap-3 pl-4">
-            <div className="absolute left-[11px] top-2 bottom-2 w-px bg-ai-border" />
-            {events.map((event) => (
-              <div key={event.id} className="relative flex gap-3">
-                <div className="z-10 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ai-surface border border-ai-border text-xs">
-                  {EVENT_ICONS[event.event_type] || '•'}
-                </div>
-                <div className="flex-1 rounded-ai border border-ai-border bg-ai-surface p-2 text-sm">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <span className="font-medium text-ai-text">
-                      {event.event_type}
-                    </span>
-                    <StatusBadge status={event.status} />
-                  </div>
-                  <div className="mb-1 text-xs text-ai-text-secondary">
-                    {event.message || '(нет описания)'}
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-ai-text-muted">
+          <div className="flex flex-col gap-1">
+            {events.map((event) => {
+              const isExpanded = expandedEventId === event.id;
+              const duration = formatDuration(event.duration_ms);
+              const icon = EVENT_ICONS[event.event_type] || '•';
+              const label = EVENT_TYPE_LABELS[event.event_type] || event.event_type;
+              return (
+                <div
+                  key={event.id}
+                  className="rounded-ai border border-ai-border bg-ai-surface text-xs"
+                >
+                  <div className="flex items-center justify-between gap-2 px-1.5 py-0.5 border-b border-ai-border-subtle">
+                    <span className="text-ai-text-muted whitespace-nowrap">
                       {new Date(event.created_at).toLocaleString('ru-RU')}
                     </span>
-                    {event.details && Object.keys(event.details).length > 0 && (
+                    <div className="flex items-center gap-1.5 whitespace-nowrap">
+                      <StatusBadge status={event.status} />
+                      {duration && (
+                        <span className="text-ai-text-muted">{duration}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-1.5 px-1.5 py-0.5">
+                    <span className="mt-0.5 text-ai-text-secondary w-4 text-center flex-shrink-0">{icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-ai-text truncate">{label}</div>
+                      {event.message && event.message !== label && (
+                        <div className="text-ai-text-secondary truncate" title={event.message}>
+                          {event.message}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {event.details && Object.keys(event.details).length > 0 && (
+                    <div className="border-t border-ai-border-subtle">
                       <button
-                        onClick={() => setSelectedEvent(event)}
-                        className="text-xs text-ai-primary hover:underline"
+                        onClick={() => setExpandedEventId(isExpanded ? null : event.id)}
+                        className="flex w-full items-center gap-1 px-1.5 py-0.5 text-ai-primary hover:underline text-xs"
                         type="button"
                       >
-                        Технический снимок
+                        <span>{isExpanded ? '▼' : '▶'}</span>
+                        <span>
+                          {isExpanded ? 'Скрыть снимок' : 'Технический снимок'}
+                        </span>
                       </button>
-                    )}
-                  </div>
+                      {isExpanded && (
+                        <pre className="ai-code-preview m-1 min-h-[60px]">
+                          {JSON.stringify(event.details, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
-
-      {selectedEvent && (
-        <div
-          className="ai-modal-overlay"
-          onClick={() => setSelectedEvent(null)}
-          role="presentation"
-        >
-          <div
-            className="ai-modal"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-          >
-            <div className="ai-modal__header">
-              <h4 className="ai-modal__title">
-                Снимок: {selectedEvent.event_type}
-              </h4>
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="ai-modal__close"
-                type="button"
-                aria-label="Закрыть"
-              >
-                ×
-              </button>
-            </div>
-            <pre className="ai-code-preview m-4 min-h-[160px]">
-              {JSON.stringify(selectedEvent.details, null, 2)}
-            </pre>
-            <div className="ai-modal__actions">
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="ai-btn px-4 py-2"
-                type="button"
-              >
-                Закрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
