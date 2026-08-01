@@ -55,6 +55,19 @@ class OrchestratorConfigService:
     ) -> OrchestratorConfig:
         """Update the effective orchestrator config row."""
         config = await self.get_or_create_default()
+
+        # For partial updates we must keep intent_rules and intent_source_map in sync
+        # with the persisted values that are *not* being changed in this request.
+        effective_rules = intent_rules if intent_rules is not None else config.intent_rules
+        effective_map = intent_source_map if intent_source_map is not None else config.intent_source_map
+        rules_intents = set(effective_rules.keys())
+        map_intents = set(effective_map.keys())
+        if rules_intents != map_intents:
+            missing = rules_intents ^ map_intents
+            raise ValueError(
+                f"intent_rules and intent_source_map intents must match, mismatched: {missing}"
+            )
+
         if intent_rules is not None:
             config.intent_rules = intent_rules
         if default_intent is not None:

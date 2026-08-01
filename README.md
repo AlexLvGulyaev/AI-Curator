@@ -156,13 +156,13 @@ flowchart TB
 - ✅ Реализованы admin endpoints: AI-config, analytics, monitoring, audit, orchestrator-config.
 - ✅ Логирование, аналитика и аудит пишутся в PostgreSQL.
 - ✅ AI-конфигурация версионируется и применяется.
-- ⏳ Конфигурация маршрутизации запросов (Orchestrator) вынесена из хардкода в Admin Console: модель, сервис, API, миграция, UI-конструктор, тесты.
+- ✅ Конфигурация маршрутизации запросов (Orchestrator) вынесена из хардкода в Admin Console: модель, сервис, API, миграция, UI-конструктор, тесты.
 - ✅ Web UI: `https://curator.alex-n8n.site` — гостевой вход, чат через `POST /api/v1/chat`, markdown-рендеринг, история диалога, источники ответов, переключатель сложности.
 - ✅ Admin Console: `https://curator-admin.alex-n8n.site` — KB, AI-config, orchestrator-config, analytics, monitoring, audit.
 - ✅ Административные endpoints защищены Bearer-токеном.
 - ✅ Alembic-миграции Knowledge Base, Дня 6 и `orchestrator_configs` подготовлены.
-- ⏳ Тесты `pytest` обновлены и расширены (23 + новые), но ещё не запускались в этой сессии.
-- ⏳ Следующий шаг — запуск тестов, применение миграций и деплой Sprint 6.1, затем День 7 IMPLEMENTATION_PLAN: E2E-тестирование, DEPLOYMENT_GUIDE.md, материалы для портфолио.
+- ✅ Тесты `pytest` обновлены и расширены; полный прогон — 43 passed.
+- ⏳ Следующий шаг — День 7 IMPLEMENTATION_PLAN: E2E-тестирование, DEPLOYMENT_GUIDE.md, материалы для портфолио.
 
 ## Планируемые публичные точки входа
 

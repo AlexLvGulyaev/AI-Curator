@@ -172,7 +172,7 @@ def test_detect_intent():
 
 
 def test_detect_intent_with_config():
-    """detect_intent respects keywords from orchestrator config."""
+    """detect_intent respects keywords and conditions from orchestrator config."""
     ocfg = {
         "intent_rules": {
             "deadline": {"keywords": ["дедлайн"], "priority": 1},
@@ -180,13 +180,13 @@ def test_detect_intent_with_config():
             "study": {"keywords": ["объясни"], "priority": 3},
             "mixed": {
                 "conditions": [
-                    {"and": ["is_org", "has_keyword", ["итоговый проект"]]},
+                    ["is_org", "has_keyword", ["итоговый проект"]],
                 ],
                 "priority": 4,
             },
             "organizational": {
-                "keywords": ["сколько"],
-                "conditions": [{"and": ["is_org"]}],
+                "keywords": ["о чём"],
+                "conditions": [["is_org"]],
                 "priority": 5,
             },
         },

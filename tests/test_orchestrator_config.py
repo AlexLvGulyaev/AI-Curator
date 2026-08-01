@@ -48,6 +48,21 @@ async def test_update_orchestrator_config(client):
         assert get_response.status_code == 200
         assert get_response.json()["max_lms_contents"] == 8
 
+        # Restore defaults so later tests and production state stay consistent.
+        await client.put(
+            "/api/v1/admin/orchestrator/config",
+            json={
+                "max_lms_contents": 12,
+                "max_lms_deadlines": 5,
+                "intent_max_tokens": {
+                    "organizational": 500,
+                    "study_beginner": 650,
+                    "mixed": 800,
+                    "default": 750,
+                },
+            },
+        )
+
 
 @pytest.mark.anyio
 async def test_update_intent_rules(client):
@@ -57,8 +72,13 @@ async def test_update_intent_rules(client):
         assert get_response.status_code == 200
         cfg = get_response.json()
 
-        # Add a keyword to mixed intent so that "о чём будет итоговый проект" becomes mixed.
-        cfg["intent_rules"]["mixed"]["keywords"] = ["итоговый проект"]
+        # Add a keyword to organizational intent so that the configured mixed
+        # condition (is_org AND has_keyword "итоговый проект") can fire.  The UI
+        # serializes conditions as lists, so the test payload uses the same shape.
+        cfg["intent_rules"]["organizational"]["keywords"] = ["о чём"]
+        cfg["intent_rules"]["mixed"]["conditions"] = [
+            ["is_org", "has_keyword", ["итоговый проект"]],
+        ]
         response = await client.put(
             "/api/v1/admin/orchestrator/config",
             json={"intent_rules": cfg["intent_rules"]},
@@ -111,11 +131,12 @@ async def test_update_intent_consistency(client):
         assert get_response.status_code == 200
         cfg = get_response.json()
 
+        # Make a copy and remove one intent from the rules map; the persisted
+        # intent_source_map still contains "organizational", so the update must fail.
         rules = dict(cfg["intent_rules"])
         rules.pop("organizational")
-        payload = {"intent_rules": rules}
         response = await client.put(
             "/api/v1/admin/orchestrator/config",
-            json=payload,
+            json={"intent_rules": rules},
         )
         assert response.status_code == 422

@@ -388,11 +388,11 @@ flowchart LR
 
 ### Критерий завершения
 
-- [ ] Конфигурация оркестратора доступна через Admin API и Admin Console.
-- [ ] Изменение `intent_rules` через API влияет на классификацию запросов.
-- [ ] Изменение `intent_source_map` влияет на выбор источников.
-- [ ] При отсутствии конфигурации orchestrator работает с hardcoded defaults.
-- [ ] `pytest` проходит.
+- [x] Конфигурация оркестратора доступна через Admin API и Admin Console.
+- [x] Изменение `intent_rules` через API влияет на классификацию запросов.
+- [x] Изменение `intent_source_map` влияет на выбор источников.
+- [x] При отсутствии конфигурации orchestrator работает с hardcoded defaults.
+- [x] `pytest` проходит (43 passed).
 
 ---
 

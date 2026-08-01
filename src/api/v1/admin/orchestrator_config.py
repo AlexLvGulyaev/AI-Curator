@@ -1,5 +1,6 @@
 """Admin endpoints for orchestrator configuration management."""
 
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -49,12 +50,6 @@ class OrchestratorConfigIn(BaseModel):
 
     @model_validator(mode="after")
     def check_intent_consistency(self):
-        if self.intent_rules is not None and self.intent_source_map is not None:
-            rules_intents = set(self.intent_rules.keys())
-            map_intents = set(self.intent_source_map.keys())
-            if rules_intents != map_intents:
-                missing = rules_intents ^ map_intents
-                raise ValueError(f"intent_rules and intent_source_map intents must match, mismatched: {missing}")
         if self.intent_source_map is not None:
             for intent, flags in self.intent_source_map.items():
                 if not isinstance(flags, dict):
@@ -87,8 +82,8 @@ class OrchestratorConfigOut(BaseModel):
     max_lms_deadlines: int
     intent_max_tokens: dict
     fallback_messages: dict
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
 
 
 @router.get("/config", response_model=OrchestratorConfigOut)

@@ -302,7 +302,87 @@ class Orchestrator:
 
         def _intent_keywords(intent: str) -> List[str]:
             rules = (ocfg or {}).get("intent_rules", {})
-            return list(rules.get(intent, {}).get("keywords", []))
+            keywords = list(rules.get(intent, {}).get("keywords", []))
+            if keywords:
+                return keywords
+            # Graceful fallback: when no config (or intent missing from config),
+            # use hardcoded keyword sets identical to the original behaviour.
+            fallbacks = {
+                "deadline": [
+                    "дедлайн",
+                    "когда сдать",
+                    "до когда",
+                    "когда нужно сдать",
+                    "когда сдавать",
+                    "срок сдачи",
+                    "срок",
+                    "когда deadline",
+                ],
+                "progress": [
+                    "прошёл",
+                    "прошел",
+                    "завершил",
+                    "сдал",
+                    "выполнил",
+                    "уже сделал",
+                    "мой прогресс",
+                    "мои результаты",
+                    "какие модули",
+                    "какие задания",
+                ],
+                "study": [
+                    "лекция",
+                    "лекции",
+                    "методичка",
+                    "инструкция",
+                    "объясни",
+                    "расскажи",
+                    "как работает",
+                    "что такое",
+                    "help",
+                    "помоги",
+                    "раскрой",
+                    "опиши",
+                    "в чем суть",
+                    "из чего состоит",
+                    "разница",
+                    "сравни",
+                    "примеры",
+                ],
+                "organizational": [
+                    "дедлайн",
+                    "дедлайны",
+                    "срок",
+                    "сдача",
+                    "задание",
+                    "задания",
+                    "когда",
+                    "до когда",
+                    "прогресс",
+                    "оценка",
+                    "оценки",
+                    "зачёт",
+                    "зачет",
+                    "сколько осталось",
+                    "сколько",
+                    "количество",
+                    "урок",
+                    "уроки",
+                    "модуль",
+                    "модули",
+                    "содержание курса",
+                    "структура курса",
+                    "программа курса",
+                    "темы курса",
+                    "содержание",
+                    "структура",
+                    "расписание",
+                    "перенеси",
+                    "продли",
+                    "измени",
+                ],
+            }
+            return fallbacks.get(intent, [])
 
         def _eval_condition(condition):
             if isinstance(condition, dict) and "and" in condition:
@@ -358,6 +438,12 @@ class Orchestrator:
         # Treat them as a dedicated intent so we can answer from LMS progress directly.
         if is_progress:
             return "progress"
+        # Configured conditions take precedence over simple keyword heuristics. This lets
+        # methodologists define mixed/organizational rules via the condition DSL even
+        # when no simple keyword overlap triggered is_org / is_study.
+        condition_intent = _intent_from_conditions()
+        if condition_intent:
+            return condition_intent
         if is_org and is_study:
             return "mixed"
         # Pure structure questions ("сколько модулей", "из чего состоит курс") need
@@ -368,10 +454,6 @@ class Orchestrator:
             return "organizational"
         if is_study:
             return "study"
-        # Fallback to explicit conditions-based classification for extensibility.
-        condition_intent = _intent_from_conditions()
-        if condition_intent:
-            return condition_intent
         # Default to leverage RAG for general course questions.
         return (ocfg or {}).get("default_intent", "study")
 

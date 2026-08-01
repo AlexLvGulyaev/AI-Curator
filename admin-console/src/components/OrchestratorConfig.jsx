@@ -3,27 +3,6 @@ import { getOrchestratorConfig, updateOrchestratorConfig } from '../api/backend'
 
 const DEFAULT_INTENTS = ['deadline', 'progress', 'study', 'mixed', 'organizational'];
 
-function Section({ title, subtitle, children, className = '' }) {
-  return (
-    <div className={`ai-card ai-section ${className}`.trim()}>
-      <div>
-        <h3 className="ai-section__title">{title}</h3>
-        {subtitle && <p className="ai-section__subtitle">{subtitle}</p>}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function InputRow({ label, children, inline = false }) {
-  return (
-    <div className={inline ? 'ai-field-row ai-field-row--inline' : 'ai-field-row'}>
-      <label className="ai-field-label">{label}</label>
-      {children}
-    </div>
-  );
-}
-
 function keywordsToText(keywords) {
   return Array.isArray(keywords) ? keywords.join('\n') : '';
 }
@@ -61,165 +40,151 @@ function ensureSourceMapShape(map) {
   return next;
 }
 
-function ConditionBuilder({ condition, onChange, onRemove, ruleKeywords }) {
-  if (!Array.isArray(condition) && !condition?.and) {
-    return null;
+function parseConditions(conditions) {
+  const flat = [];
+  for (const cond of conditions || []) {
+    if (cond && Array.isArray(cond.and)) {
+      for (const part of cond.and) flat.push(part);
+    } else if (Array.isArray(cond)) {
+      flat.push(cond);
+    }
   }
+  return flat;
+}
 
-  if (condition?.and) {
-    return (
-      <div className="ai-condition ai-condition--and">
-        <div className="ai-condition__header">
-          <span className="ai-condition__label">И (все условия)</span>
-          <button type="button" className="ai-btn ai-btn--secondary ai-btn--tiny" onClick={onRemove}>
-            Удалить
-          </button>
-        </div>
-        {condition.and.map((sub, idx) => (
-          <ConditionBuilder
-            key={idx}
-            condition={sub}
-            ruleKeywords={ruleKeywords}
-            onChange={(next) => {
-              const updated = { ...condition, and: [...condition.and] };
-              updated.and[idx] = next;
-              onChange(updated);
-            }}
-            onRemove={() => {
-              const updated = { ...condition, and: condition.and.filter((_, i) => i !== idx) };
-              onChange(updated);
-            }}
-          />
-        ))}
-        <div className="ai-condition__actions">
-          <button
-            type="button"
-            className="ai-btn ai-btn--tiny"
-            onClick={() => onChange({ ...condition, and: [...condition.and, ['is_org']] })}
-          >
-            + is_*
-          </button>
-          <button
-            type="button"
-            className="ai-btn ai-btn--tiny"
-            onClick={() => onChange({ ...condition, and: [...condition.and, ['has_keyword', [...ruleKeywords]]] })}
-          >
-            + has_keyword
-          </button>
-          <button
-            type="button"
-            className="ai-btn ai-btn--tiny"
-            onClick={() => onChange({ and: [...condition.and, ['is_org']] })}
-          >
-            + И
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const head = condition[0];
-  if (head === 'has_keyword') {
-    const words = Array.isArray(condition[1]) ? condition[1] : [];
-    return (
-      <div className="ai-condition ai-condition--leaf">
-        <span>Содержит одно из:</span>
-        <textarea
-          className="ai-textarea ai-textarea--small"
-          rows={2}
-          value={words.join('\n')}
-          onChange={(e) => onChange(['has_keyword', textToKeywords(e.target.value)])}
-        />
-        <button type="button" className="ai-btn ai-btn--secondary ai-btn--tiny" onClick={onRemove}>
-          Удалить
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="ai-condition ai-condition--leaf">
-      <select
-        className="ai-select"
-        value={head}
-        onChange={(e) => onChange([e.target.value])}
-      >
-        <option value="is_org">is_org (организационные keywords)</option>
-        <option value="is_study">is_study (учебные keywords)</option>
-        <option value="is_progress">is_progress (прогресс keywords)</option>
-      </select>
-      <button type="button" className="ai-btn ai-btn--secondary ai-btn--tiny" onClick={onRemove}>
-        Удалить
-      </button>
-    </div>
-  );
+function buildConditions({ requireOrg, requireStudy, requireProgress }) {
+  const predicates = [];
+  if (requireOrg) predicates.push(['is_org']);
+  if (requireStudy) predicates.push(['is_study']);
+  if (requireProgress) predicates.push(['is_progress']);
+  if (predicates.length === 0) return [];
+  if (predicates.length === 1) return [predicates[0]];
+  return [{ and: predicates }];
 }
 
 function IntentRuleEditor({ intent, rule, source, onChange }) {
   const [keywordsText, setKeywordsText] = useState(keywordsToText(rule.keywords));
   const [priority, setPriority] = useState(rule.priority);
-  const [conditions, setConditions] = useState(rule.conditions || []);
+  const [showAdvanced, setShowAdvanced] = useState((rule.conditions || []).length > 0);
+
+  const predicates = parseConditions(rule.conditions);
+  const requireOrg = predicates.some((p) => p[0] === 'is_org');
+  const requireStudy = predicates.some((p) => p[0] === 'is_study');
+  const requireProgress = predicates.some((p) => p[0] === 'is_progress');
 
   useEffect(() => {
     onChange({
       keywords: textToKeywords(keywordsText),
       priority,
-      conditions,
+      conditions: rule.conditions || [],
     });
-  }, [keywordsText, priority, conditions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keywordsText, priority]);
+
+  function updateConditions(patch) {
+    const next = buildConditions({
+      requireOrg: patch.requireOrg ?? requireOrg,
+      requireStudy: patch.requireStudy ?? requireStudy,
+      requireProgress: patch.requireProgress ?? requireProgress,
+    });
+    onChange({
+      keywords: textToKeywords(keywordsText),
+      priority,
+      conditions: next,
+    });
+  }
 
   return (
-    <div className="ai-intent-rule">
-      <div className="ai-intent-rule__header">
-        <strong>{intent}</strong>
-        <span className="ai-status ai-status--muted">
-          LMS: {source.lms ? 'да' : 'нет'} · RAG: {source.rag ? 'да' : 'нет'} · strict: {source.strict_course ? 'да' : 'нет'}
+    <div className="ai-provider-card" style={{ padding: '8px 10px', gap: '6px' }}>
+      <div className="ai-provider-card__header" style={{ marginBottom: '2px' }}>
+        <strong style={{ fontSize: '0.875rem' }}>{intent}</strong>
+        <span className="ai-status ai-status--muted" style={{ fontSize: '0.65rem' }}>
+          LMS {source.lms ? '✓' : '—'} · RAG {source.rag ? '✓' : '—'} · strict {source.strict_course ? '✓' : '—'}
         </span>
       </div>
 
-      <InputRow label="Keywords (одна фраза на строку)">
-        <textarea
-          className="ai-textarea ai-textarea--small"
-          rows={3}
-          value={keywordsText}
-          onChange={(e) => setKeywordsText(e.target.value)}
-        />
-      </InputRow>
+      <textarea
+        className="ai-textarea ai-textarea--small"
+        rows={2}
+        style={{ minHeight: '54px', padding: '5px 8px', fontSize: '0.875rem' }}
+        value={keywordsText}
+        placeholder="keywords, одна фраза на строку"
+        onChange={(e) => setKeywordsText(e.target.value)}
+      />
 
-      <InputRow label="Priority" inline>
-        <input
-          type="number"
-          className="ai-input ai-input--inline"
-          value={priority}
-          min={1}
-          onChange={(e) => setPriority(Number(e.target.value))}
-        />
-      </InputRow>
-
-      <div className="ai-field-row">
-        <label className="ai-field-label">Conditions</label>
-        {conditions.length === 0 && <p className="ai-field-hint">Нет conditions — классификация по keywords.</p>}
-        {conditions.map((cond, idx) => (
-          <ConditionBuilder
-            key={idx}
-            condition={cond}
-            ruleKeywords={textToKeywords(keywordsText)}
-            onChange={(next) => {
-              const updated = [...conditions];
-              updated[idx] = next;
-              setConditions(updated);
-            }}
-            onRemove={() => setConditions(conditions.filter((_, i) => i !== idx))}
+      <div className="ai-field-row ai-field-row--inline" style={{ justifyContent: 'space-between', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <label className="ai-field-label" style={{ margin: 0 }}>Priority</label>
+          <input
+            type="number"
+            className="ai-input ai-input--inline"
+            style={{ width: '48px', height: '26px', padding: '2px 4px' }}
+            value={priority}
+            min={1}
+            onChange={(e) => setPriority(Number(e.target.value))}
           />
-        ))}
+        </div>
         <button
           type="button"
-          className="ai-btn ai-btn--small"
-          onClick={() => setConditions([...conditions, ['is_org']])}
+          className="ai-btn ai-btn--secondary ai-btn--tiny"
+          onClick={() => setShowAdvanced((s) => !s)}
         >
-          + Condition
+          {showAdvanced ? '▾ Advanced' : '▸ Advanced'}
         </button>
       </div>
+
+      {showAdvanced && (
+        <div className="ai-provider-card" style={{ backgroundColor: 'rgba(0,0,0,0.15)', padding: '8px', gap: '6px', marginTop: '2px' }}>
+          <label className="ai-field-label" style={{ fontSize: '0.6875rem', margin: 0 }}>
+            Требовать наличие
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label className="ai-field-row ai-field-row--inline" style={{ gap: '6px', fontSize: '0.8125rem', margin: 0 }}>
+              <input
+                type="checkbox"
+                checked={requireOrg}
+                onChange={(e) => updateConditions({ requireOrg: e.target.checked })}
+              />
+              <span>организационных keywords</span>
+            </label>
+            <label className="ai-field-row ai-field-row--inline" style={{ gap: '6px', fontSize: '0.8125rem', margin: 0 }}>
+              <input
+                type="checkbox"
+                checked={requireStudy}
+                onChange={(e) => updateConditions({ requireStudy: e.target.checked })}
+              />
+              <span>учебных keywords</span>
+            </label>
+            <label className="ai-field-row ai-field-row--inline" style={{ gap: '6px', fontSize: '0.8125rem', margin: 0 }}>
+              <input
+                type="checkbox"
+                checked={requireProgress}
+                onChange={(e) => updateConditions({ requireProgress: e.target.checked })}
+              />
+              <span>keywords прогресса</span>
+            </label>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NumberField({ label, value, min = 1, max = 4096, onChange }) {
+  return (
+    <div className="ai-field-row ai-field-row--inline" style={{ gap: '8px', justifyContent: 'space-between' }}>
+      <label className="ai-field-label" style={{ flex: 1 }}>
+        {label}
+      </label>
+      <input
+        type="number"
+        className="ai-input ai-input--inline"
+        style={{ width: '64px', height: '26px', padding: '2px 4px', textAlign: 'right' }}
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
     </div>
   );
 }
@@ -295,7 +260,7 @@ function OrchestratorConfig() {
       setConfig(updated);
       setIntentRules(ensureIntentRulesShape(updated.intent_rules));
       setSourceMap(ensureSourceMapShape(updated.intent_source_map));
-      setMessage('Конфигурация оркестратора сохранена');
+      setMessage('Конфигурация сохранена');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -307,7 +272,7 @@ function OrchestratorConfig() {
     return (
       <div className="ai-loading flex items-center gap-2">
         <span className="inline-block animate-pulse">●</span>
-        Загрузка конфигурации оркестратора…
+        Загрузка конфигурации…
       </div>
     );
   }
@@ -317,22 +282,54 @@ function OrchestratorConfig() {
       <div className="ai-page__header">
         <div>
           <h1 className="ai-page__title">Orchestrator</h1>
-          <p className="ai-page__subtitle">
-            Настройка классификации запросов, выбора источников, лимитов контекста,
-            token-бюджетов и fallback-сообщений.
-          </p>
+          <p className="ai-page__subtitle">Классификация запросов, источники данных, лимиты и fallback.</p>
         </div>
-        <button onClick={load} className="ai-btn ai-btn--small" type="button">
-          Обновить
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={load} className="ai-btn ai-btn--small ai-btn--secondary" type="button">
+            Обновить
+          </button>
+          <button type="button" className="ai-btn ai-btn--small" onClick={save} disabled={saving}>
+            {saving ? 'Сохранение…' : 'Сохранить'}
+          </button>
+        </div>
       </div>
 
       {error && <div className="ai-error">{error}</div>}
       {message && <div className="ai-success">{message}</div>}
 
-      <div className="ai-config-top">
-        <Section title="Intent Classification" subtitle="Keywords, priority и conditions для каждого intent.">
-          <div className="ai-intent-rules">
+      <div className="ai-config-top" style={{ gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+        <div className="ai-card ai-section" style={{ minHeight: 0, padding: '10px 12px' }}>
+          <div
+            className="ai-section__title"
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}
+          >
+            <span>Intent Classification</span>
+            <div className="ai-field-row ai-field-row--inline" style={{ gap: '4px' }}>
+              <label className="ai-field-label" style={{ margin: 0 }}>Default</label>
+              <select
+                className="ai-select"
+                style={{ width: '110px', height: '24px', padding: '1px 4px', fontSize: '0.75rem' }}
+                value={defaultIntent}
+                onChange={(e) => setDefaultIntent(e.target.value)}
+              >
+                {DEFAULT_INTENTS.map((i) => (
+                  <option key={i} value={i}>
+                    {i}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div
+            className="ai-provider-cards"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gridTemplateRows: 'repeat(3, minmax(0, 1fr))',
+              gap: '8px',
+              overflow: 'auto',
+            }}
+          >
             {DEFAULT_INTENTS.map((intent) => (
               <IntentRuleEditor
                 key={intent}
@@ -343,199 +340,137 @@ function OrchestratorConfig() {
               />
             ))}
           </div>
+        </div>
 
-          <InputRow label="Default intent" inline>
-            <select
-              className="ai-select"
-              value={defaultIntent}
-              onChange={(e) => setDefaultIntent(e.target.value)}
-            >
-              {DEFAULT_INTENTS.map((i) => (
-                <option key={i} value={i}>{i}</option>
-              ))}
-            </select>
-          </InputRow>
-        </Section>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0 }}>
+          <div className="ai-config-top" style={{ gridTemplateColumns: '1fr 1fr', flex: '0 0 auto', gap: '8px' }}>
+            <div className="ai-card ai-section" style={{ minHeight: '160px', padding: '10px 12px' }}>
+              <h2 className="ai-section__title" style={{ marginBottom: '8px' }}>Source Routing</h2>
+              <table className="ai-table" style={{ fontSize: '0.875rem' }}>
+                <thead>
+                  <tr>
+                    <th>Intent</th>
+                    <th style={{ textAlign: 'center' }}>LMS</th>
+                    <th style={{ textAlign: 'center' }}>RAG</th>
+                    <th style={{ textAlign: 'center' }}>Strict</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {DEFAULT_INTENTS.map((intent) => (
+                    <tr key={intent}>
+                      <td>{intent}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={sourceMap[intent]?.lms || false}
+                          onChange={(e) =>
+                            setSourceMap({
+                              ...sourceMap,
+                              [intent]: { ...sourceMap[intent], lms: e.target.checked },
+                            })
+                          }
+                        />
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={sourceMap[intent]?.rag || false}
+                          onChange={(e) =>
+                            setSourceMap({
+                              ...sourceMap,
+                              [intent]: { ...sourceMap[intent], rag: e.target.checked },
+                            })
+                          }
+                        />
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={sourceMap[intent]?.strict_course || false}
+                          onChange={(e) =>
+                            setSourceMap({
+                              ...sourceMap,
+                              [intent]: { ...sourceMap[intent], strict_course: e.target.checked },
+                            })
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        <Section title="Source Routing" subtitle="Какие источники данных использовать для каждого intent.">
-          <table className="ai-table">
-            <thead>
-              <tr>
-                <th>Intent</th>
-                <th>LMS</th>
-                <th>RAG</th>
-                <th>Strict course</th>
-              </tr>
-            </thead>
-            <tbody>
-              {DEFAULT_INTENTS.map((intent) => (
-                <tr key={intent}>
-                  <td>{intent}</td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={sourceMap[intent]?.lms || false}
-                      onChange={(e) =>
-                        setSourceMap({
-                          ...sourceMap,
-                          [intent]: { ...sourceMap[intent], lms: e.target.checked },
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={sourceMap[intent]?.rag || false}
-                      onChange={(e) =>
-                        setSourceMap({
-                          ...sourceMap,
-                          [intent]: { ...sourceMap[intent], rag: e.target.checked },
-                        })
-                      }
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={sourceMap[intent]?.strict_course || false}
-                      onChange={(e) =>
-                        setSourceMap({
-                          ...sourceMap,
-                          [intent]: { ...sourceMap[intent], strict_course: e.target.checked },
-                        })
-                      }
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Section>
-      </div>
+            <div className="ai-card ai-section" style={{ minHeight: '160px', padding: '10px 12px' }}>
+              <h2 className="ai-section__title" style={{ marginBottom: '8px' }}>Limits &amp; Token Budgets</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px' }}>
+                <NumberField label="Max contents" value={maxLmsContents} max={100} onChange={setMaxLmsContents} />
+                <NumberField label="Max deadlines" value={maxLmsDeadlines} max={50} onChange={setMaxLmsDeadlines} />
+                <NumberField
+                  label="Organizational"
+                  value={intentMaxTokens.organizational}
+                  onChange={(v) => setIntentMaxTokens({ ...intentMaxTokens, organizational: v })}
+                />
+                <NumberField
+                  label="Study beginner"
+                  value={intentMaxTokens.study_beginner}
+                  onChange={(v) => setIntentMaxTokens({ ...intentMaxTokens, study_beginner: v })}
+                />
+                <NumberField
+                  label="Mixed"
+                  value={intentMaxTokens.mixed}
+                  onChange={(v) => setIntentMaxTokens({ ...intentMaxTokens, mixed: v })}
+                />
+                <NumberField
+                  label="Default"
+                  value={intentMaxTokens.default}
+                  onChange={(v) => setIntentMaxTokens({ ...intentMaxTokens, default: v })}
+                />
+              </div>
+            </div>
+          </div>
 
-      <div className="ai-config-bottom">
-        <Section title="Context Limits" subtitle="Ограничения LMS-контекста в prompt.">
-          <InputRow label="Max LMS contents" inline>
-            <input
-              type="number"
-              className="ai-input ai-input--inline"
-              min={1}
-              max={100}
-              value={maxLmsContents}
-              onChange={(e) => setMaxLmsContents(Number(e.target.value))}
-            />
-          </InputRow>
-          <InputRow label="Max LMS deadlines" inline>
-            <input
-              type="number"
-              className="ai-input ai-input--inline"
-              min={1}
-              max={50}
-              value={maxLmsDeadlines}
-              onChange={(e) => setMaxLmsDeadlines(Number(e.target.value))}
-            />
-          </InputRow>
-        </Section>
-
-        <Section title="Token Budgets" subtitle="Max output tokens в зависимости от intent и уровня.">
-          <InputRow label="Organizational" inline>
-            <input
-              type="number"
-              className="ai-input ai-input--inline"
-              min={1}
-              max={4096}
-              value={intentMaxTokens.organizational}
-              onChange={(e) =>
-                setIntentMaxTokens({ ...intentMaxTokens, organizational: Number(e.target.value) })
-              }
-            />
-          </InputRow>
-          <InputRow label="Study beginner" inline>
-            <input
-              type="number"
-              className="ai-input ai-input--inline"
-              min={1}
-              max={4096}
-              value={intentMaxTokens.study_beginner}
-              onChange={(e) =>
-                setIntentMaxTokens({ ...intentMaxTokens, study_beginner: Number(e.target.value) })
-              }
-            />
-          </InputRow>
-          <InputRow label="Mixed" inline>
-            <input
-              type="number"
-              className="ai-input ai-input--inline"
-              min={1}
-              max={4096}
-              value={intentMaxTokens.mixed}
-              onChange={(e) => setIntentMaxTokens({ ...intentMaxTokens, mixed: Number(e.target.value) })}
-            />
-          </InputRow>
-          <InputRow label="Default" inline>
-            <input
-              type="number"
-              className="ai-input ai-input--inline"
-              min={1}
-              max={4096}
-              value={intentMaxTokens.default}
-              onChange={(e) =>
-                setIntentMaxTokens({ ...intentMaxTokens, default: Number(e.target.value) })
-              }
-            />
-          </InputRow>
-        </Section>
-      </div>
-
-      <Section title="Fallback Messages" subtitle="Сообщения при недостатке данных или вне области доступных курсов.">
-        <InputRow label="No LMS data">
-          <textarea
-            className="ai-textarea"
-            rows={2}
-            value={fallbackMessages.no_lms_data}
-            onChange={(e) =>
-              setFallbackMessages({ ...fallbackMessages, no_lms_data: e.target.value })
-            }
-          />
-        </InputRow>
-        <InputRow label="No RAG context">
-          <textarea
-            className="ai-textarea"
-            rows={2}
-            value={fallbackMessages.no_rag_context}
-            onChange={(e) =>
-              setFallbackMessages({ ...fallbackMessages, no_rag_context: e.target.value })
-            }
-          />
-        </InputRow>
-        <InputRow label="Out of scope course (placeholder: {course})">
-          <textarea
-            className="ai-textarea"
-            rows={2}
-            value={fallbackMessages.out_of_scope_course}
-            onChange={(e) =>
-              setFallbackMessages({ ...fallbackMessages, out_of_scope_course: e.target.value })
-            }
-          />
-        </InputRow>
-      </Section>
-
-      <Section title="Course Name Starters" subtitle="Слова, которые не считаются названиями курсов при экстракции.">
-        <InputRow label="Non-course starters (одно слово на строку)">
-          <textarea
-            className="ai-textarea"
-            rows={6}
-            value={nonCourseStarters}
-            onChange={(e) => setNonCourseStarters(e.target.value)}
-          />
-        </InputRow>
-      </Section>
-
-      <div className="ai-actions-center ai-actions--sticky">
-        <button type="button" className="ai-btn" onClick={save} disabled={saving}>
-          {saving ? 'Сохранение…' : 'Сохранить'}
-        </button>
+          <div className="ai-card ai-section" style={{ flex: '1 1 auto', minHeight: 0, padding: '10px 12px' }}>
+            <h2 className="ai-section__title" style={{ marginBottom: '8px' }}>Fallbacks &amp; Course Starters</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minHeight: 0 }}>
+              <label className="ai-field-label" style={{ margin: 0 }}>No LMS data</label>
+              <textarea
+                className="ai-textarea ai-textarea--small"
+                rows={2}
+                style={{ minHeight: '44px', padding: '5px 8px', fontSize: '0.875rem' }}
+                value={fallbackMessages.no_lms_data}
+                onChange={(e) => setFallbackMessages({ ...fallbackMessages, no_lms_data: e.target.value })}
+              />
+              <label className="ai-field-label" style={{ margin: 0 }}>No RAG context</label>
+              <textarea
+                className="ai-textarea ai-textarea--small"
+                rows={2}
+                style={{ minHeight: '44px', padding: '5px 8px', fontSize: '0.875rem' }}
+                value={fallbackMessages.no_rag_context}
+                onChange={(e) => setFallbackMessages({ ...fallbackMessages, no_rag_context: e.target.value })}
+              />
+              <label className="ai-field-label" style={{ margin: 0 }}>Out of scope (placeholder: {'{course}'})</label>
+              <textarea
+                className="ai-textarea ai-textarea--small"
+                rows={2}
+                style={{ minHeight: '44px', padding: '5px 8px', fontSize: '0.875rem' }}
+                value={fallbackMessages.out_of_scope_course}
+                onChange={(e) =>
+                  setFallbackMessages({ ...fallbackMessages, out_of_scope_course: e.target.value })
+                }
+              />
+              <label className="ai-field-label" style={{ margin: '4px 0 0' }}>Non-course starters</label>
+              <textarea
+                className="ai-textarea"
+                rows={6}
+                style={{ flex: '1 1 auto', minHeight: '100px', padding: '5px 8px', fontSize: '0.875rem' }}
+                value={nonCourseStarters}
+                placeholder="одно слово на строку"
+                onChange={(e) => setNonCourseStarters(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
