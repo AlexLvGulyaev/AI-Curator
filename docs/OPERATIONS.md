@@ -1,9 +1,9 @@
 # OPERATIONS.md — AI Curator
 
 **Проект:** ai-curator  
-**Версия:** 1.7  
-**Дата:** 2026-07-31  
-**Статус:** Актуален для Sprint 5.2 + Configurable Orchestrator Routing
+**Версия:** 2.1  
+**Дата:** 2026-08-01  
+**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + frontend polish
 
 ---
 
@@ -276,13 +276,95 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 
 ---
 
-## 6. Аудит
+## 6. Логи (Operational Logs)
 
-Административные действия фиксируются в таблице `audit_logs`. Просмотр доступен в разделе **Журнал аудита**.
+Раздел **Логи** — операционная консоль запросов студентов. Каждая запись соответствует одному запросу (`chat_requests`) и связанному ответу (`chat_logs`).
+
+### 6.1. Левая панель — список записей
+
+- Фильтры по периоду (24h / 7d / 30d / все), статусу (`ok` / `error` / `pending`) и интенту (`study`, `organizational`, `mixed`, `progress`, `deadline`).
+- Поиск по `session_id`.
+- Backend-пагинация.
+- Карточка записи: дата/время, статус, intent, превью сообщения, `session_id`, роль, курс, latency.
+
+### 6.2. Правая панель — деталь записи
+
+- **Запрос**: `session_id`, `role`, `course_id`, `difficulty`, `intent`, `created_at`.
+- **Исполнение**: latency, total tokens, модель LLM, feedback score.
+- **Сообщение и ответ**: полный текст запроса и ответа AI, список источников.
+- **Ошибка**: блок с текстом ошибки, если ответ завершился ошибкой.
+- **LLM calls**: список вызовов LLM с моделью, статусом, latency, tokens; раскрывающийся preview prompt/response trace.
+- **Технический снимок (JSON)**: полный JSON детали записи.
+
+### 6.3. Endpoints
+
+- `GET /api/v1/admin/operational-logs` — список operational log entries.
+- `GET /api/v1/admin/operational-logs/{id}` — деталь operational log entry.
+
+### 6.4. Dialog Sessions
+
+Раздел **Dialog Sessions** — операционная консоль диалоговых сессий студентов на новой схеме `chat_sessions` + `execution_sessions` + `execution_steps`.
+
+### Структура данных
+
+| Таблица | Назначение |
+|---------|------------|
+| `chat_sessions` | Каноническая сессия диалога: `session_id`, `user_id`, `role`, `course_id`, `mode` (`text`/`lms`/`rag`/`mixed`), `is_active` |
+| `execution_sessions` | Одна трассировка pipeline на каждый chat-запрос. Сохраняет `client_ip`, `user_agent`, `provider_key`, `model_name`, `duration_ms` |
+| `execution_steps` | Этапы pipeline: `intent_classify`, `lms_fetch`, `rag_search`, `context_build`, `llm_call`, `answer_validate`, `source_attach`, `response_save` |
+
+**Важно:** миграция старых данных (backfill) не выполняется. Новые таблицы заполняются с момента деплоя. До первых запросов после деплоя консоль будет пуста — это осознанное решение.
+
+### Левая панель — список сессий
+
+- Фильтры: период (`hours`), source mode (`text`/`lms`/`rag`/`mixed`), только активные, поиск по `session_id` / `role`.
+- Backend-пагинация.
+- Карточка сессии: `session_id`, роль, курс, mode, статус, количество сообщений, время последнего обновления.
+
+### Правая панель — сводка сессии
+
+- **Параметры сессии**: `session_id`, visitor IP, роль, курс, сложность, mode, активность.
+- **Параметры исполнения**: `provider_key`, `model_name`, latency, status, source.
+- **Memory policy / limits**: снапшот активной AI-конфигурации (`model`, `max_tokens`, `temperature`), `memory_source: PostgreSQL`.
+- **Таблица turns**: пары «запрос пользователя / ответ системы» с cache hit, response time, tokens.
+- **Аккордеон «Таймлайн execution pipeline»**: этапы `execution_steps` с duration, status и JSON-метаданными.
+- **Технический снимок диалога (JSON)**: полный payload detail-ответа.
+
+Endpoints:
+
+- `GET /api/v1/admin/dialog-sessions` — список `ChatSession`.
+- `GET /api/v1/admin/dialog-sessions/{session_id}` — деталь: turns + execution sessions + budget + memory_source.
 
 ---
 
-## 7. Переменные окружения
+## 7. Аудит
+
+Административные действия фиксируются в таблице `audit_logs`. Просмотр доступен в разделе **Журнал аудита**.
+
+Доступны endpoints:
+
+- `GET /api/v1/admin/audit` — журнал аудита с фильтрами (возвращает объект `{items, total, limit, offset}`).
+- `GET /api/v1/admin/audit/{id}` — деталь audit-записи.
+
+### Расширенные поля аудита
+
+| Поле | Назначение |
+|------|------------|
+| `user_name` | Имя пользователя, выполнившего действие |
+| `ip_address` | IP-адрес клиента, с которого пришёл запрос |
+
+### Фильтры журнала
+
+- `action`, `resource_type`, `user_id` (сопоставляется с `user_id` и `user_name`);
+- `date_from` / `date_to` — фильтр по диапазону дат (ISO `YYYY-MM-DD`).
+
+### Детальная карточка
+
+Правая панель консоли аудита показывает: пользователя (ID + имя), IP-адрес, время, действие, ресурс, ID ресурса и JSON snapshot `details`.\n\n### Endpoints\n\n- `GET /api/v1/admin/audit` — список с фильтрами.\n- `GET /api/v1/admin/audit/{id}` — детальная карточка.
+
+---
+
+## 8. Переменные окружения
 
 | Переменная | Описание |
 |------------|----------|
@@ -344,7 +426,7 @@ asyncio.run(main())
 
 ---
 
-## 8. Retention и архивы
+## 9. Retention и архивы
 
 Старые логи автоматически архивируются и удаляются из PostgreSQL фоновым процессом Backend.
 
@@ -370,10 +452,14 @@ asyncio.run(main())
 "
 ```
 
-## 9. История изменений
+## 10. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
+| 2026-08-01 | 1.8 | Добавлен раздел 6 «Логи (Operational Logs)» с описанием консоли и endpoints; добавлен `GET /api/v1/admin/audit/{id}` в раздел 7 |
+| 2026-08-01 | 1.9 | Добавлен подраздел 6.4 «Dialog Sessions» с описанием консоли диалогов и endpoints `GET /api/v1/admin/dialog-sessions` / `{session_id}` |
+| 2026-08-01 | 2.0 | Реструктуризация Dialog Sessions под схему `chat_sessions` + `execution_sessions` + `execution_steps`; обновлена структура консоли и описание timeline pipeline; раздел 7 «Аудит» дополнен полями `user_name`/`ip_address`, фильтрами по дате и детальной карточкой |
+| 2026-08-01 | 2.1 | `GET /api/v1/admin/audit` возвращает `{items, total, limit, offset}`; `POST /api/v1/chat` фиксирует `client_ip` и `user_agent` в `ExecutionSession`; в консоли Dialog Sessions отображается visitor IP и source |
 | 2026-07-30 | 1.0 | Создан документ |
  | 2026-07-30 | 1.1 | Добавлены расширенные параметры AI Config, retention и архивирование логов |
 | 2026-07-30 | 1.2 | Добавлен раздел мониторинга latency: метрики из `analytics_events`, ручное профилирование через `scripts/profile_latency.py`, SLO/NFR, AI Config tuning для latency |

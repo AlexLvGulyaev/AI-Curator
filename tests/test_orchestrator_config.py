@@ -90,6 +90,7 @@ async def test_update_intent_rules(client):
         assert Orchestrator.detect_intent("о чём будет итоговый проект", ocfg=updated_cfg) == "mixed"
 
 
+
 @pytest.mark.anyio
 async def test_update_invalid_intent_source_map(client):
     """PUT rejects intent_source_map with missing boolean flags."""

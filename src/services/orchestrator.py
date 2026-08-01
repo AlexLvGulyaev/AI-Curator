@@ -104,9 +104,43 @@ class Orchestrator:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.logger = LoggerService(db)
+        self.tracer = self.logger.tracer
         self.ai_config_service = AiConfigService(db)
         self.orchestrator_config_service = OrchestratorConfigService(db)
         self._ocfg: dict = {}
+
+    @staticmethod
+    def _execution_mode_from_sources(need_lms: bool, need_rag: bool) -> str:
+        """Return route source mode based on intent source flags."""
+        if need_lms and need_rag:
+            return "mixed"
+        if need_lms:
+            return "lms"
+        if need_rag:
+            return "rag"
+        return "text"
+
+    async def _finish_execution(
+        self,
+        exec_session_id: int,
+        request: Any,
+        steps: List[Dict[str, Any]],
+        status: str,
+        duration_ms: float,
+        execution_metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Persist execution steps, link request and close the session."""
+        await self.tracer.update_execution_session(
+            exec_session_id, request_id=request.id
+        )
+        if steps:
+            await self.tracer.add_execution_steps(exec_session_id, steps)
+        await self.tracer.finish_execution_session(
+            exec_session_id,
+            status,
+            duration_ms=int(duration_ms) if duration_ms is not None else None,
+            execution_metadata=execution_metadata,
+        )
 
     def _non_course_starters(self) -> set:
         """Return common Russian sentence starters that are NOT course names."""
@@ -647,6 +681,8 @@ class Orchestrator:
         course_id: Optional[int] = None,
         session_id: Optional[str] = None,
         history: Optional[List[Dict[str, str]]] = None,
+        client_ip: Optional[str] = None,
+        user_agent: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Process a student message end-to-end and return answer + sources."""
         if session_id is None:
@@ -657,6 +693,24 @@ class Orchestrator:
         user_id = role_context["user_id"]
         available_course_ids: List[int] = role_context["course_ids"]
         default_course_id: int = role_context["default_course_id"]
+
+        # Start canonical chat session and execution trace.
+        chat_session = await self.logger.create_or_update_chat_session(
+            session_id=session_id,
+            user_id=user_id,
+            role=role,
+            course_id=default_course_id,
+            difficulty=difficulty,
+            mode="text",
+        )
+        exec_session = await self.tracer.start_execution_session(
+            chat_session.id,
+            client_ip=client_ip,
+            user_agent=user_agent,
+            provider_key="openai",
+            model_name=None,
+        )
+        execution_steps: List[Dict[str, Any]] = []
 
         # Determine target course: mentioned course in message takes precedence over
         # explicit UI selection, then default, but only if the mentioned course is
@@ -677,6 +731,7 @@ class Orchestrator:
             refusal = out_of_scope_template.format(course=other_course)
             request = await self.logger.create_chat_request(
                 session_id=session_id,
+                chat_session_id=chat_session.id,
                 role=role,
                 course_id=explicit_course_id or default_course_id,
                 difficulty=difficulty,
@@ -696,6 +751,11 @@ class Orchestrator:
                 latency_ms=0,
                 error=None,
             )
+            execution_steps.extend([
+                {"stage_name": "intent_classify", "step_order": 1, "duration_ms": 0, "step_metadata": {"intent": "out_of_scope"}},
+                {"stage_name": "response_save", "step_order": 2, "duration_ms": 0},
+            ])
+            await self._finish_execution(exec_session.id, request, execution_steps, "ok", 0)
             return {
                 "answer": refusal,
                 "sources": [],
@@ -707,6 +767,13 @@ class Orchestrator:
             }
 
         target_course_id = mentioned_course_id or explicit_course_id or default_course_id
+
+        # Align canonical chat session with the resolved target course.
+        if target_course_id != chat_session.course_id:
+            chat_session = await self.logger.create_or_update_chat_session(
+                session_id=session_id,
+                course_id=target_course_id,
+            )
 
         # Load active AI configuration, retrieval tuning and orchestrator config early.
         config = await self.ai_config_service.get_active()
@@ -724,6 +791,7 @@ class Orchestrator:
             )
             request = await self.logger.create_chat_request(
                 session_id=session_id,
+                chat_session_id=chat_session.id,
                 role=role,
                 course_id=target_course_id,
                 difficulty=difficulty,
@@ -743,6 +811,11 @@ class Orchestrator:
                 latency_ms=0,
                 error=None,
             )
+            execution_steps.extend([
+                {"stage_name": "intent_classify", "step_order": 1, "duration_ms": 0, "step_metadata": {"intent": "refusal", "refusal_topic": refusal_topic}},
+                {"stage_name": "response_save", "step_order": 2, "duration_ms": 0},
+            ])
+            await self._finish_execution(exec_session.id, request, execution_steps, "ok", 0)
             return {
                 "answer": refusal,
                 "sources": [],
@@ -758,6 +831,12 @@ class Orchestrator:
         timings: Dict[str, float] = {
             "intent_detect_ms": round((time.perf_counter() - t_start) * 1000, 2),
         }
+        execution_steps.append({
+            "stage_name": "intent_classify",
+            "step_order": 1,
+            "duration_ms": timings["intent_detect_ms"],
+            "step_metadata": {"intent": intent},
+        })
 
         # Determine if we need LMS data and/or RAG context from config.
         source_map = self._ocfg.get("intent_source_map", {})
@@ -768,6 +847,14 @@ class Orchestrator:
         # generic KB materials can be used. Organizational/mixed questions
         # keep the stricter filter because they combine LMS structure with KB.
         strict_course_rag = bool(intent_sources.get("strict_course", intent != "study"))
+
+        # Update canonical session mode based on the selected source route.
+        mode = self._execution_mode_from_sources(need_lms, need_rag)
+        if mode != chat_session.mode:
+            chat_session = await self.logger.create_or_update_chat_session(
+                session_id=session_id,
+                mode=mode,
+            )
 
         lms_data: Optional[Dict[str, Any]] = None
         lms_calls: List[Dict[str, Any]] = []
@@ -886,6 +973,35 @@ class Orchestrator:
                     rag_context = item["chunks"]
                     timings.update(item["timings"])
 
+            if need_lms:
+                lms_total_ms = round(
+                    max(
+                        timings.get("lms_deadlines_ms", 0),
+                        timings.get("lms_progress_ms", 0),
+                        timings.get("lms_contents_ms", 0),
+                    ),
+                    2,
+                )
+                execution_steps.append({
+                    "stage_name": "lms_fetch",
+                    "step_order": 2,
+                    "duration_ms": lms_total_ms,
+                    "step_metadata": {
+                        "has_data": bool(lms_data),
+                        "errors": [c for c in lms_calls if "error" in c],
+                    },
+                })
+            if need_rag:
+                execution_steps.append({
+                    "stage_name": "rag_search",
+                    "step_order": 3 if not need_lms else 3,
+                    "duration_ms": timings.get("rag_search_ms", 0),
+                    "step_metadata": {
+                        "chunks_count": len(rag_context),
+                        "rag_filters": rag_filters,
+                    },
+                })
+
         if lms_data:
             lms_errors = lms_data.pop("errors", [])
             for err in lms_errors:
@@ -904,6 +1020,7 @@ class Orchestrator:
                 )
                 request = await self.logger.create_chat_request(
                     session_id=session_id,
+                    chat_session_id=chat_session.id,
                     role=role,
                     course_id=target_course_id,
                     difficulty=difficulty,
@@ -937,6 +1054,18 @@ class Orchestrator:
                         "timings_ms": timings,
                     },
                 )
+                execution_steps.extend([
+                    {"stage_name": "context_build", "step_order": 4, "duration_ms": 0},
+                    {"stage_name": "response_save", "step_order": 8, "duration_ms": 0},
+                ])
+                await self._finish_execution(
+                    exec_session.id,
+                    request,
+                    execution_steps,
+                    "ok",
+                    total_lms_ms,
+                    execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "lms"},
+                )
                 return {
                     "answer": deadline_answer,
                     "sources": deadline_sources,
@@ -960,6 +1089,7 @@ class Orchestrator:
                 )
                 request = await self.logger.create_chat_request(
                     session_id=session_id,
+                    chat_session_id=chat_session.id,
                     role=role,
                     course_id=target_course_id,
                     difficulty=difficulty,
@@ -992,6 +1122,18 @@ class Orchestrator:
                         "validated": True,
                         "timings_ms": timings,
                     },
+                )
+                execution_steps.extend([
+                    {"stage_name": "context_build", "step_order": 4, "duration_ms": 0},
+                    {"stage_name": "response_save", "step_order": 8, "duration_ms": 0},
+                ])
+                await self._finish_execution(
+                    exec_session.id,
+                    request,
+                    execution_steps,
+                    "ok",
+                    total_lms_ms,
+                    execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "lms"},
                 )
                 return {
                     "answer": progress_answer,
@@ -1059,6 +1201,18 @@ class Orchestrator:
                         "timings_ms": timings,
                     },
                 )
+                execution_steps.extend([
+                    {"stage_name": "context_build", "step_order": 4, "duration_ms": 0},
+                    {"stage_name": "response_save", "step_order": 8, "duration_ms": 0},
+                ])
+                await self._finish_execution(
+                    exec_session.id,
+                    request,
+                    execution_steps,
+                    "ok",
+                    total_lms_ms,
+                    execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "lms"},
+                )
                 return {
                     "answer": no_deadline_answer,
                     "sources": [],
@@ -1088,6 +1242,7 @@ class Orchestrator:
             )
             request = await self.logger.create_chat_request(
                 session_id=session_id,
+                chat_session_id=chat_session.id,
                 role=role,
                 course_id=target_course_id,
                 difficulty=difficulty,
@@ -1121,6 +1276,18 @@ class Orchestrator:
                     "timings_ms": timings,
                 },
             )
+            execution_steps.extend([
+                {"stage_name": "context_build", "step_order": 4, "duration_ms": 0},
+                {"stage_name": "response_save", "step_order": 8, "duration_ms": 0},
+            ])
+            await self._finish_execution(
+                exec_session.id,
+                request,
+                execution_steps,
+                "ok",
+                short_latency,
+                execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "rag" if need_rag else "text"},
+            )
             return {
                 "answer": refusal,
                 "sources": [],
@@ -1134,6 +1301,7 @@ class Orchestrator:
         # Persist request
         request = await self.logger.create_chat_request(
             session_id=session_id,
+            chat_session_id=chat_session.id,
             role=role,
             course_id=target_course_id,
             difficulty=difficulty,
@@ -1142,6 +1310,16 @@ class Orchestrator:
             lms_calls=lms_calls,
             rag_filters=rag_filters,
         )
+        execution_steps.append({
+            "stage_name": "context_build",
+            "step_order": 4,
+            "duration_ms": 0,
+            "step_metadata": {
+                "has_lms_data": bool(lms_data),
+                "rag_chunks": len(rag_context),
+                "rag_filters": rag_filters,
+            },
+        })
 
         # Build prompt and call LLM
         prompt_builder = PromptBuilder(config, orchestrator_config=ocfg)
@@ -1174,6 +1352,19 @@ class Orchestrator:
         llm = LLMAdapter(config)
         llm_result: LlmResponse = await llm.generate(prompt, max_tokens=llm_max_tokens)
         timings["llm_generate_ms"] = llm_result.latency_ms or 0
+        execution_steps.append({
+            "stage_name": "llm_call",
+            "step_order": 5,
+            "duration_ms": llm_result.latency_ms,
+            "status": "ok" if not llm_result.error else "error",
+            "step_metadata": {
+                "model": llm_result.model,
+                "prompt_tokens": llm_result.prompt_tokens,
+                "completion_tokens": llm_result.completion_tokens,
+                "total_tokens": llm_result.total_tokens,
+                "error": llm_result.error,
+            },
+        })
 
         await self.logger.create_llm_call(
             request_id=request.id,
@@ -1256,6 +1447,15 @@ class Orchestrator:
                 "document_id": doc_id,
                 "chunk_index": meta.get("chunk_index"),
             })
+        execution_steps.append({
+            "stage_name": "source_attach",
+            "step_order": 6,
+            "duration_ms": 0,
+            "step_metadata": {
+                "lms_sources": len([s for s in sources if s.get("type") == "lms"]),
+                "kb_sources": len([s for s in sources if s.get("type") == "kb"]),
+            },
+        })
 
         # Validate answer
         t_validation = time.perf_counter()
@@ -1267,6 +1467,18 @@ class Orchestrator:
         )
         validation = validator.validate()
         timings["validation_ms"] = round((time.perf_counter() - t_validation) * 1000, 2)
+        execution_steps.append({
+            "stage_name": "answer_validate",
+            "step_order": 7,
+            "duration_ms": timings["validation_ms"],
+            "status": "ok" if validation.is_valid else "warning",
+            "step_metadata": {
+                "is_valid": validation.is_valid,
+                "fallback": validation.fallback,
+                "refusal": validation.refusal,
+                "issues": validation.issues,
+            },
+        })
 
         final_answer = validation.answer if validation.is_valid else validation.answer
         # Do not show sources when the answer is a fallback/refusal/out-of-scope.
@@ -1292,6 +1504,15 @@ class Orchestrator:
             latency_ms=total_latency,
             error=llm_result.error or ("; ".join(validation.issues) if validation.issues else None),
         )
+        execution_steps.append({
+            "stage_name": "response_save",
+            "step_order": 8,
+            "duration_ms": 0,
+            "step_metadata": {
+                "has_answer": bool(final_answer),
+                "sources_count": len(final_sources),
+            },
+        })
 
         await self.logger.log_analytics_event(
             event_type="chat_answer",
@@ -1306,6 +1527,16 @@ class Orchestrator:
                 "validated": validation.is_valid,
                 "timings_ms": timings,
             },
+        )
+
+        final_status = "ok" if not llm_result.error else "error"
+        await self._finish_execution(
+            exec_session.id,
+            request,
+            execution_steps,
+            final_status,
+            total_latency,
+            execution_metadata={"timings_ms": timings, "route": mode},
         )
 
         return {

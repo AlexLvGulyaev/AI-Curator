@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.8  
-**Дата:** 2026-07-31  
-**Статус:** Актуален для Sprint 5.2 + LMS-KB linking contract + Configurable Orchestrator Routing
+**Версия:** 1.12  
+**Дата:** 2026-08-01  
+**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + frontend polish
 
 ---
 
@@ -795,11 +795,185 @@
 | `GET` | `/api/v1/admin/monitoring/status` | Состояние компонентов с задержками |
 | `GET` | `/api/v1/admin/monitoring/health` | Агрегированный health check |
 
-### 4.4. Audit
+### 4.4. Operational Logs
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| `GET` | `/api/v1/admin/operational-logs` | Список operational log entries (запросы студентов) |
+| `GET` | `/api/v1/admin/operational-logs/{id}` | Деталь operational log entry |
+
+**Параметры фильтрации `GET /api/v1/admin/operational-logs`:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `session_id` | string | Фильтр по session_id |
+| `role` | string | Фильтр по роли |
+| `course_id` | int | Фильтр по курсу |
+| `intent` | string | Фильтр по intent |
+| `status` | string | `ok`, `error`, `pending` |
+| `has_error` | bool | Только записи с ошибкой |
+| `date_from` | string | ISO date YYYY-MM-DD |
+| `date_to` | string | ISO date YYYY-MM-DD |
+| `limit` | int | Лимит, по умолчанию 20, max 100 |
+| `offset` | int | Смещение |
+
+**Каноническая модель `OperationalLogSummary`:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | int | ID записи |
+| `session_id` | string | ID сессии |
+| `role` | string | Роль пользователя |
+| `course_id` | int | ID курса |
+| `difficulty` | string | Уровень сложности |
+| `intent` | string | Классифицированный intent |
+| `message_preview` | string | Превью сообщения (до 200 символов) |
+| `status` | string | `ok` / `error` / `pending` |
+| `latency_ms` | float | Задержка ответа |
+| `total_tokens` | int | Токены |
+| `llm_model` | string | Модель LLM |
+| `created_at` | string | ISO timestamp |
+
+**Каноническая модель `OperationalLogDetail`:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | int | ID записи |
+| `session_id` | string | ID сессии |
+| `role` | string | Роль |
+| `course_id` | int | ID курса |
+| `difficulty` | string | Уровень сложности |
+| `intent` | string | Intent |
+| `message` | string | Полный текст запроса |
+| `lms_calls` | array | Вызовы LMS |
+| `rag_filters` | object | Фильтры RAG |
+| `created_at` | string | ISO timestamp |
+| `status` | string | Статус |
+| `answer` | string | Ответ AI |
+| `sources` | array | Источники ответа |
+| `llm_model` | string | Модель LLM |
+| `latency_ms` | float | Задержка |
+| `total_tokens` | int | Токены |
+| `feedback_score` | int | Оценка полезности |
+| `error` | string | Ошибка |
+| `llm_calls` | array | Метаданные вызовов LLM + trace preview |
+| `analytics_events` | array | Связанные analytics events |
+
+### 4.5. Dialog Sessions
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| `GET` | `/api/v1/admin/dialog-sessions` | Список канонических диалоговых сессий из `chat_sessions` |
+| `GET` | `/api/v1/admin/dialog-sessions/{session_id}` | Деталь сессии: turns, execution timeline, budget, JSON snapshot |
+
+**Параметры фильтрации `GET /api/v1/admin/dialog-sessions`:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `hours` | int | Фильтр по сессиям, обновлённым за последние N часов (1–720) |
+| `mode` | string | Source mode: `text`, `lms`, `rag`, `mixed` |
+| `active_only` | bool | Только активные сессии |
+| `search` | string | Поиск по `session_id` или `role` |
+| `limit` | int | Лимит, по умолчанию 20, max 100 |
+| `offset` | int | Смещение |
+
+**Каноническая модель `DialogSessionSummary`:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | int | ID канонической сессии (PK) |
+| `session_id` | string | Business session ID |
+| `message_count` | int | Количество запросов в сессии |
+| `first_message_at` | string | ISO timestamp первого сообщения |
+| `last_message_at` | string | ISO timestamp последнего сообщения |
+| `role` | string | Роль пользователя |
+| `course_id` | int | ID курса |
+| `difficulty` | string | Уровень сложности |
+| `mode` | string | Source mode: `text`, `lms`, `rag`, `mixed` |
+| `is_active` | bool | Активна ли сессия |
+| `status` | string | `ok` / `error` / `pending` |
+
+**Каноническая модель `DialogSessionDetail`:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | int | ID канонической сессии |
+| `session_id` | string | Business session ID |
+| `user_id` | int \| null | ID пользователя |
+| `role` | string | Роль |
+| `course_id` | int | ID курса |
+| `difficulty` | string | Сложность |
+| `mode` | string | Source mode |
+| `is_active` | bool | Активность |
+| `message_count` | int | Всего запросов |
+| `first_message_at` | string | ISO timestamp |
+| `last_message_at` | string | ISO timestamp |
+| `turns` | array[DialogTurn] | Пары запрос/ответ |
+| `execution_sessions` | array[ExecutionSession] | Трассировки execution pipeline |
+| `budget` | object | Снапшот активной AI-конфигурации (`model`, `max_tokens`, `temperature`) |
+| `memory_source` | string | Значение `PostgreSQL` |
+| `limit` | int | Лимит turns |
+| `offset` | int | Смещение turns |
+
+**Каноническая модель `DialogTurn`:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `request_id` | int | ID запроса |
+| `log_id` | int | ID chat_log |
+| `role` | string | Роль пользователя |
+| `course_id` | int | ID курса |
+| `difficulty` | string | Сложность |
+| `intent` | string | Intent |
+| `user_message` | string | Сообщение пользователя |
+| `assistant_answer` | string | Ответ AI |
+| `sources` | array | Источники ответа |
+| `status` | string | `ok` / `error` / `pending` |
+| `llm_model` | string | Модель |
+| `latency_ms` | float | Задержка |
+| `total_tokens` | int | Токены |
+| `feedback_score` | int | Оценка полезности |
+| `error` | string | Ошибка |
+| `rag_filters` | object | Фильтры RAG |
+| `lms_calls` | array | Вызовы LMS |
+| `created_at` | string | ISO timestamp |
+
+**Каноническая модель `ExecutionSession`:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | int | ID execution-сессии |
+| `request_id` | int \| null | ID связанного chat-запроса |
+| `route` | string \| null | Маршрут |
+| `status` | string | `started`, `ok`, `error` |
+| `client_ip` | string \| null | IP клиента |
+| `provider_key` | string \| null | Ключ провайдера LLM |
+| `model_name` | string \| null | Модель LLM |
+| `duration_ms` | int \| null | Длительность в ms |
+| `started_at` | string | ISO timestamp начала |
+| `finished_at` | string \| null | ISO timestamp окончания |
+| `execution_metadata` | object | JSON-метаданные: timings, route, short_circuit |
+| `steps` | array[ExecutionStep] | Этапы pipeline |
+
+**Каноническая модель `ExecutionStep`:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | int | ID шага |
+| `stage_name` | string | `intent_classify`, `lms_fetch`, `rag_search`, `context_build`, `llm_call`, `answer_validate`, `source_attach`, `response_save` |
+| `step_order` | int | Порядковый номер |
+| `status` | string | `ok`, `error`, `warning` |
+| `duration_ms` | int \| null | Длительность в ms |
+| `started_at` | string \| null | ISO timestamp |
+| `finished_at` | string \| null | ISO timestamp |
+| `step_metadata` | object | JSON-метаданные шага |
+
+### 4.6. Audit
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
 | `GET` | `/api/v1/admin/audit` | Журнал аудита с фильтрами |
+| `GET` | `/api/v1/admin/audit/{id}` | Деталь audit-записи |
 
 **Параметры фильтрации:**
 
@@ -807,15 +981,44 @@
 |----------|-----|----------|
 | `action` | string | Действие |
 | `resource_type` | string | Тип ресурса |
-| `user_id` | string | ID пользователя |
+| `user_id` | string | ID или имя пользователя (сопоставляется с `user_id` и `user_name`) |
+| `date_from` | string | ISO date YYYY-MM-DD |
+| `date_to` | string | ISO date YYYY-MM-DD |
 | `limit` | int | Лимит, по умолчанию 100 |
 | `offset` | int | Смещение |
 
-### 4.5. Авторизация
+**Ответ `GET /api/v1/admin/audit`:**
+
+```json
+{
+  "items": [AuditLogEntry],
+  "total": 42,
+  "limit": 100,
+  "offset": 0
+}
+```
+
+**Каноническая модель `AuditLogEntry`:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `id` | int | ID записи |
+| `user_id` | string \| null | ID пользователя |
+| `user_name` | string \| null | Имя пользователя |
+| `user_role` | string \| null | Роль |
+| `action` | string | Действие |
+| `resource_type` | string | Тип ресурса |
+| `resource_id` | string \| null | ID ресурса |
+| `ip_address` | string \| null | IP-адрес клиента |
+| `details` | object | JSON-метаданные |
+| `created_at` | string | ISO timestamp |
+| `updated_at` | string \| null | ISO timestamp |
+
+### 4.7. Авторизация
 
 Административные endpoints защищены Bearer-токеном из переменной окружения `ADMIN_CONSOLE_TOKEN`, если она задана. Web UI и публичный чат не требуют авторизации.
 
-### 4.6. Orchestrator Configuration
+### 4.8. Orchestrator Configuration
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
@@ -1104,6 +1307,7 @@
   - управление Knowledge Base через трёхпанельную операционную консоль: загрузка, версии, переиндексация, lifecycle, preview текста и чанков, редактирование cleaned-текста;
   - AI Configuration (версионирование, активация);
   - аналитика запросов и оценок;
+  - operational logs (запросы студентов, LLM calls, analytics events);
   - журнал аудита.
 
 ## 7. Ограничения и допущения
@@ -1131,3 +1335,7 @@
 | 2026-07-31 | 1.6 | Добавлены endpoints операционной консоли KB Documents: `/detail`, `/text`, `/chunks`, `/timeline`, `/activate`, `/reindex`, `/reindex-all`; обновлены модели `KbDocumentVersionOut`, добавлены `KbDocumentChunkOut`, `KbDocumentEventOut`, `KbVersionTextOut`, `KbDocumentExecutionOut`, `KbDocumentDetailOut`, `KbReindexAllOut` |
 | 2026-07-31 | 1.7 | Уточнена семантика `course_id`/`module_id`/`topic_id` в KB: advisory retrieval-фильтры, не foreign keys из LMS |
 | 2026-07-31 | 1.8 | Добавлен раздел 4.6 «Orchestrator Configuration» с endpoints `GET/PUT /api/v1/admin/orchestrator/config` и JSON-схемой конфигурации оркестратора |
+| 2026-08-01 | 1.9 | Добавлен раздел 4.4 «Operational Logs» с endpoints `GET /api/v1/admin/operational-logs` и `GET /api/v1/admin/operational-logs/{id}`; добавлен `GET /api/v1/admin/audit/{id}`; обновлен список возможностей Admin Console |
+| 2026-08-01 | 1.10 | Добавлен раздел 4.5 «Dialog Sessions» с endpoints `GET /api/v1/admin/dialog-sessions` и `GET /api/v1/admin/dialog-sessions/{session_id}`; перенумерованы разделы 4.6+ |
+| 2026-08-01 | 1.11 | Реструктуризация Dialog Sessions под схему `chat_sessions` + `execution_sessions` + `execution_steps`; обновлены параметры фильтрации, модели ответов, добавлена модель `ExecutionSession`/`ExecutionStep`; Audit API получил фильтры `date_from`/`date_to` и поля `user_name`, `ip_address` |
+| 2026-08-01 | 1.12 | `GET /api/v1/admin/audit` возвращает объект с `items`, `total`, `limit`, `offset`; `POST /api/v1/chat` пробрасывает `client_ip` и `user_agent` в `ExecutionSession`; актуализирована документация Admin Console Dialog Sessions и Audit Log |

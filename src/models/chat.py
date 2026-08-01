@@ -1,9 +1,42 @@
 """Chat and logging SQLAlchemy models for AI Curator."""
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text, func
+from typing import Optional
+
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base
+
+
+class ChatSession(Base):
+    """Canonical dialog session grouping chat requests from one student."""
+
+    __tablename__ = "chat_sessions"
+
+    session_id = Column(String(255), nullable=False, unique=True, index=True)
+    user_id = Column(Integer, nullable=True, index=True)
+    role = Column(String(50), nullable=True, index=True)
+    course_id = Column(Integer, nullable=True, index=True)
+    difficulty = Column(String(50), nullable=True)
+    mode = Column(String(20), nullable=True, index=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    requests: Mapped[list["ChatRequest"]] = relationship(
+        back_populates="chat_session",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    execution_sessions: Mapped[list["ExecutionSession"]] = relationship(
+        back_populates="chat_session",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
 
 class ChatRequest(Base):
@@ -12,6 +45,12 @@ class ChatRequest(Base):
     __tablename__ = "chat_requests"
 
     session_id = Column(String(255), nullable=True, index=True)
+    chat_session_id = Column(
+        Integer,
+        ForeignKey("chat_sessions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     role = Column(String(50), nullable=True, index=True)
     course_id = Column(Integer, nullable=True, index=True)
     difficulty = Column(String(50), nullable=True)
@@ -20,6 +59,7 @@ class ChatRequest(Base):
     lms_calls = Column(JSON, nullable=True, default=list)
     rag_filters = Column(JSON, nullable=True, default=dict)
 
+    chat_session: Mapped[Optional["ChatSession"]] = relationship(back_populates="requests")
     logs: Mapped[list["ChatLog"]] = relationship(
         back_populates="request",
         cascade="all, delete-orphan",
@@ -75,6 +115,67 @@ class LlmCall(Base):
     error = Column(Text, nullable=True)
 
 
+class ExecutionSession(Base):
+    """Traced execution pipeline for a single chat request."""
+
+    __tablename__ = "execution_sessions"
+
+    chat_session_id = Column(
+        Integer,
+        ForeignKey("chat_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    request_id = Column(
+        Integer,
+        ForeignKey("chat_requests.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    route = Column(String(50), nullable=True)
+    status = Column(String(50), nullable=False, default="started", index=True)
+    client_ip = Column(String(45), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    provider_key = Column(String(50), nullable=True)
+    model_name = Column(String(100), nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    execution_metadata = Column(JSON, nullable=True, default=dict)
+    is_backfilled = Column(Boolean, nullable=False, default=False)
+
+    chat_session: Mapped["ChatSession"] = relationship(back_populates="execution_sessions")
+    request: Mapped[Optional["ChatRequest"]] = relationship()
+    steps: Mapped[list["ExecutionStep"]] = relationship(
+        back_populates="execution_session",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="ExecutionStep.step_order",
+    )
+
+
+class ExecutionStep(Base):
+    """Single stage inside an execution pipeline."""
+
+    __tablename__ = "execution_steps"
+
+    execution_session_id = Column(
+        Integer,
+        ForeignKey("execution_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stage_name = Column(String(50), nullable=False, index=True)
+    step_order = Column(Integer, nullable=False)
+    status = Column(String(50), nullable=False, default="ok")
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    step_metadata = Column(JSON, nullable=True, default=dict)
+
+    execution_session: Mapped["ExecutionSession"] = relationship(back_populates="steps")
+
+
 class AnalyticsEvent(Base):
     """Discrete analytics events for aggregation."""
 
@@ -96,8 +197,10 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     user_id = Column(String(255), nullable=True, index=True)
+    user_name = Column(String(255), nullable=True)
     user_role = Column(String(50), nullable=True)
     action = Column(String(50), nullable=False, index=True)
     resource_type = Column(String(50), nullable=False, index=True)
     resource_id = Column(String(255), nullable=True, index=True)
+    ip_address = Column(String(45), nullable=True, index=True)
     details = Column(JSON, nullable=True, default=dict)

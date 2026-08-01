@@ -18,7 +18,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "src
 from config import settings
 from models.base import Base
 from models.ai_config import AiConfig  # noqa: F401
-from models.chat import AnalyticsEvent, AuditLog, ChatLog, ChatRequest, LlmCall  # noqa: F401
+from models.chat import (  # noqa: F401
+    AnalyticsEvent,
+    AuditLog,
+    ChatLog,
+    ChatRequest,
+    ChatSession,
+    ExecutionSession,
+    ExecutionStep,
+    LlmCall,
+    LlmCallTrace,
+)
 from models.knowledge_base import KbDocument, KbDocumentChunk, KbDocumentVersion  # noqa: F401
 from models.request_log import RequestLog  # noqa: F401
 

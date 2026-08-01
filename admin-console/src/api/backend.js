@@ -298,13 +298,55 @@ export async function getAnalyticsEvents(limit = 100) {
   return apiRequest(`/api/v1/admin/analytics/events?limit=${limit}`);
 }
 
+// Operational Logs
+export async function getOperationalLogs(params = {}) {
+  const qs = new URLSearchParams();
+  if (params.session_id) qs.set('session_id', params.session_id);
+  if (params.role) qs.set('role', params.role);
+  if (params.course_id !== undefined) qs.set('course_id', params.course_id);
+  if (params.intent) qs.set('intent', params.intent);
+  if (params.status) qs.set('status', params.status);
+  if (params.has_error !== undefined) qs.set('has_error', params.has_error);
+  if (params.date_from) qs.set('date_from', params.date_from);
+  if (params.date_to) qs.set('date_to', params.date_to);
+  if (params.limit) qs.set('limit', params.limit);
+  if (params.offset !== undefined) qs.set('offset', params.offset);
+  return apiRequest(`/api/v1/admin/operational-logs?${qs.toString()}`);
+}
+
+export async function getOperationalLog(id) {
+  return apiRequest(`/api/v1/admin/operational-logs/${id}`);
+}
+
+// Dialog Sessions
+export async function getDialogSessions(params = {}) {
+  const qs = new URLSearchParams();
+  if (params.hours) qs.set('hours', params.hours);
+  if (params.mode) qs.set('mode', params.mode);
+  if (params.active_only !== undefined) qs.set('active_only', params.active_only);
+  if (params.search) qs.set('search', params.search);
+  if (params.limit) qs.set('limit', params.limit);
+  if (params.offset !== undefined) qs.set('offset', params.offset);
+  return apiRequest(`/api/v1/admin/dialog-sessions?${qs.toString()}`);
+}
+
+export async function getDialogSession(sessionId) {
+  return apiRequest(`/api/v1/admin/dialog-sessions/${encodeURIComponent(sessionId)}`);
+}
+
 // Audit
 export async function getAuditLog(params = {}) {
   const qs = new URLSearchParams();
   if (params.action) qs.set('action', params.action);
   if (params.resource_type) qs.set('resource_type', params.resource_type);
   if (params.user_id) qs.set('user_id', params.user_id);
+  if (params.date_from) qs.set('date_from', params.date_from);
+  if (params.date_to) qs.set('date_to', params.date_to);
   if (params.limit) qs.set('limit', params.limit);
   if (params.offset !== undefined) qs.set('offset', params.offset);
   return apiRequest(`/api/v1/admin/audit?${qs.toString()}`);
+}
+
+export async function getAuditEntry(id) {
+  return apiRequest(`/api/v1/admin/audit/${id}`);
 }

@@ -1,10 +1,10 @@
 # IMPLEMENTATION_PLAN.md — AI Curator
 
 **Проект:** ai-curator
-**Версия:** 2.0
-**Дата:** 2026-07-29
+**Версия:** 2.2
+**Дата:** 2026-08-01
 **Статус:** Approved
-**Срок реализации:** 7 календарных дней
+**Срок реализации:** 7+ календарных дней (фактическая реализация расширена за счёт спринтов Admin Console)
 
 ---
 
@@ -55,8 +55,14 @@ flowchart LR
     D2 --> D3[День 3: Backend scaffold + LMS Adapter]
     D3 --> D4[День 4: Knowledge Base + RAG через LangChain]
     D4 --> D5[День 5: Web UI студента]
-    D5 --> D6[День 6: Admin Console + логи/аналитика]
-    D6 --> S6_1[Sprint 6.1: Configurable Orchestrator Routing]
+    D5 --> D6[День 6: LLM Chat core + Admin Console scaffold]
+    D6 --> S5[Sprint 5: Admin Console panels]
+    S5 --> S5_1[5.1 System Overview]
+    S5 --> S5_34[5.3+5.4 AI & Retrieval]
+    S5 --> S5_2[5.2 KB Documents]
+    S5_1 --> S6_1[Sprint 6.1: Configurable Orchestrator Routing]
+    S5_34 --> S6_1
+    S5_2 --> S6_1
     S6_1 --> D7[День 7: E2E + деплой + документация]
 ```
 
@@ -65,7 +71,9 @@ flowchart LR
 ```
 День 1 (VPS + Moodle) → День 2 (Курс + роли) → День 3 (Backend + LMS Adapter)
                                                              ↓
-День 4 (Knowledge Base + RAG) → День 5 (Web UI) → День 6 (Admin Console) → Sprint 6.1 (Orchestrator Config) → День 7 (E2E + деплой)
+День 4 (Knowledge Base + RAG) → День 5 (Web UI) → День 6 (LLM Chat + Admin Console scaffold)
+                                                             ↓
+Sprint 5.1 (Dashboard) → Sprint 5.3+5.4 (AI & Retrieval) → Sprint 5.2 (KB Documents) → Sprint 6.1 (Orchestrator Config) → День 7 (E2E + деплой)
 ```
 
 ---
@@ -278,11 +286,11 @@ flowchart LR
 
 ---
 
-## 8. День 6: LLM Chat, Admin Console, Logging, Analytics и Audit
+## 8. День 6: LLM Chat core + Admin Console scaffold
 
 ### Цель
 
-Реализовать LLM-оркестратор чата в Backend, интегрировать его с Web UI и создать Admin Console для управления Knowledge Base, AI-конфигурацией, аналитикой и мониторингом.
+Реализовать LLM-оркестратор чата в Backend, интегрировать его с Web UI и подготовить каркас Admin Console. Детальные операционные панели Admin Console вынесены в отдельный **Sprint 5** (см. раздел 9).
 
 ### Результат дня
 
@@ -344,7 +352,219 @@ flowchart LR
 
 ---
 
-## 9. Sprint 6.1: Configurable Orchestrator Routing
+## 9. Sprint 5: Admin Console — операционные панели и консоли наблюдаемости
+
+### Цель
+
+Доработать Admin Console AI Curator до набора операционных панелей и консолей наблюдаемости, соответствующих референсам AI Portfolio / Assistant Flow: обзорная панель, настроечная панель AI/retrieval, операционная консоль Knowledge Base, логи operational (запросы студентов), диалоги, аналитика, аудит и управленческие отчёты.
+
+### Результат спринта (сводка по подспринтам)
+
+| # | Подспринт | Фокус | Статус |
+|---|-----------|-------|--------|
+| 5.1 | System Overview / Панель состояния | KPI, статусы компонентов, AI-активность, KB-сводка, последние ошибки | ✅ Завершён |
+| 5.3+5.4 | AI & Retrieval Configuration | Объединённые настройки LLM-поведения и retrieval-параметров | ✅ Завершён |
+| 5.2 | Knowledge Base Documents | Трёхпанельная операционная консоль документов KB | ✅ Завершён |
+| 5.5 | Operational Logs | Консоль operational-запросов студентов | ✅ Завершён |
+| 5.6 | Dialog Sessions | Консоль диалогов студентов (structural redesign) | ✅ Завершён |
+| 5.7 | Analytics Dashboard | Полноценный дашборд аналитики | ⏳ Запланирован |
+| 5.8 | Audit & Compliance | Журнал аудита с фильтрами и детальной карточкой | ✅ Backend завершён, frontend в очереди |
+| 5.9 | Business Reports / Quality Reports | Управленческая сводка и качество | ⏳ Запланирован |
+
+> **Примечание:** номера 5.3+5.4 идут перед 5.2 по факту выполнения, так как AI & Retrieval Configuration был реализован раньше Knowledge Base Documents по договорённости о приоритетах.
+
+---
+
+### 9.1. Sprint 5.1 — System Overview / Панель состояния ✅
+
+#### Цель
+
+Превратить базовую Dashboard в полноценную обзорную панель администратора.
+
+#### Результат спринта
+
+| Артефакт | Признак готовности |
+|----------|-------------------|
+| Backend monitoring API | `GET /api/v1/admin/monitoring/status` возвращает `ai_activity`, `llm_providers`, `recent_errors` |
+| Errors endpoint | `GET /api/v1/admin/monitoring/errors?limit=N` доступен |
+| Frontend Dashboard | 5 секций: состояние системы, распределение по интентам, AI-активность, Knowledge Base, последние ошибки |
+| Стилизация | Стиль AI Portfolio (`#0b0f19`, `#151b2b`, `#2f7bff`), Tailwind-конфиг |
+| Надёжность | `StatusBadge`/`KpiCard` защищены от `undefined`, добавлен `ErrorBoundary` |
+
+#### Критерий завершения
+
+- [x] Dashboard отображается без ошибок и умещается на один экран при масштабе 100 %.
+- [x] Все статусы в «Состоянии системы» отображаются корректно (`НОРМА` / `Н/Д`).
+- [x] Admin Console развёрнут на `https://curator-admin.alex-n8n.site`.
+
+---
+
+### 9.2. Sprint 5.3+5.4 — AI & Retrieval Configuration ✅
+
+#### Цель
+
+Объединить настройки LLM-поведения и параметры retrieval в единую панель управления.
+
+#### Результат спринта
+
+| Артефакт | Признак готовности |
+|----------|-------------------|
+| Модель данных | Таблица `RetrievalTuning` отдельно от `AiConfig` |
+| Backend API | `GET/PUT /api/v1/admin/retrieval/tuning`, `POST /api/v1/admin/retrieval/reindex` |
+| Retrieval параметры | `top_k`, `rag_distance_threshold`, `chunk_size`, `chunk_overlap`, timeouts, cache |
+| Course-aware boost | `course_boost_enabled`, `course_boost_factor` добавлены позже (Sprint 5.4 дополнение) |
+| Frontend | `AiAndRetrievalConfig.jsx` с 4 макропанелями |
+
+#### Критерий завершения
+
+- [x] Панель отображается в Admin Console без ошибок.
+- [x] Сохранение retrieval-параметров и AI-конфигурации работает.
+- [x] `RAGPipeline`/`Orchestrator` читают параметры из `RetrievalTuning`.
+- [x] `npm run build` и Docker-деплой проходят успешно.
+
+---
+
+### 9.3. Sprint 5.2 — Knowledge Base Documents ✅
+
+#### Цель
+
+Доработать управление документами Knowledge Base до операционной консоли по референсу Assistant Flow.
+
+#### Результат спринта
+
+| Артефакт | Признак готовности |
+|----------|-------------------|
+| Backend data model | `KbDocumentVersion` Git-поля, `KbDocumentChunk.content_preview`, `KbDocumentEvent` lifecycle |
+| Backend API | detail bundle, preview текста, preview чанков, timeline, reindex/activate версий, reindex-all |
+| RAW + cleaned | Хранение RAW-оригинала и очищенной копии; endpoint сохранения cleaned-текста |
+| Git workflow | `kb-content/` как отдельный репозиторий; `KbGitService`; локальные коммиты при upload |
+| Frontend | Трёхпанельный layout (список / сводка / lifecycle), RAW/cleaned preview, редактор cleaned-текста |
+| Content | 19 документов курса Claude Code (лекции + домашние задания), 40 чанков |
+
+#### Критерий завершения
+
+- [x] Операционная консоль KB Documents доступна в Admin Console.
+- [x] Можно загрузить документ, увидеть lifecycle, отредактировать cleaned-текст, переиндексировать.
+- [x] Git-метаданные версии заполняются при upload (local commit).
+- [x] `pytest` для KB проходит.
+
+---
+
+### 9.4. Sprint 5.5 — Operational Logs ✅
+
+#### Цель
+
+Создать операционную консоль operational-запросов студентов на основе `chat_requests`/`chat_logs`.
+
+#### Артефакты
+
+- `src/api/v1/admin/operational_logs.py`: `GET /admin/operational-logs`, `GET /admin/operational-logs/{id}`
+- `admin-console/src/components/OperationalLogs.jsx` с двухпанельным layout
+- `admin-console/src/utils/operationalLabels.js`, `operationalConsoleUi.js`
+
+#### Критерий завершения
+
+- [x] Список operational-записей отображается с фильтрами и backend-пагинацией.
+- [x] Детальная карточка записи показывает запрос, ответ, источники, LLM calls, analytics events, JSON snapshot.
+
+---
+
+### 9.5. Sprint 5.6 — Dialog Sessions ✅
+
+#### Статус
+
+Структурная переделка завершена и задеплоена (2026-08-01). Схема `chat_sessions` + `execution_sessions` + `execution_steps` в продакшене. Без backfill: новые таблицы заполняются с момента деплоя.
+
+#### Цель
+
+Создать полноценную операционную консоль диалоговых сессий студентов с:
+- отдельной таблицей `chat_sessions`;
+- трассировкой execution pipeline в `execution_sessions` + `execution_steps`;
+- сводкой параметров, таблицей turns, timeline pipeline и JSON snapshot.
+
+#### Артефакты
+
+- `src/models/chat.py`: `ChatSession`, `ExecutionSession`, `ExecutionStep` + `chat_requests.chat_session_id` FK.
+- `alembic/versions/20260801_add_chat_sessions_execution_steps.py`: миграция новых таблиц и колонок `audit_logs.ip_address`, `audit_logs.user_name`.
+- `src/services/execution_tracer.py`: сервис записи execution-сессий и шагов.
+- `src/services/logger.py`: методы `create_or_update_chat_session`, `log_audit` с `ip_address`/`user_name`.
+- `src/services/orchestrator.py`: интеграция трассировки на всех ветках `process()`.
+- `src/api/v1/admin/dialog_sessions.py`: переписан на новых моделях.
+- `admin-console/src/api/backend.js`: обновлены `getDialogSessions` / `getDialogSession`, добавлены `getAuditLog` / `getAuditEntry`.
+
+#### Критерий завершения
+
+- [x] Список диалоговых сессий доступен с фильтрами (`hours`, `mode`, `active_only`, `search`) и backend-пагинацией.
+- [x] Детальная карточка сессии показывает историю сообщений в парах user/assistant, источники, latency, tokens, статус.
+- [x] Новая схема `chat_sessions` + `execution_sessions` + `execution_steps` в продакшене.
+- [x] API возвращает сводку параметров, таблицу turns, execution timeline (`execution_sessions` + `execution_steps`), budget snapshot и JSON snapshot.
+- [x] `pytest` проходит (53 passed); новые тесты на `ExecutionTracerService` и API Dialog Sessions.
+
+---
+
+### 9.6. Sprint 5.7 — Analytics Dashboard ⏳
+
+#### Цель
+
+Доработать аналитику до полноценного дашборда.
+
+#### Запланированные артефакты
+
+- `src/api/v1/admin/analytics.py`: `/dashboard`, `/latency`, `/sources`, `/errors`
+- `admin-console/src/components/Analytics.jsx`
+
+#### Критерий завершения
+
+- [ ] Доступны фильтры по периоду/курсу.
+- [ ] Есть latency histograms, топ источников, ошибки.
+
+---
+
+### 9.7. Sprint 5.8 — Audit & Compliance ✅
+
+#### Статус
+
+Backend-часть завершена и задеплоена (2026-08-01). Frontend-переработка (`AuditLog.jsx`) вынесена в следующую сессию.
+
+#### Цель
+
+Создать полноценный журнал аудита административных действий с детальной карточкой и фильтрами.
+
+#### Артефакты
+
+- `src/models/chat.py`: добавлены `ip_address` и `user_name` в `AuditLog`.
+- `alembic/versions/20260801_add_chat_sessions_execution_steps.py`: миграция новых колонок `audit_logs.ip_address`, `audit_logs.user_name`.
+- `src/services/logger.py`: `log_audit` принимает `ip_address` и `user_name`.
+- `src/api/v1/admin/audit.py`: фильтры `date_from`/`date_to`, endpoint `GET /audit/{id}`.
+- `admin-console/src/api/backend.js`: `getAuditLog` с date-фильтрами, `getAuditEntry`.
+
+#### Критерий завершения
+
+- [x] `audit_logs` содержит `ip_address` и `user_name`.
+- [x] Журнал аудита фильтруется по действию, пользователю, ресурсу, дате.
+- [x] Детальная карточка аудит-события содержит user, IP, время, действие, ресурс и JSON snapshot details.
+- [x] `pytest` проходит; тесты на API Audit.
+
+---
+
+### 9.8. Sprint 5.9 — Business Reports / Quality Reports ⏳
+
+#### Цель
+
+Создать управленческую сводку по качеству и покрытию Knowledge Base.
+
+#### Запланированные артефакты
+
+- `src/api/v1/admin/reports.py`: `/reports/kb-coverage`, `/reports/popular-topics`, `/reports/quality`
+- `admin-console/src/components/Reports.jsx`
+
+#### Критерий завершения
+
+- [ ] Вопросы без ответа, гэпы KB, популярные темы и кандидаты на расширение KB видны в UI.
+
+---
+
+## 10. Sprint 6.1: Configurable Orchestrator Routing
 
 ### Цель
 
@@ -396,7 +616,7 @@ flowchart LR
 
 ---
 
-## 10. День 7: E2E-тестирование, деплой и документация
+## 11. День 7: E2E-тестирование, деплой и документация
 
 ### Цель
 
@@ -440,9 +660,9 @@ flowchart LR
 
 ---
 
-## 11. Зависимости и критический путь
+## 12. Зависимости и критический путь
 
-### 11.1. Внешние зависимости
+### 12.1. Внешние зависимости
 
 | Зависимость | Описание | Митигация |
 |-------------|----------|-----------|
@@ -452,7 +672,7 @@ flowchart LR
 | OpenAI API | Эмбеддинги и LLM | Мониторить лимиты и стоимость |
 | Knowledge Base content | Необходимы учебные материалы для RAG | Подготовить методистский контент заранее |
 
-### 11.2. Внутренние зависимости
+### 12.2. Внутренние зависимости
 
 | Этап | Зависит от | Почему |
 |------|------------|--------|
@@ -461,20 +681,21 @@ flowchart LR
 | День 4 | День 3 | Нужен backend и LMS Adapter |
 | День 5 | День 4 | Нужен работающий RAG |
 | День 6 | День 5 | Нужен Web UI для получения логов |
-| Sprint 6.1 | День 6 | Нужен работающий chat/orchestrator |
+| Sprint 5 | День 6 | Нужен Admin Console scaffold и работающий chat/RAG |
+| Sprint 6.1 | Sprint 5 | Нужен работающий chat/orchestrator и Admin Console |
 | День 7 | Sprint 6.1 | Нужен полный контур и конфигурация оркестратора для E2E |
 
-### 11.3. Критический путь
+### 12.3. Критический путь
 
 ```
-День 1 → День 2 → День 3 → День 4 → День 5 → День 6 → Sprint 6.1 → День 7
+День 1 → День 2 → День 3 → День 4 → День 5 → День 6 → Sprint 5 (5.1 → 5.3+5.4 → 5.2) → Sprint 6.1 → День 7
 ```
 
 Задержка на любом из дней сдвигает финальный деплой.
 
 ---
 
-## 12. Риски и митигация
+## 13. Риски и митигация
 
 | Риск | Вероятность | Влияние | Митигация |
 |------|-------------|--------|-----------|
@@ -487,20 +708,20 @@ flowchart LR
 
 ---
 
-## 13. Документация, создаваемая в ходе реализации
+## 14. Документация, создаваемая в ходе реализации
 
 | Документ | День | Назначение |
 |----------|------|------------|
 | `DEPLOYMENT_GUIDE.md` | День 7 | Source of Truth развёртывания |
-| `docs/API_CONTRACT.md` | День 3–6, Sprint 6.1 | Контракты API |
+| `docs/API_CONTRACT.md` | День 3–6, Sprint 5, Sprint 6.1 | Контракты API |
 | `docs/PROMPT_ARCHITECTURE.md` | День 6 | Структура промптов и few-shot примеры |
-| `docs/OPERATIONS.md` | День 6–7, Sprint 6.1 | Эксплуатация, обновление Knowledge Base и конфигурация оркестратора |
-| `docs/ARCHITECTURE.md` | Sprint 6.1 | Архитектурные решения, включая конфигурируемую маршрутизацию |
+| `docs/OPERATIONS.md` | День 6–7, Sprint 5, Sprint 6.1 | Эксплуатация, обновление Knowledge Base и конфигурация оркестратора |
+| `docs/ARCHITECTURE.md` | Sprint 5, Sprint 6.1 | Архитектурные решения, включая LMS-KB linking contract и конфигурируемую маршрутизацию |
 | `README.md` | День 7 | Актуализация публичного описания |
 
 ---
 
-## 14. История изменений
+## 15. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
@@ -508,3 +729,8 @@ flowchart LR
 | 2026-07-29 | 2.0 (Approved) | Документ согласован куратором. Статус изменён на Approved. |
 | 2026-07-29 | 1.0 | Первая версия IMPLEMENTATION_PLAN на 7 дней |
 | 2026-07-31 | 2.1 | Добавлен Sprint 6.1 «Configurable Orchestrator Routing»: вынесение интент-классификации, source routing, context limits, token budgets и fallback-сообщений в конфигурируемую подсистему `orchestrator_configs` с отдельной консолью Admin Console; обновлены диаграмма этапов, зависимости и критический путь |
+| 2026-08-01 | 2.2 | Добавлен развёрнутый Sprint 5 «Admin Console — операционные панели и консоли наблюдаемости» с подспринтами 5.1–5.9 и их статусами; обновлены диаграмма этапов, критический путь, зависимости, таблица документации и история изменений |
+| 2026-08-01 | 2.2a | Sprint 5.5 Operational Logs отмечен выполненным; обновлены артефакты, критерии завершения и статус в сводке |
+| 2026-08-01 | 2.2b | Sprint 5.6 Dialog Sessions отмечен выполненным; добавлен backend `dialog_sessions.py`, frontend `DialogSessions.jsx`, интеграция в `App.jsx`/`backend.js`; обновлён `API_CONTRACT.md` |
+| 2026-08-01 | 2.2c | Архитектурное совещание: принята структурная переделка Sprint 5.6 (выделение `chat_sessions`, `execution_sessions`, `execution_steps`) и доработка Sprint 5.8 Audit; план зафиксирован в task-файле и IMPLEMENTATION_PLAN.md |
+| 2026-08-01 | 2.2d | Реализован backend Sprint 5.6 Dialog Sessions (structural redesign) и Sprint 5.8 Audit: модели, миграция, `ExecutionTracerService`, интеграция в `orchestrator.py`, API, тесты; `pytest` 53 passed; документация обновлена |

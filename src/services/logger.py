@@ -6,7 +6,16 @@ from typing import Any, Dict, List, Optional
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.chat import AnalyticsEvent, AuditLog, ChatLog, ChatRequest, LlmCall, LlmCallTrace
+from models.chat import (
+    AnalyticsEvent,
+    AuditLog,
+    ChatLog,
+    ChatRequest,
+    ChatSession,
+    LlmCall,
+    LlmCallTrace,
+)
+from services.execution_tracer import ExecutionTracerService
 
 
 class LoggerService:
@@ -14,11 +23,33 @@ class LoggerService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.tracer = ExecutionTracerService(db)
+
+    async def create_or_update_chat_session(
+        self,
+        *,
+        session_id: str,
+        user_id: Optional[int] = None,
+        role: Optional[str] = None,
+        course_id: Optional[int] = None,
+        difficulty: Optional[str] = None,
+        mode: Optional[str] = None,
+    ) -> ChatSession:
+        """Get or upsert a canonical ChatSession and wire it to tracer."""
+        return await self.tracer.get_or_create_chat_session(
+            session_id,
+            user_id=user_id,
+            role=role,
+            course_id=course_id,
+            difficulty=difficulty,
+            mode=mode,
+        )
 
     async def create_chat_request(
         self,
         *,
         session_id: Optional[str] = None,
+        chat_session_id: Optional[int] = None,
         role: Optional[str] = None,
         course_id: Optional[int] = None,
         difficulty: Optional[str] = None,
@@ -30,6 +61,7 @@ class LoggerService:
         """Persist a student chat request."""
         request = ChatRequest(
             session_id=session_id,
+            chat_session_id=chat_session_id,
             role=role,
             course_id=course_id,
             difficulty=difficulty,
@@ -149,16 +181,20 @@ class LoggerService:
         resource_type: str,
         resource_id: Optional[str] = None,
         user_id: Optional[str] = None,
+        user_name: Optional[str] = None,
         user_role: Optional[str] = None,
+        ip_address: Optional[str] = None,
         details: Optional[Dict[str, Any]] = None,
     ) -> AuditLog:
         """Persist an administrative audit event."""
         audit = AuditLog(
             user_id=user_id,
+            user_name=user_name,
             user_role=user_role,
             action=action,
             resource_type=resource_type,
             resource_id=resource_id,
+            ip_address=ip_address,
             details=details or {},
         )
         self.db.add(audit)

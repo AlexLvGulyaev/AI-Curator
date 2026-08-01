@@ -8,9 +8,11 @@ import KbDocuments from './components/KbDocuments';
 import AiAndRetrievalConfig from './components/AiAndRetrievalConfig';
 import OrchestratorConfig from './components/OrchestratorConfig';
 import Analytics from './components/Analytics';
+import OperationalLogs from './components/OperationalLogs';
+import DialogSessions from './components/DialogSessions';
 import AuditLog from './components/AuditLog';
 
-const PLACEHOLDER_PAGES = new Set(['logs', 'dialogs', 'reports']);
+const PLACEHOLDER_PAGES = new Set(['reports']);
 
 function Placeholder({ page }) {
   return (
@@ -44,6 +46,8 @@ function App() {
     if (activePage === 'kb') return <KbDocuments />;
     if (activePage === 'ai-config') return <AiAndRetrievalConfig />;
     if (activePage === 'orchestrator') return <OrchestratorConfig />;
+    if (activePage === 'logs') return <OperationalLogs />;
+    if (activePage === 'dialogs') return <DialogSessions />;
     if (activePage === 'analytics') return <Analytics />;
     if (activePage === 'audit') return <AuditLog />;
     return <Dashboard />;

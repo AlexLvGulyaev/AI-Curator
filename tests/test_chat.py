@@ -196,6 +196,67 @@ def test_detect_intent_with_config():
     assert Orchestrator.detect_intent("о чём будет итоговый проект", ocfg=ocfg) == "mixed"
 
 
+@pytest.mark.anyio
+async def test_chat_creates_canonical_session_and_execution_trace(client):
+    """A chat request populates chat_sessions and execution_sessions."""
+    from datetime import datetime, timezone
+    from adapters.lms_adapter import Deadline
+
+    deadline = Deadline(
+        id=1,
+        course_id=3,
+        module_id=10,
+        instance_id=1,
+        name="ДЗ: Трассировка",
+        modname="assign",
+        due_date=datetime(2026, 8, 10, 18, 49, 57, tzinfo=timezone.utc),
+        url="https://lms.example.com/mod/assign/view.php?id=11",
+    )
+
+    with patch(
+        "services.orchestrator.lms_adapter.get_course_deadlines",
+        new=AsyncMock(return_value=[deadline]),
+    ), patch(
+        "services.orchestrator.lms_adapter.get_user_course_progress",
+        new=AsyncMock(return_value={
+            "user_id": 3,
+            "course_id": 3,
+            "completion_status": "in_progress",
+            "grade_items": [],
+        }),
+    ), patch(
+        "services.orchestrator.lms_adapter.get_course_contents",
+        new=AsyncMock(return_value=[]),
+    ):
+        async with client:
+            response = await client.post(
+                "/api/v1/chat",
+                json={
+                    "message": "Когда сдать задание?",
+                    "role": "active_student",
+                    "difficulty": "beginner",
+                    "course_id": 3,
+                },
+            )
+            assert response.status_code == 200
+            data = response.json()
+            session_id = data["session_id"]
+
+            detail = await client.get(f"/api/v1/admin/dialog-sessions/{session_id}")
+            assert detail.status_code == 200
+            payload = detail.json()
+            assert payload["session_id"] == session_id
+            assert payload["mode"] == "lms"
+            assert payload["execution_sessions"]
+            exec_session = payload["execution_sessions"][0]
+            assert exec_session["status"] == "ok"
+            stage_names = [step["stage_name"] for step in exec_session["steps"]]
+            assert "intent_classify" in stage_names
+            assert "lms_fetch" in stage_names
+            assert "context_build" in stage_names
+            assert "response_save" in stage_names
+
+
 def test_answer_validator_accepts_valid():
     validator = AnswerValidator("Ответ с источником", [{"type": "kb"}], True)
     result = validator.validate()

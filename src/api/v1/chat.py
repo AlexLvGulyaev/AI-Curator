@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +10,16 @@ from db import get_db
 from services.orchestrator import Orchestrator
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+def _client_ip(request: Request) -> Optional[str]:
+    """Extract client IP from the incoming request."""
+    if request.client:
+        return request.client.host
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return None
 
 
 class ChatMessage(BaseModel):
@@ -60,6 +70,7 @@ def get_orchestrator(db: AsyncSession = Depends(get_db)) -> Orchestrator:
 @router.post("", response_model=ChatResponse)
 async def chat(
     payload: ChatRequestPayload,
+    request: Request,
     orchestrator: Orchestrator = Depends(get_orchestrator),
 ):
     """Ask AI Curator a question and get an LLM-generated answer with sources."""
@@ -72,6 +83,8 @@ async def chat(
             course_id=payload.course_id,
             session_id=payload.session_id,
             history=history,
+            client_ip=_client_ip(request),
+            user_agent=request.headers.get("user-agent"),
         )
         return ChatResponse(**result)
     except Exception as exc:
