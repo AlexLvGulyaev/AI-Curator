@@ -975,6 +975,8 @@
 | `GET` | `/api/v1/admin/audit` | Журнал аудита с фильтрами |
 | `GET` | `/api/v1/admin/audit/{id}` | Деталь audit-записи |
 
+Кроме административных действий, в аудит записываются публичные `chat_request` (каждый запрос в `POST /api/v1/chat`) с `resource_id == session_id`, `user_id == role`, `user_name == "student"` и реальным `ip_address`.
+
 **Параметры фильтрации:**
 
 | Параметр | Тип | Описание |
@@ -1339,3 +1341,4 @@
 | 2026-08-01 | 1.10 | Добавлен раздел 4.5 «Dialog Sessions» с endpoints `GET /api/v1/admin/dialog-sessions` и `GET /api/v1/admin/dialog-sessions/{session_id}`; перенумерованы разделы 4.6+ |
 | 2026-08-01 | 1.11 | Реструктуризация Dialog Sessions под схему `chat_sessions` + `execution_sessions` + `execution_steps`; обновлены параметры фильтрации, модели ответов, добавлена модель `ExecutionSession`/`ExecutionStep`; Audit API получил фильтры `date_from`/`date_to` и поля `user_name`, `ip_address` |
 | 2026-08-01 | 1.12 | `GET /api/v1/admin/audit` возвращает объект с `items`, `total`, `limit`, `offset`; `POST /api/v1/chat` пробрасывает `client_ip` и `user_agent` в `ExecutionSession`; актуализирована документация Admin Console Dialog Sessions и Audit Log |
+| 2026-08-01 | 1.13 | `POST /api/v1/chat` создаёт audit-запись `chat_request` с `session_id`, ролью студента и `ip_address` |

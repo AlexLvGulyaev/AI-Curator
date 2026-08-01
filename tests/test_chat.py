@@ -257,6 +257,70 @@ async def test_chat_creates_canonical_session_and_execution_trace(client):
             assert "response_save" in stage_names
 
 
+@pytest.mark.anyio
+async def test_chat_request_logs_audit_entry(client):
+    """A chat request creates an audit entry with client IP and user info."""
+    from datetime import datetime, timezone
+    from adapters.lms_adapter import Deadline
+
+    deadline = Deadline(
+        id=1,
+        course_id=3,
+        module_id=10,
+        instance_id=1,
+        name="ДЗ: Аудит",
+        modname="assign",
+        due_date=datetime(2026, 8, 12, 18, 49, 57, tzinfo=timezone.utc),
+        url="https://lms.example.com/mod/assign/view.php?id=12",
+    )
+
+    with patch(
+        "services.orchestrator.lms_adapter.get_course_deadlines",
+        new=AsyncMock(return_value=[deadline]),
+    ), patch(
+        "services.orchestrator.lms_adapter.get_user_course_progress",
+        new=AsyncMock(return_value={
+            "user_id": 3,
+            "course_id": 3,
+            "completion_status": "in_progress",
+            "grade_items": [],
+        }),
+    ), patch(
+        "services.orchestrator.lms_adapter.get_course_contents",
+        new=AsyncMock(return_value=[]),
+    ):
+        async with client:
+            response = await client.post(
+                "/api/v1/chat",
+                json={
+                    "message": "Когда сдать задание по аудиту?",
+                    "role": "active_student",
+                    "difficulty": "beginner",
+                    "course_id": 3,
+                },
+            )
+            assert response.status_code == 200
+            data = response.json()
+            session_id = data["session_id"]
+
+            audit_response = await client.get("/api/v1/admin/audit?action=chat_request")
+            assert audit_response.status_code == 200
+            audit_data = audit_response.json()
+            entries = audit_data.get("items", audit_data)
+            entry = next(
+                (e for e in entries if e.get("resource_id") == session_id),
+                None,
+            )
+            assert entry is not None
+            assert entry["action"] == "chat_request"
+            assert entry["resource_type"] == "chat_request"
+            assert entry["user_id"] == "active_student"
+            assert entry["user_name"] == "student"
+            assert "ip_address" in entry
+            assert entry["details"]["intent"] == "deadline"
+            assert entry["details"]["message_preview"].startswith("Когда сдать задание")
+
+
 def test_answer_validator_accepts_valid():
     validator = AnswerValidator("Ответ с источником", [{"type": "kb"}], True)
     result = validator.validate()

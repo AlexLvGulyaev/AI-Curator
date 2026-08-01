@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
+from services.logger import LoggerService
 from services.orchestrator import Orchestrator
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -67,13 +68,21 @@ def get_orchestrator(db: AsyncSession = Depends(get_db)) -> Orchestrator:
     return Orchestrator(db)
 
 
+def _audit_user_id(role: Optional[str]) -> str:
+    """Return a stable user identifier for the public chat endpoint."""
+    return role or "anonymous"
+
+
 @router.post("", response_model=ChatResponse)
 async def chat(
     payload: ChatRequestPayload,
     request: Request,
     orchestrator: Orchestrator = Depends(get_orchestrator),
+    db: AsyncSession = Depends(get_db),
 ):
     """Ask AI Curator a question and get an LLM-generated answer with sources."""
+    client_ip = _client_ip(request)
+    user_agent = request.headers.get("user-agent")
     try:
         history = [m.model_dump() for m in (payload.history or [])]
         result = await orchestrator.process(
@@ -83,9 +92,31 @@ async def chat(
             course_id=payload.course_id,
             session_id=payload.session_id,
             history=history,
-            client_ip=_client_ip(request),
-            user_agent=request.headers.get("user-agent"),
+            client_ip=client_ip,
+            user_agent=user_agent,
         )
+
+        logger = LoggerService(db)
+        await logger.log_audit(
+            action="chat_request",
+            resource_type="chat_request",
+            resource_id=result.get("session_id") or payload.session_id,
+            user_id=_audit_user_id(payload.role),
+            user_name="student",
+            ip_address=client_ip,
+            details={
+                "course_id": payload.course_id,
+                "difficulty": payload.difficulty,
+                "intent": result.get("intent"),
+                "model": result.get("model"),
+                "latency_ms": result.get("latency_ms"),
+                "has_answer": bool(result.get("answer")),
+                "sources_count": len(result.get("sources") or []),
+                "user_agent": user_agent,
+                "message_preview": payload.message[:200],
+            },
+        )
+
         return ChatResponse(**result)
     except Exception as exc:
         raise HTTPException(
