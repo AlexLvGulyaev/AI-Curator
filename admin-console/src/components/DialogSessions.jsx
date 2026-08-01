@@ -444,25 +444,18 @@ export default function DialogSessions() {
     if (pageIndex !== safePageIdx) setPageIndex(safePageIdx);
   }, [pageIndex, safePageIdx]);
 
-  const pageSessions = useMemo(() => {
-    const start = safePageIdx * PAGE_SIZE;
-    return list.items.slice(start, start + PAGE_SIZE);
-  }, [list.items, safePageIdx]);
+  const pageSessions = list.items;
 
   const goPrevPage = () => {
     pendingListFocusRef.current = true;
     const np = Math.max(0, safePageIdx - 1);
     setPageIndex(np);
-    const pick = list.items[np * PAGE_SIZE]?.session_id || null;
-    if (pick) setSelectedId(pick);
   };
 
   const goNextPage = () => {
     pendingListFocusRef.current = true;
     const np = Math.min(totalPages - 1, safePageIdx + 1);
     setPageIndex(np);
-    const pick = list.items[np * PAGE_SIZE]?.session_id || null;
-    if (pick) setSelectedId(pick);
   };
 
   const resetPagination = () => {

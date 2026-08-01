@@ -234,25 +234,18 @@ export default function AuditLog() {
     if (pageIndex !== safePageIdx) setPageIndex(safePageIdx);
   }, [pageIndex, safePageIdx]);
 
-  const pageEntries = useMemo(() => {
-    const start = safePageIdx * PAGE_SIZE;
-    return entries.slice(start, start + PAGE_SIZE);
-  }, [entries, safePageIdx]);
+  const pageEntries = entries;
 
   const goPrevPage = () => {
     pendingListFocusRef.current = true;
     const np = Math.max(0, safePageIdx - 1);
     setPageIndex(np);
-    const pick = entries[np * PAGE_SIZE]?.id || null;
-    if (pick) setSelectedId(pick);
   };
 
   const goNextPage = () => {
     pendingListFocusRef.current = true;
     const np = Math.min(totalPages - 1, safePageIdx + 1);
     setPageIndex(np);
-    const pick = entries[np * PAGE_SIZE]?.id || null;
-    if (pick) setSelectedId(pick);
   };
 
   const resetPagination = () => {
