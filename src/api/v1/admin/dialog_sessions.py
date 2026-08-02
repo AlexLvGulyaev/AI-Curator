@@ -16,19 +16,8 @@ from sqlalchemy.orm import joinedload, selectinload
 from db import get_db
 from models.chat import ChatLog, ChatRequest, ChatSession, ExecutionSession
 from services.ai_config import AiConfigService
-from services.logger import LoggerService
 
 router = APIRouter(prefix="/dialog-sessions", tags=["admin-dialog-sessions"])
-
-
-async def _log_audit(action: str, db: AsyncSession):
-    logger = LoggerService(db)
-    await logger.log_audit(
-        action=action,
-        resource_type="dialog_sessions",
-        user_id="admin",
-        user_role="admin",
-    )
 
 
 def _status_for_log(log: Optional[ChatLog]) -> str:
@@ -62,7 +51,7 @@ async def list_dialog_sessions(
     db: AsyncSession = Depends(get_db),
 ):
     """Return paginated canonical dialog sessions."""
-    await _log_audit("view_dialog_sessions", db)
+    # Read-only views are intentionally not audited to avoid self-generated noise.
 
     req_agg = (
         select(
@@ -158,7 +147,7 @@ async def get_dialog_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Return detailed dialog session with turns, execution timeline and budget."""
-    await _log_audit("view_dialog_session_detail", db)
+    # Read-only views are intentionally not audited to avoid self-generated noise.
 
     result = await db.execute(
         select(ChatSession).where(ChatSession.session_id == session_id)

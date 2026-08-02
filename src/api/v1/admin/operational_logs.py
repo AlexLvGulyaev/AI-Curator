@@ -10,19 +10,8 @@ from sqlalchemy.orm import joinedload
 
 from db import get_db
 from models.chat import AnalyticsEvent, ChatLog, ChatRequest, LlmCall, LlmCallTrace
-from services.logger import LoggerService
 
 router = APIRouter(prefix="/operational-logs", tags=["admin-operational-logs"])
-
-
-async def _log_audit(action: str, db: AsyncSession):
-    logger = LoggerService(db)
-    await logger.log_audit(
-        action=action,
-        resource_type="operational_logs",
-        user_id="admin",
-        user_role="admin",
-    )
 
 
 def _status_for_log(log: Optional[ChatLog]) -> str:
@@ -67,7 +56,7 @@ async def list_operational_logs(
     db: AsyncSession = Depends(get_db),
 ):
     """Return paginated operational log entries based on chat requests."""
-    await _log_audit("view_operational_logs", db)
+    # Read-only views are intentionally not audited to avoid self-generated noise.
 
     stmt = (
         select(ChatRequest, ChatLog)
@@ -131,7 +120,7 @@ async def get_operational_log(
     db: AsyncSession = Depends(get_db),
 ):
     """Return detailed operational log entry for a chat request."""
-    await _log_audit("view_operational_log_detail", db)
+    # Read-only views are intentionally not audited to avoid self-generated noise.
 
     result = await db.execute(
         select(ChatRequest)

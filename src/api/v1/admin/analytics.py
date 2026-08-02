@@ -7,26 +7,15 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
-from models.chat import AnalyticsEvent, AuditLog, ChatLog, ChatRequest
-from services.logger import LoggerService
+from models.chat import AnalyticsEvent, ChatLog, ChatRequest
 
 router = APIRouter(prefix="/analytics", tags=["admin-analytics"])
 
 
-async def _log_audit(action: str, db: AsyncSession):
-    logger = LoggerService(db)
-    await logger.log_audit(
-        action=action,
-        resource_type="analytics",
-        user_id="admin",
-        user_role="admin",
-    )
-
-
 @router.get("/dashboard")
 async def dashboard(db: AsyncSession = Depends(get_db)):
-    await _log_audit("view_dashboard", db)
     """Return high-level analytics metrics."""
+    # Read-only views are intentionally not audited to avoid self-generated noise.
     total_requests = await db.scalar(select(func.count(ChatRequest.id)))
     total_logs = await db.scalar(select(func.count(ChatLog.id)))
     avg_latency = await db.scalar(select(func.avg(ChatLog.latency_ms)))

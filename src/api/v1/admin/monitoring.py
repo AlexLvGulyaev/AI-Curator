@@ -14,19 +14,8 @@ from db import get_db
 from models.chat import ChatLog, ChatRequest, LlmCall
 from services.chroma_client import get_chroma_client
 from services.knowledge_base import KnowledgeBaseService
-from services.logger import LoggerService
 
 router = APIRouter(prefix="/monitoring", tags=["admin-monitoring"])
-
-
-async def _log_audit(action: str, db):
-    logger = LoggerService(db)
-    await logger.log_audit(
-        action=action,
-        resource_type="monitoring",
-        user_id="admin",
-        user_role="admin",
-    )
 
 
 def _llm_providers():
@@ -136,8 +125,8 @@ async def _kb_status(db: AsyncSession):
 
 @router.get("/status")
 async def monitoring_status(db: AsyncSession = Depends(get_db)):
-    await _log_audit("view_status", db)
     """Return health, latency, AI activity, KB status, providers and errors."""
+    # Read-only views are intentionally not audited to avoid self-generated noise.
     start = time.perf_counter()
     try:
         await db.execute(text("SELECT 1"))
@@ -215,6 +204,7 @@ async def recent_errors(
     limit: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    await _log_audit("view_errors", db)
+    """Return recent non-empty error entries."""
+    # Read-only views are intentionally not audited to avoid self-generated noise.
     return await _recent_errors(db, limit)
 

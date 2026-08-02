@@ -1,9 +1,9 @@
 # OPERATIONS.md — AI Curator
 
 **Проект:** ai-curator  
-**Версия:** 2.2  
-**Дата:** 2026-08-01  
-**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + frontend polish
+**Версия:** 2.3  
+**Дата:** 2026-08-02  
+**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + frontend polish + read-only audit cleanup
 
 ---
 
@@ -339,9 +339,9 @@ Endpoints:
 
 ## 7. Аудит
 
-Административные действия и публичные `chat_request` фиксируются в таблице `audit_logs`. Просмотр доступен в разделе **Журнал аудита**.
+**Политика:** в `audit_logs` фиксируются только **изменяющие административные действия** и публичные `chat_request`. Read-only просмотры консолей (`GET /api/v1/admin/*`) намеренно не аудитируются, чтобы журнал не порождал сам себя при каждом открытии страницы.
 
-Доступны endpoints:
+Доступные endpoints:
 
 - `GET /api/v1/admin/audit` — журнал аудита с фильтрами (возвращает объект `{items, total, limit, offset}`).
 - `GET /api/v1/admin/audit/{id}` — деталь audit-записи.
@@ -358,7 +358,7 @@ Endpoints:
 - `action`, `resource_type`, `user_id` (сопоставляется с `user_id` и `user_name`);
 - `date_from` / `date_to` — фильтр по диапазону дат (ISO `YYYY-MM-DD`).
 
-Для просмотра только запросов студентов используйте фильтр `action=chat_request`. Для административных действий отфильтруйте `action` известными значениями (`view_audit`, `view_dialog_sessions`, `view_dialog_session_detail`, `kb_document_create` и т.п.).
+Для просмотра только запросов студентов используйте фильтр `action=chat_request`. Для административных действий отфильтруйте `action` известными значениями (`create`, `update`, `delete`, `publish`, `unpublish`, `process`, `reindex`, `activate_version`, `save_cleaned_text` и т.п.).
 
 ### Детальная карточка
 
@@ -468,6 +468,7 @@ asyncio.run(main())
 | 2026-08-01 | 2.0 | Реструктуризация Dialog Sessions под схему `chat_sessions` + `execution_sessions` + `execution_steps`; обновлена структура консоли и описание timeline pipeline; раздел 7 «Аудит» дополнен полями `user_name`/`ip_address`, фильтрами по дате и детальной карточкой |
 | 2026-08-01 | 2.1 | `GET /api/v1/admin/audit` возвращает `{items, total, limit, offset}`; `POST /api/v1/chat` фиксирует `client_ip` и `user_agent` в `ExecutionSession`; в консоли Dialog Sessions отображается visitor IP и source |
 | 2026-08-01 | 2.2 | `POST /api/v1/chat` создаёт audit-запись `chat_request` с `session_id`, ролью студента и `ip_address`; в Журнале аудита можно отфильтровать запросы студентов по `action=chat_request` |
+| 2026-08-02 | 2.3 | Убран аудит read-only действий; раздел 7 Аудит описывает новую политику: только изменяющие действия и `chat_request` |
 | 2026-07-30 | 1.0 | Создан документ |
  | 2026-07-30 | 1.1 | Добавлены расширенные параметры AI Config, retention и архивирование логов |
 | 2026-07-30 | 1.2 | Добавлен раздел мониторинга latency: метрики из `analytics_events`, ручное профилирование через `scripts/profile_latency.py`, SLO/NFR, AI Config tuning для latency |

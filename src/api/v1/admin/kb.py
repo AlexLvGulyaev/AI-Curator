@@ -279,7 +279,7 @@ async def get_document_detail(
     """Return document metadata, active version, chunks and lifecycle timeline."""
     try:
         bundle = await service.get_document_detail_bundle(document_id)
-        await _log_audit("view_detail", "kb_document", document_id, service.db)
+        # Read-only views are intentionally not audited to avoid self-generated noise.
         return KbDocumentDetailOut(
             document=_document_out(bundle["document"]),
             active_version=_version_out(bundle["active_version"])
@@ -313,7 +313,7 @@ async def get_version_text(
         preview = await service.get_version_text_preview(
             version_id, limit=limit, stage=stage
         )
-        await _log_audit("view_text", "kb_document_version", version_id, service.db)
+        # Read-only views are intentionally not audited to avoid self-generated noise.
         return KbVersionTextOut(**preview)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -375,7 +375,7 @@ async def get_version_chunks(
     """Return traceability chunks for a document version."""
     try:
         chunks = await service.get_version_chunks(version_id)
-        await _log_audit("view_chunks", "kb_document_version", version_id, service.db)
+        # Read-only views are intentionally not audited to avoid self-generated noise.
         return [KbDocumentChunkOut.model_validate(c) for c in chunks]
     except DocumentNotFoundError as exc:
         raise HTTPException(

@@ -69,3 +69,28 @@ async def test_audit_log_404_for_missing_entry(client):
     async with client:
         response = await client.get("/api/v1/admin/audit/9999999")
         assert response.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_audit_log_does_not_record_read_only_views(client):
+    """Opening /admin/audit, /admin/dialog-sessions and /admin/operational-logs
+    must not create new audit entries (no self-generated noise)."""
+    async with client:
+        before = await client.get("/api/v1/admin/audit?limit=1")
+        before_id = before.json()["items"][0]["id"]
+
+        await client.get("/api/v1/admin/audit")
+        await client.get("/api/v1/admin/audit/1")
+        await client.get("/api/v1/admin/dialog-sessions")
+        await client.get("/api/v1/admin/dialog-sessions/nonexistent")
+        await client.get("/api/v1/admin/operational-logs")
+        await client.get("/api/v1/admin/operational-logs/1")
+        await client.get("/api/v1/admin/monitoring/status")
+        await client.get("/api/v1/admin/monitoring/errors")
+        await client.get("/api/v1/admin/analytics/dashboard")
+        await client.get("/api/v1/admin/kb/documents/1/detail")
+
+        after = await client.get("/api/v1/admin/audit?limit=1")
+        after_id = after.json()["items"][0]["id"]
+
+        assert before_id == after_id, "Read-only views created audit noise"

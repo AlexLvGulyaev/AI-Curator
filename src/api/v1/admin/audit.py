@@ -49,7 +49,7 @@ async def list_audit(
     db: AsyncSession = Depends(get_db),
 ):
     """Return paginated audit log entries with optional filters."""
-    await _log_audit("view_audit", db, request)
+    # Read-only views are intentionally not audited to avoid self-generated noise.
 
     base_stmt = select(AuditLog)
     if action:
@@ -110,7 +110,7 @@ async def get_audit_entry(
     db: AsyncSession = Depends(get_db),
 ):
     """Return a single audit log entry with full JSON snapshot."""
-    await _log_audit("view_audit_detail", db, request)
+    # Read-only views are intentionally not audited to avoid self-generated noise.
     result = await db.execute(select(AuditLog).where(AuditLog.id == audit_id))
     entry = result.scalar_one_or_none()
     if entry is None:

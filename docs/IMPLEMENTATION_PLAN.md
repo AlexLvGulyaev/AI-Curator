@@ -1,10 +1,10 @@
 # IMPLEMENTATION_PLAN.md — AI Curator
 
 **Проект:** ai-curator
-**Версия:** 2.2
-**Дата:** 2026-08-01
+**Версия:** 2.3
+**Дата:** 2026-08-02
 **Статус:** Approved
-**Срок реализации:** 7+ календарных дней (фактическая реализация расширена за счёт спринтов Admin Console)
+**Срок реализации:** 7+ календарных дней основного цикла + 9–15 календарных дней спринтов стабилизации и аналитики
 
 ---
 
@@ -524,7 +524,7 @@ Sprint 5.1 (Dashboard) → Sprint 5.3+5.4 (AI & Retrieval) → Sprint 5.2 (KB Do
 
 #### Статус
 
-Backend-часть завершена и задеплоена (2026-08-01). Frontend-переработка (`AuditLog.jsx`) вынесена в следующую сессию.
+Backend и frontend завершены и задеплоены (2026-08-01). Дополнительно выполнена чистка read-only аудита (2026-08-02): `view_*` действия больше не пишутся в `audit_logs`.
 
 #### Цель
 
@@ -613,6 +613,77 @@ Backend-часть завершена и задеплоена (2026-08-01). Fron
 - [x] Изменение `intent_source_map` влияет на выбор источников.
 - [x] При отсутствии конфигурации orchestrator работает с hardcoded defaults.
 - [x] `pytest` проходит (43 passed).
+
+---
+
+## 10. Спринты стабилизации и подготовки к аналитике (2026-08-02 — 2026-08-17)
+
+### 10.1. Контекст
+
+После завершения Sprint 5.6, 5.8 и 6.1 накопились проблемы, которые блокируют финальный E2E и аналитику на продакшен-данных:
+- `view_*` действия в Admin Console порождают сам себя аудит;
+- backend-тесты пишут в боевую БД и не имеют чёткого cost-контракта;
+- кэширование запросов не реализовано;
+- ручной E2E Admin Console не проведён после frontend-переработок;
+- аналитика и отчёты должны строиться уже на нормальных данных.
+
+Этот блок превращает "День 7" в серию спринтов стабилизации.
+
+### 10.2. Спринт A — Убрать read-only аудит + demo login
+
+| # | Задача | Артефакты | Критерий готовности |
+|---|--------|-----------|---------------------|
+| A1 | Удалить `view_*` аудит из admin endpoints | `src/api/v1/admin/audit.py`, `dialog_sessions.py`, `operational_logs.py`, `monitoring.py`, `analytics.py`, `kb.py` | `audit_logs` не растёт от просмотров |
+| A2 | Read-only demo login | `src/api/v1/admin/auth.py`, frontend `useAuth.js`, `Login.jsx` | Демо-пользователь входит только на просмотр, аудит входа работает |
+| A3 | RBAC: запретить demo-роли изменять данные | `src/api/v1/admin/auth.py` | PUT/POST/DELETE endpoints отдают 403 для `viewer` |
+
+### 10.3. Спринт B — Изолировать smoke-тесты и очистить prod БД
+
+| # | Задача | Артефакты | Критерий готовности |
+|---|--------|-----------|---------------------|
+| B1 | Тестовая БД | `.env.example`, `docker-compose.yml`, `tests/conftest.py` | `pytest` использует `ai_curator_test` |
+| B2 | Маркеры pytest | `pytest.ini` / `pyproject.toml`, маркеры в тестах | `pytest -m unit` запускает только дешёвые тесты |
+| B3 | Testing Cost Contract | `docs/TESTING_CONTRACT.md` | Зафиксирована номенклатура, стоимость и цель каждого теста |
+| B4 | Очистка prod БД | `scripts/cleanup_prod_test_trash.py` | Боевая БД очищена от тестового мусора |
+
+### 10.4. Спринт C — Кэширование запросов
+
+| # | Задача | Артефакты | Критерий готовности |
+|---|--------|-----------|---------------------|
+| C1 | `ResponseCache` сервис | `src/services/cache/response_cache.py` | Unit-тесты cache проходят |
+| C2 | Интеграция в `Orchestrator.process()` | `src/services/orchestrator.py` | Повторный вопрос возвращается без LLM |
+| C3 | Инвалидация | KB/config/retrieval endpoints | После изменений cache сбрасывается |
+| C4 | UI флаг `cache_hit` | Operational Logs / Dialog Sessions | В консолях виден cache hit |
+
+### 10.5. Спринт D — Ручной E2E Admin Console на продакшене
+
+| # | Задача | Артефакты | Критерий готовности |
+|---|--------|-----------|---------------------|
+| D1 | E2E чек-лист | `docs/E2E_SCENARIOS.md` | Покрыты все консоли и сквозные сценарии |
+| D2 | Ручной прогон | E2E-отчёт | Все сценарии пройдены, дефекты зафиксированы |
+| D3 | Исправление дефектов | frontend/backend файлы | Критичные дефекты исправлены |
+
+### 10.6. Спринт E — Аналитика и отчёты
+
+| # | Задача | Артефакты | Критерий готовности |
+|---|--------|-----------|---------------------|
+| E1 | Sprint 5.7 Analytics Dashboard | `src/api/v1/admin/analytics.py`, `admin-console/src/components/Analytics.jsx` | Дашборд с фильтрами и агрегатами |
+| E2 | Sprint 5.9 Business Reports | `src/api/v1/admin/reports.py`, `admin-console/src/components/Reports.jsx` | Отчёты по KB coverage, popular topics, quality |
+
+### 10.7. Критический путь
+
+```
+A → B → C → D → E
+```
+
+### 10.8. Текущий статус
+
+- [x] A1 — read-only аудит убран (2026-08-02).
+- [ ] A2/A3 — demo read-only login и RBAC.
+- [ ] B1–B4 — тестовая БД, cost contract, очистка prod.
+- [ ] C1–C4 — кэширование.
+- [ ] D1–D3 — ручной E2E.
+- [ ] E1–E2 — аналитика и отчёты.
 
 ---
 
@@ -734,3 +805,4 @@ Backend-часть завершена и задеплоена (2026-08-01). Fron
 | 2026-08-01 | 2.2b | Sprint 5.6 Dialog Sessions отмечен выполненным; добавлен backend `dialog_sessions.py`, frontend `DialogSessions.jsx`, интеграция в `App.jsx`/`backend.js`; обновлён `API_CONTRACT.md` |
 | 2026-08-01 | 2.2c | Архитектурное совещание: принята структурная переделка Sprint 5.6 (выделение `chat_sessions`, `execution_sessions`, `execution_steps`) и доработка Sprint 5.8 Audit; план зафиксирован в task-файле и IMPLEMENTATION_PLAN.md |
 | 2026-08-01 | 2.2d | Реализован backend Sprint 5.6 Dialog Sessions (structural redesign) и Sprint 5.8 Audit: модели, миграция, `ExecutionTracerService`, интеграция в `orchestrator.py`, API, тесты; `pytest` 53 passed; документация обновлена |
+| 2026-08-02 | 2.3 | Добавлен раздел 10 «Спринты стабилизации и подготовки к аналитике» (A–E); Sprint 5.8 отмечен полностью выполненным (frontend + read-only audit cleanup); выполнен A1 — удалён `view_*` аудит из admin endpoints; обновлены `API_CONTRACT.md` и `OPERATIONS.md` |

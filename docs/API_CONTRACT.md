@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.12  
-**Дата:** 2026-08-01  
-**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + frontend polish
+**Версия:** 1.14  
+**Дата:** 2026-08-02  
+**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + frontend polish + read-only audit cleanup
 
 ---
 
@@ -975,6 +975,8 @@
 | `GET` | `/api/v1/admin/audit` | Журнал аудита с фильтрами |
 | `GET` | `/api/v1/admin/audit/{id}` | Деталь audit-записи |
 
+В аудит записываются только **изменяющие административные действия** и публичные `chat_request`. Read-only просмотры (`GET /api/v1/admin/audit`, `GET /api/v1/admin/dialog-sessions`, `GET /api/v1/admin/operational-logs`, `GET /api/v1/admin/monitoring/*`, `GET /api/v1/admin/analytics/*`, `GET /api/v1/admin/kb/documents/*/detail`, `GET /api/v1/admin/kb/documents/*/versions/*/text`, `GET /api/v1/admin/kb/documents/*/versions/*/chunks`) намеренно **не аудитируются**, чтобы журнал не порождал сам себя.
+
 Кроме административных действий, в аудит записываются публичные `chat_request` (каждый запрос в `POST /api/v1/chat`) с `resource_id == session_id`, `user_id == role`, `user_name == "student"` и реальным `ip_address`.
 
 **Параметры фильтрации:**
@@ -1342,3 +1344,4 @@
 | 2026-08-01 | 1.11 | Реструктуризация Dialog Sessions под схему `chat_sessions` + `execution_sessions` + `execution_steps`; обновлены параметры фильтрации, модели ответов, добавлена модель `ExecutionSession`/`ExecutionStep`; Audit API получил фильтры `date_from`/`date_to` и поля `user_name`, `ip_address` |
 | 2026-08-01 | 1.12 | `GET /api/v1/admin/audit` возвращает объект с `items`, `total`, `limit`, `offset`; `POST /api/v1/chat` пробрасывает `client_ip` и `user_agent` в `ExecutionSession`; актуализирована документация Admin Console Dialog Sessions и Audit Log |
 | 2026-08-01 | 1.13 | `POST /api/v1/chat` создаёт audit-запись `chat_request` с `session_id`, ролью студента и `ip_address` |
+| 2026-08-02 | 1.14 | Убран аудит read-only действий (`view_*`) во всех admin endpoints; раздел 4.6 Audit описывает новую политику |
