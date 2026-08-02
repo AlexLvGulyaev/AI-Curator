@@ -712,6 +712,85 @@ class Orchestrator:
         )
         execution_steps: List[Dict[str, Any]] = []
 
+        try:
+            return await self._process_core(
+                message=message,
+                role=role,
+                difficulty=difficulty,
+                course_id=course_id,
+                session_id=session_id,
+                chat_session=chat_session,
+                exec_session=exec_session,
+                execution_steps=execution_steps,
+                user_id=user_id,
+                available_course_ids=available_course_ids,
+                default_course_id=default_course_id,
+                history=history,
+            )
+        except Exception as exc:
+            error_text = f"{type(exc).__name__}: {exc}"
+            import traceback
+            traceback_text = traceback.format_exc()
+            execution_steps.append({
+                "stage_name": "error_handler",
+                "step_order": 99,
+                "duration_ms": 0,
+                "step_metadata": {"error": error_text, "traceback": traceback_text},
+            })
+            fallback_answer = (
+                "Произошла внутренняя ошибка. Попробуйте ещё раз позже. "
+                "Если проблема повторяется, обратитесь к преподавателю."
+            )
+            request = await self.logger.create_chat_request(
+                session_id=session_id,
+                chat_session_id=chat_session.id,
+                role=role,
+                course_id=course_id if course_id in available_course_ids else default_course_id,
+                difficulty=difficulty,
+                message=message,
+                intent="error",
+                lms_calls=[],
+                rag_filters={},
+            )
+            await self.logger.create_chat_log(
+                request_id=request.id,
+                answer=fallback_answer,
+                sources=[],
+                llm_model=None,
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                latency_ms=0,
+                error=traceback_text,
+            )
+            await self._finish_execution(exec_session.id, request, execution_steps, "error", 0)
+            return {
+                "answer": fallback_answer,
+                "sources": [],
+                "intent": "error",
+                "model": None,
+                "latency_ms": 0,
+                "session_id": session_id,
+                "error": error_text,
+            }
+
+    async def _process_core(
+        self,
+        *,
+        message: str,
+        role: Optional[str],
+        difficulty: Optional[str],
+        course_id: Optional[int],
+        session_id: str,
+        chat_session: Any,
+        exec_session: Any,
+        execution_steps: List[Dict[str, Any]],
+        user_id: int,
+        available_course_ids: List[int],
+        default_course_id: int,
+        history: Optional[List[Dict[str, str]]] = None,
+    ) -> Dict[str, Any]:
+        """Core pipeline: classify intent, fetch data, generate and validate answer."""
         # Determine target course: mentioned course in message takes precedence over
         # explicit UI selection, then default, but only if the mentioned course is
         # actually available to this role. Otherwise we refuse.
