@@ -6,15 +6,22 @@ from sqlalchemy.orm import sessionmaker
 
 from config import settings
 
-engine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
-    future=True,
-    # NullPool avoids "another operation is in progress" errors with asyncpg
-    # when running tests through ASGITransport. Each request gets a fresh
-    # connection; for the current workload this is acceptable.
-    poolclass=pool.NullPool,
-)
+
+def make_engine(database_url: str | None = None, **kwargs):
+    """Create an async SQLAlchemy engine for the given (or configured) URL."""
+    url = database_url or settings.database_url
+    return create_async_engine(
+        url,
+        echo=kwargs.get("echo", settings.debug),
+        future=True,
+        # NullPool avoids "another operation is in progress" errors with asyncpg
+        # when running tests through ASGITransport. Each request gets a fresh
+        # connection; for the current workload this is acceptable.
+        poolclass=pool.NullPool,
+    )
+
+
+engine = make_engine()
 
 AsyncSessionLocal = sessionmaker(
     bind=engine,

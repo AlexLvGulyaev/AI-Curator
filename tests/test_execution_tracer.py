@@ -6,21 +6,11 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from db import AsyncSessionLocal
 from models.chat import ChatSession, ExecutionSession, ExecutionStep
 from services.execution_tracer import ExecutionTracerService
 
 
-@pytest.fixture
-async def db_session():
-    """Provide a fresh async database session for unit-style tests."""
-    session = AsyncSessionLocal()
-    try:
-        yield session
-    finally:
-        await session.close()
-
-
+@pytest.mark.unit
 @pytest.mark.anyio
 async def test_tracer_creates_chat_session(db_session: AsyncSession):
     tracer = ExecutionTracerService(db_session)
@@ -45,6 +35,7 @@ async def test_tracer_creates_chat_session(db_session: AsyncSession):
     assert updated.mode == "rag"
 
 
+@pytest.mark.unit
 @pytest.mark.anyio
 async def test_tracer_execution_session_lifecycle(db_session: AsyncSession):
     tracer = ExecutionTracerService(db_session)
@@ -77,6 +68,7 @@ async def test_tracer_execution_session_lifecycle(db_session: AsyncSession):
     assert finished.duration_ms == 177
 
 
+@pytest.mark.integration
 @pytest.mark.anyio
 async def test_chat_endpoint_creates_execution_trace(client):
     """A real chat request creates ChatSession and ExecutionSession rows."""
@@ -139,6 +131,7 @@ async def test_chat_endpoint_creates_execution_trace(client):
             assert "response_save" in stage_names
 
 
+@pytest.mark.integration
 @pytest.mark.anyio
 async def test_chat_endpoint_study_creates_mixed_trace(client, tmp_path):
     """A mixed question creates a trace with RAG and LMS steps."""

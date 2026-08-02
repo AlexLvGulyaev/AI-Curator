@@ -2,6 +2,8 @@
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.mark.anyio
 async def test_audit_log_after_kb_create(client, tmp_path):
@@ -28,8 +30,17 @@ async def test_audit_log_after_kb_create(client, tmp_path):
 
 
 @pytest.mark.anyio
-async def test_audit_log_date_filters_and_detail(client):
+async def test_audit_log_date_filters_and_detail(client, tmp_path):
+    file_path = tmp_path / "audit_filter.md"
+    file_path.write_text("# Audit filter test\n", encoding="utf-8")
+
     async with client:
+        await client.post(
+            "/api/v1/admin/kb/documents",
+            data={"title": "Audit Filter Doc", "document_type": "lecture"},
+            files={"file": ("audit_filter.md", file_path.read_bytes(), "text/markdown")},
+        )
+
         list_response = await client.get("/api/v1/admin/audit?limit=1")
         assert list_response.status_code == 200
         first_data = list_response.json()
@@ -72,10 +83,19 @@ async def test_audit_log_404_for_missing_entry(client):
 
 
 @pytest.mark.anyio
-async def test_audit_log_does_not_record_read_only_views(client):
+async def test_audit_log_does_not_record_read_only_views(client, tmp_path):
     """Opening /admin/audit, /admin/dialog-sessions and /admin/operational-logs
     must not create new audit entries (no self-generated noise)."""
+    file_path = tmp_path / "audit_readonly.md"
+    file_path.write_text("# Audit readonly test\n", encoding="utf-8")
+
     async with client:
+        await client.post(
+            "/api/v1/admin/kb/documents",
+            data={"title": "Audit Readonly Doc", "document_type": "lecture"},
+            files={"file": ("audit_readonly.md", file_path.read_bytes(), "text/markdown")},
+        )
+
         before = await client.get("/api/v1/admin/audit?limit=1")
         before_id = before.json()["items"][0]["id"]
 

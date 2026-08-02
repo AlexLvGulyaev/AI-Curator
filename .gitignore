@@ -51,6 +51,7 @@ yarn-error.log*
 # Docker
 .env
 .env.*
+!.env.example
 docker-compose.override.yml
 *.override.yml
 

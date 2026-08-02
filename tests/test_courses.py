@@ -4,6 +4,8 @@ import pytest
 
 from adapters.lms_adapter import MoodleLMSAdapter
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.anyio
 async def test_get_courses():

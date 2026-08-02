@@ -2,6 +2,8 @@
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.mark.anyio
 async def test_active_config_is_created(client):

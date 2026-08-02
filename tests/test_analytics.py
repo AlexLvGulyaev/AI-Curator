@@ -7,6 +7,8 @@ from sqlalchemy import text
 
 from db import engine
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.fixture
 async def clean_chat_tables():

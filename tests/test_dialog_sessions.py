@@ -4,6 +4,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.anyio
 async def test_dialog_sessions_list_and_filters(client):

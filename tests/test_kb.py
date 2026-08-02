@@ -11,6 +11,7 @@ def _make_markdown_file(tmp_path: Path, content: str) -> Path:
     return path
 
 
+@pytest.mark.unit
 @pytest.mark.anyio
 async def test_kb_status(client):
     async with client:
@@ -21,6 +22,7 @@ async def test_kb_status(client):
         assert isinstance(data["published_documents"], int)
 
 
+@pytest.mark.unit
 @pytest.mark.anyio
 async def test_create_and_get_document(client, tmp_path):
     content = "# Заголовок\n\nТекст лекции по Claude Code.\n"
@@ -53,6 +55,7 @@ async def test_create_and_get_document(client, tmp_path):
         assert fetched["id"] == created["id"]
 
 
+@pytest.mark.unit
 @pytest.mark.anyio
 async def test_unsupported_file_type(client, tmp_path):
     file_path = tmp_path / "data.bin"
@@ -67,6 +70,7 @@ async def test_unsupported_file_type(client, tmp_path):
         assert response.status_code == 415
 
 
+@pytest.mark.unit
 @pytest.mark.anyio
 async def test_publish_document(client, tmp_path):
     content = "# Лекция\n\nТекст.\n"
@@ -85,6 +89,7 @@ async def test_publish_document(client, tmp_path):
         assert response.json()["is_published"] is True
 
 
+@pytest.mark.integration
 @pytest.mark.anyio
 async def test_document_detail_bundle(client, tmp_path):
     content = "# Детальная лекция\n\nПример текста для preview.\n"
@@ -113,6 +118,7 @@ async def test_document_detail_bundle(client, tmp_path):
         assert detail["execution"]["postgres_status"] == "indexed"
 
 
+@pytest.mark.integration
 @pytest.mark.anyio
 async def test_version_text_and_chunks(client, tmp_path):
     content = "# Claude Code\n\nБыстрый старт с Claude Code.\n"
@@ -155,6 +161,7 @@ async def test_version_text_and_chunks(client, tmp_path):
         assert chunks[0]["content_preview"] is not None
 
 
+@pytest.mark.integration
 @pytest.mark.anyio
 async def test_document_timeline(client, tmp_path):
     content = "# Timeline test\n\nContent.\n"
@@ -183,6 +190,7 @@ async def test_document_timeline(client, tmp_path):
         assert index_event["duration_ms"] >= 0
 
 
+@pytest.mark.integration
 @pytest.mark.anyio
 async def test_activate_and_reindex_version(client, tmp_path):
     v1_content = "# Версия 1\n\nКонтент первой версии."
@@ -223,6 +231,7 @@ async def test_activate_and_reindex_version(client, tmp_path):
         assert reindex_response.json()["active_version_id"] == v1_id
 
 
+@pytest.mark.integration
 @pytest.mark.anyio
 async def test_reindex_all(client, tmp_path):
     content = "# Reindex all test\n\nContent.\n"
@@ -246,6 +255,7 @@ async def test_reindex_all(client, tmp_path):
         assert result["processed"] >= 1
 
 
+@pytest.mark.integration
 @pytest.mark.anyio
 async def test_save_cleaned_text_and_reindex(client, tmp_path):
     content = "# Original\n\nFirst paragraph.\n\nSecond paragraph.\n"
@@ -291,6 +301,7 @@ async def test_save_cleaned_text_and_reindex(client, tmp_path):
         assert any("Completely rewritten" in (c["content_preview"] or "") for c in chunks)
 
 
+@pytest.mark.unit
 @pytest.mark.anyio
 async def test_save_cleaned_text_without_reindex(client, tmp_path):
     content = "# Original\n\nContent.\n"
@@ -322,6 +333,7 @@ async def test_save_cleaned_text_without_reindex(client, tmp_path):
         assert "New content." in text_response.json()["preview"]
 
 
+@pytest.mark.unit
 @pytest.mark.anyio
 async def test_save_cleaned_text_rejects_raw_stage(client, tmp_path):
     content = "# Original\n\nContent.\n"
@@ -344,6 +356,7 @@ async def test_save_cleaned_text_rejects_raw_stage(client, tmp_path):
         assert save_response.status_code == 400
 
 
+@pytest.mark.unit
 @pytest.mark.anyio
 async def test_save_cleaned_text_rejects_archived_version(client, tmp_path):
     content = "# Original\n\nContent.\n"

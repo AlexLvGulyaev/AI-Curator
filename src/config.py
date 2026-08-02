@@ -18,10 +18,16 @@ class Settings(BaseSettings):
 
     # Operational database
     database_url: str = "postgresql+asyncpg://ai_curator:ai_curator@localhost:5432/ai_curator"
+    # Separate database for tests. If empty, tests require PYTEST_ALLOW_PROD_DB=true
+    # to fall back to DATABASE_URL.
+    test_database_url: str = ""
+    pytest_allow_prod_db: bool = False
 
     # Chroma vector store
     chroma_host: str = "localhost"
     chroma_port: int = 8000
+    chroma_collection_name: str = "ai_curator_kb"
+    chroma_test_collection_name: str = "ai_curator_kb_test"
 
     # Document store for Knowledge Base
     doc_store_path: str = "./storage/documents"

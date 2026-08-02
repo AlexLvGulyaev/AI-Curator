@@ -2,6 +2,8 @@
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
 
 @pytest.mark.anyio
 async def test_get_orchestrator_config_creates_defaults(client):

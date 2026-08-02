@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.anyio
 async def test_rag_process_and_search(client, tmp_path):

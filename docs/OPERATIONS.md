@@ -390,6 +390,11 @@ Endpoints:
 | `KB_CONTENT_REPO_PATH` | Путь к рабочей копии внутри контейнера (по умолчанию `/app/kb-content`) |
 | `KB_CONTENT_SSH_KEY_PATH` | Путь к SSH-ключу для push в remote (внутри контейнера) |
 | `KB_CONTENT_DEFAULT_BRANCH` | Ветка по умолчанию (`main`) |
+| `TEST_DATABASE_URL` | Отдельная PostgreSQL для тестов (обязательно; не должна совпадать с `DATABASE_URL`) |
+| `PYTEST_ALLOW_PROD_DB` | Разрешить pytest fallback на `DATABASE_URL`, если `TEST_DATABASE_URL` не задан (`true`/`false`) |
+
+| `CHROMA_COLLECTION_NAME` | Продакшен коллекция Chroma (`ai_curator_kb`) |
+| `CHROMA_TEST_COLLECTION_NAME` | Тестовая коллекция Chroma (`ai_curator_kb_test`) |
 
 ### AI Config tuning для latency
 
@@ -459,7 +464,41 @@ asyncio.run(main())
 "
 ```
 
-## 10. История изменений
+## 10. Тестирование
+
+Подробный контракт тестирования — в `docs/TESTING_CONTRACT.md`. Краткая сводка:
+
+| Маркер | Что проверяет | Команда |
+|--------|--------------|---------|
+| `unit` | Быстрые тесты без внешних сетевых вызовов | `pytest tests/ -m unit -q` |
+| `integration` | Интеграции с LMS, RAG, Chroma, chat pipeline | `pytest tests/ -m integration -q` |
+| `expensive` | Дорогие LLM-тесты (зарезервированы) | `pytest tests/ -m expensive -q` |
+| (все) | Полный прогон | `pytest tests/ -q` |
+
+### Требования к окружению
+
+- `TEST_DATABASE_URL` — отдельная PostgreSQL, например `ai_curator_test`. Никогда не должна совпадать с `DATABASE_URL`.
+- `PYTEST_ALLOW_PROD_DB=false` в production и `.env.example`.
+- `CHROMA_TEST_COLLECTION_NAME` — изолированная тестовая коллекция (по умолчанию `ai_curator_kb_test`).
+
+### Запуск внутри backend-контейнера
+
+```bash
+docker compose exec ai-curator-backend pytest tests/ -m unit -q
+docker compose exec ai-curator-backend pytest tests/ -m integration -q
+docker compose exec ai-curator-backend pytest tests/ -q
+```
+
+### Защита от случайного использования боевой БД
+
+Если `TEST_DATABASE_URL` не задана и `PYTEST_ALLOW_PROD_DB` не `true`, pytest завершается с ошибкой:
+
+```
+TEST_DATABASE_URL is not configured. Set TEST_DATABASE_URL to a dedicated test database,
+or set PYTEST_ALLOW_PROD_DB=true to intentionally use the production database for tests.
+```
+
+## 11. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|

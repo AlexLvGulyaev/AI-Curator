@@ -7,6 +7,8 @@ import pytest
 from services.answer_validator import AnswerValidator
 from services.orchestrator import Orchestrator
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.anyio
 async def test_chat_endpoint_deadline(client):

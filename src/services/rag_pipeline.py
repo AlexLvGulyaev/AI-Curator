@@ -98,7 +98,7 @@ class RagPipeline:
         embedding_cache: Optional[_EmbeddingCache] = None,
     ):
         self.embedding_model = embedding_model or settings.openai_embedding_model
-        self.collection_name = collection_name or self.COLLECTION_NAME
+        self.collection_name = collection_name or settings.chroma_collection_name or self.COLLECTION_NAME
         self.client = client or get_chroma_client()
         self.embeddings = OpenAIEmbeddings(
             model=self.embedding_model,

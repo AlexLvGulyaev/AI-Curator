@@ -1,7 +1,7 @@
 # IMPLEMENTATION_PLAN.md — AI Curator
 
 **Проект:** ai-curator
-**Версия:** 2.3
+**Версия:** 2.4
 **Дата:** 2026-08-02
 **Статус:** Approved
 **Срок реализации:** 7+ календарных дней основного цикла + 9–15 календарных дней спринтов стабилизации и аналитики
@@ -637,14 +637,15 @@ Backend и frontend завершены и задеплоены (2026-08-01). Д�
 | A2 | Read-only demo login | `src/api/v1/admin/auth.py`, frontend `useAuth.js`, `Login.jsx` | Демо-пользователь входит только на просмотр, аудит входа работает |
 | A3 | RBAC: запретить demo-роли изменять данные | `src/api/v1/admin/auth.py` | PUT/POST/DELETE endpoints отдают 403 для `viewer` |
 
-### 10.3. Спринт B — Изолировать smoke-тесты и очистить prod БД
+### 10.3. Спринт B — Изолировать smoke-тесты и подготовить Testing Cost Contract
 
 | # | Задача | Артефакты | Критерий готовности |
 |---|--------|-----------|---------------------|
-| B1 | Тестовая БД | `.env.example`, `docker-compose.yml`, `tests/conftest.py` | `pytest` использует `ai_curator_test` |
-| B2 | Маркеры pytest | `pytest.ini` / `pyproject.toml`, маркеры в тестах | `pytest -m unit` запускает только дешёвые тесты |
-| B3 | Testing Cost Contract | `docs/TESTING_CONTRACT.md` | Зафиксирована номенклатура, стоимость и цель каждого теста |
-| B4 | Очистка prod БД | `scripts/cleanup_prod_test_trash.py` | Боевая БД очищена от тестового мусора |
+| B1 | Тестовая БД | `src/config.py`, `src/db.py`, `tests/conftest.py`, `.env.example` | `pytest` использует `ai_curator_test`; БД создаётся и мигрируется автоматически |
+| B2 | Alembic-миграции для тестовой БД | `tests/conftest.py` (`_run_alembic_migrations`) | Тестовые таблицы создаются через Alembic `head` |
+| B3 | Маркеры pytest | `pytest.ini`, маркеры в тестах | `pytest -m unit` / `-m integration` / `-m expensive` работают |
+| B4 | Testing Cost Contract | `docs/TESTING_CONTRACT.md` | Зафиксирована номенклатура, стоимость, время и цель каждого набора тестов |
+| B5 | Очистка prod БД | `scripts/cleanup_prod_test_trash.py` | Боевая БД очищена от тестового мусора (следующий шаг) |
 
 ### 10.4. Спринт C — Кэширование запросов
 
@@ -680,7 +681,8 @@ A → B → C → D → E
 
 - [x] A1 — read-only аудит убран (2026-08-02).
 - [ ] A2/A3 — demo read-only login и RBAC.
-- [ ] B1–B4 — тестовая БД, cost contract, очистка prod.
+- [x] B1–B4 — тестовая БД `ai_curator_test`, Alembic-миграции, маркеры pytest, `docs/TESTING_CONTRACT.md` (2026-08-02).
+- [ ] B5 — очистка prod БД от тестового мусора.
 - [ ] C1–C4 — кэширование.
 - [ ] D1–D3 — ручной E2E.
 - [ ] E1–E2 — аналитика и отчёты.

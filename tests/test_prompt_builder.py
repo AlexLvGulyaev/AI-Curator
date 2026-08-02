@@ -1,6 +1,10 @@
 """Tests for PromptBuilder."""
 
+import pytest
+
 from services.prompt_builder import PromptBuilder
+
+pytestmark = pytest.mark.unit
 
 
 def test_prompt_builder_uses_orchestrator_context_limits():
