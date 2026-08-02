@@ -645,7 +645,7 @@ Backend и frontend завершены и задеплоены (2026-08-01). Д�
 | B2 | Alembic-миграции для тестовой БД | `tests/conftest.py` (`_run_alembic_migrations`) | Тестовые таблицы создаются через Alembic `head` |
 | B3 | Маркеры pytest | `pytest.ini`, маркеры в тестах | `pytest -m unit` / `-m integration` / `-m expensive` работают |
 | B4 | Testing Cost Contract | `docs/TESTING_CONTRACT.md` | Зафиксирована номенклатура, стоимость, время и цель каждого набора тестов |
-| B5 | Очистка prod БД | `scripts/cleanup_prod_test_trash.py` | Боевая БД очищена от тестового мусора (следующий шаг) |
+| B5 | Очистка prod БД | `scripts/cleanup_prod_test_trash.py` | ✅ Боевая БД очищена от тестового мусора |
 
 ### 10.4. Спринт C — Кэширование запросов
 
@@ -682,7 +682,7 @@ A → B → C → D → E
 - [x] A1 — read-only аудит убран (2026-08-02).
 - [ ] A2/A3 — demo read-only login и RBAC.
 - [x] B1–B4 — тестовая БД `ai_curator_test`, Alembic-миграции, маркеры pytest, `docs/TESTING_CONTRACT.md` (2026-08-02).
-- [ ] B5 — очистка prod БД от тестового мусора.
+- [x] B5 — очистка prod БД от тестового мусора (2026-08-02).
 - [ ] C1–C4 — кэширование.
 - [ ] D1–D3 — ручной E2E.
 - [ ] E1–E2 — аналитика и отчёты.
