@@ -4,6 +4,7 @@ import asyncio
 import re
 import time
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -809,6 +810,11 @@ class Orchestrator:
                 "error": error_text,
             }
 
+    @staticmethod
+    def _utc_now() -> datetime:
+        """Return current UTC timestamp."""
+        return datetime.now(timezone.utc)
+
     async def _process_core(
         self,
         *,
@@ -826,6 +832,9 @@ class Orchestrator:
         history: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
         """Core pipeline: classify intent, fetch data, generate and validate answer."""
+        t_core_start = time.perf_counter()
+        t_core_start_utc = self._utc_now()
+
         # Load operational configuration early. Intent classification and the cache
         # decision are cheap and do not require LMS or LLM calls.
         config = await self.ai_config_service.get_active()
@@ -877,15 +886,20 @@ class Orchestrator:
                 "error": None,
             }
 
+        intent_detect_started_at = self._utc_now()
         t_start = time.perf_counter()
         intent = self.detect_intent(message, ocfg=self._ocfg)
+        intent_detect_ms = round((time.perf_counter() - t_start) * 1000, 2)
+        intent_detect_finished_at = self._utc_now()
         timings: Dict[str, float] = {
-            "intent_detect_ms": round((time.perf_counter() - t_start) * 1000, 2),
+            "intent_detect_ms": intent_detect_ms,
         }
         execution_steps.append({
             "stage_name": "intent_classify",
             "step_order": 1,
-            "duration_ms": timings["intent_detect_ms"],
+            "duration_ms": intent_detect_ms,
+            "started_at": intent_detect_started_at,
+            "finished_at": intent_detect_finished_at,
             "step_metadata": {"intent": intent},
         })
 
@@ -928,6 +942,16 @@ class Orchestrator:
                 lms_calls=[],
                 rag_filters={},
             )
+            t_core_total_ms = round((time.perf_counter() - t_core_start) * 1000, 2)
+            cache_hit_started_at = self._utc_now()
+            cache_hit_finished_at = cache_hit_started_at
+            response_save_started_at = cache_hit_finished_at
+            response_save_finished_at = self._utc_now()
+            response_save_ms = max(
+                0,
+                round((response_save_finished_at - response_save_started_at).total_seconds() * 1000, 2),
+            )
+
             await self.logger.create_chat_log(
                 request_id=request.id,
                 answer=cached_result["answer"],
@@ -936,23 +960,37 @@ class Orchestrator:
                 prompt_tokens=0,
                 completion_tokens=0,
                 total_tokens=0,
-                latency_ms=0,
+                latency_ms=t_core_total_ms,
                 error=cached_result.get("error"),
                 cache_hit=True,
             )
             execution_steps.extend([
-                {"stage_name": "cache_hit", "step_order": 2, "duration_ms": 0, "step_metadata": {"cache_key": cache_key, "intent": intent}},
-                {"stage_name": "response_save", "step_order": 3, "duration_ms": 0},
+                {
+                    "stage_name": "cache_hit",
+                    "step_order": 2,
+                    "duration_ms": 0,
+                    "started_at": cache_hit_started_at,
+                    "finished_at": cache_hit_finished_at,
+                    "step_metadata": {"cache_key": cache_key, "intent": intent},
+                },
+                {
+                    "stage_name": "response_save",
+                    "step_order": 3,
+                    "duration_ms": response_save_ms,
+                    "started_at": response_save_started_at,
+                    "finished_at": response_save_finished_at,
+                    "step_metadata": {"has_answer": bool(cached_result.get("answer"))},
+                },
             ])
             await self._finish_execution(
                 exec_session.id,
                 request,
                 execution_steps,
                 "ok",
-                0,
+                t_core_total_ms,
                 execution_metadata={"cache_hit": True, "route": "cache", "timings_ms": timings},
             )
-            return cached_result
+            return {**cached_result, "latency_ms": t_core_total_ms}
 
         # Determine target course: mentioned course in message takes precedence over
         # explicit UI selection, then default, but only if the mentioned course is

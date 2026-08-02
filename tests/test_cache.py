@@ -100,6 +100,7 @@ async def test_orchestrator_cache_hit_returns_cached_answer(db_session):
     assert result["answer"] == cached_answer
     assert result["cache_hit"] is True
     assert result["intent"] == intent
+    assert result["latency_ms"] >= 0
 
 
 @pytest.mark.anyio

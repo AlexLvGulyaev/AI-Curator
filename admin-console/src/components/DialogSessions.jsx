@@ -264,7 +264,7 @@ function DialogDetail({ detail }) {
                         {formatDurationMs(step.duration_ms)}
                       </span>
                     ) : null}
-                    {delta != null ? (
+                    {delta != null && delta > 0 ? (
                       <span
                         className="muted mono logs-stage__delta"
                         title="Время, прошедшее с предыдущего шага"
