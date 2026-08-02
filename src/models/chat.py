@@ -82,6 +82,7 @@ class ChatLog(Base):
     latency_ms = Column(Float, nullable=True)
     error = Column(Text, nullable=True)
     feedback_score = Column(Integer, nullable=True)
+    cache_hit = Column(Boolean, nullable=False, default=False, server_default="false")
 
     request: Mapped["ChatRequest"] = relationship(back_populates="logs")
 

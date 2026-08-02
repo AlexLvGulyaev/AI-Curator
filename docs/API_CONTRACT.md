@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.14  
+**Версия:** 1.15  
 **Дата:** 2026-08-02  
-**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + frontend polish + read-only audit cleanup
+**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + Sprint C Response Cache
 
 ---
 
@@ -743,9 +743,16 @@
   "model": "gpt-4o-mini-2024-07-18",
   "latency_ms": 1234.56,
   "session_id": "...",
+  "cache_hit": false,
   "error": null
 }
 ```
+
+**Кэширование:**
+
+- Ответы кэшируются по ключу `SHA256(message | role | difficulty | course_id | intent)`.
+- `cache_hit: true` означает, что ответ был возвращён из кэша без вызова LMS/RAG/LLM.
+- Кэш инвалидируется при изменении KB, AI-config, retrieval tuning и orchestrator config.
 
 ---
 
@@ -832,6 +839,7 @@
 | `latency_ms` | float | Задержка ответа |
 | `total_tokens` | int | Токены |
 | `llm_model` | string | Модель LLM |
+| `cache_hit` | bool | Ответ получен из кэша |
 | `created_at` | string | ISO timestamp |
 
 **Каноническая модель `OperationalLogDetail`:**
@@ -855,6 +863,7 @@
 | `latency_ms` | float | Задержка |
 | `total_tokens` | int | Токены |
 | `feedback_score` | int | Оценка полезности |
+| `cache_hit` | bool | Ответ получен из кэша |
 | `error` | string | Ошибка |
 | `llm_calls` | array | Метаданные вызовов LLM + trace preview |
 | `analytics_events` | array | Связанные analytics events |
@@ -933,6 +942,7 @@
 | `latency_ms` | float | Задержка |
 | `total_tokens` | int | Токены |
 | `feedback_score` | int | Оценка полезности |
+| `cache_hit` | bool | Ответ получен из кэша |
 | `error` | string | Ошибка |
 | `rag_filters` | object | Фильтры RAG |
 | `lms_calls` | array | Вызовы LMS |
@@ -952,7 +962,7 @@
 | `duration_ms` | int \| null | Длительность в ms |
 | `started_at` | string | ISO timestamp начала |
 | `finished_at` | string \| null | ISO timestamp окончания |
-| `execution_metadata` | object | JSON-метаданные: timings, route, short_circuit |
+| `execution_metadata` | object | JSON-метаданные: timings, route, short_circuit, cache_hit |
 | `steps` | array[ExecutionStep] | Этапы pipeline |
 
 **Каноническая модель `ExecutionStep`:**
@@ -960,7 +970,7 @@
 | Поле | Тип | Описание |
 |------|-----|----------|
 | `id` | int | ID шага |
-| `stage_name` | string | `intent_classify`, `lms_fetch`, `rag_search`, `context_build`, `llm_call`, `answer_validate`, `source_attach`, `response_save` |
+| `stage_name` | string | `intent_classify`, `cache_hit`, `lms_fetch`, `rag_search`, `context_build`, `llm_call`, `answer_validate`, `source_attach`, `response_save` |
 | `step_order` | int | Порядковый номер |
 | `status` | string | `ok`, `error`, `warning` |
 | `duration_ms` | int \| null | Длительность в ms |
@@ -1345,3 +1355,4 @@
 | 2026-08-01 | 1.12 | `GET /api/v1/admin/audit` возвращает объект с `items`, `total`, `limit`, `offset`; `POST /api/v1/chat` пробрасывает `client_ip` и `user_agent` в `ExecutionSession`; актуализирована документация Admin Console Dialog Sessions и Audit Log |
 | 2026-08-01 | 1.13 | `POST /api/v1/chat` создаёт audit-запись `chat_request` с `session_id`, ролью студента и `ip_address` |
 | 2026-08-02 | 1.14 | Убран аудит read-only действий (`view_*`) во всех admin endpoints; раздел 4.6 Audit описывает новую политику |
+| 2026-08-02 | 1.15 | Добавлен Response Cache: `cache_hit` в ответе `POST /api/v1/chat`, `chat_logs.cache_hit`, `execution_metadata.cache_hit`, `cache_hit` в Operational Logs / Dialog Sessions; добавлен этап `cache_hit` в `ExecutionStep`; описана инвалидация кэша в admin endpoints |

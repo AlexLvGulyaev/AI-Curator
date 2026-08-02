@@ -86,7 +86,7 @@ function pairDialogRows(turns, executions) {
       rows.push({
         user: pendingUser?.content || '—',
         assistant: assistantMsg,
-        cache_hit: ex?.cache_hit ?? null,
+        cache_hit: t.cache_hit ?? null,
         response_time_ms: t.latency_ms ?? ex?.duration_ms ?? null,
         execution_id: ex?.id ?? null,
         sources: t.sources,
@@ -171,6 +171,7 @@ function DialogDetail({ detail }) {
             <OpsRow label="response time" value={formatDurationMs(runtime.duration_ms)} />
             <OpsRow label="source" value={<span className="mono">{detail.memory_source || 'PostgreSQL'}</span>} />
             <OpsRow label="route" value={<span className="mono">{runtime.route || '—'}</span>} />
+            <OpsRow label="cache hit" value={runtime.execution_metadata?.cache_hit ? 'да' : 'нет'} />
           </dl>
         </div>
 

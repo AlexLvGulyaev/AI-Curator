@@ -1,9 +1,9 @@
 # OPERATIONS.md — AI Curator
 
 **Проект:** ai-curator  
-**Версия:** 2.3  
+**Версия:** 2.4  
 **Дата:** 2026-08-02  
-**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + frontend polish + read-only audit cleanup
+**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + Sprint C Response Cache
 
 ---
 
@@ -215,6 +215,48 @@ Toolbar-кнопка **Переиндексировать** выполняет �
 
 ---
 
+## 3.5. Response Cache
+
+AI Curator кэширует ответы на частые запросы, чтобы сократить latency и снизить расходы на LLM/RAG/LMS. Кэш включён по умолчанию и управляется через `RetrievalTuning`.
+
+### Ключ кэша
+
+SHA-256 от нормализованных параметров запроса:
+
+```text
+message | role | difficulty | course_id | intent
+```
+
+История диалога в ключ не входит: кэш отвечает за последнее сообщение.
+
+### Управление в Admin Console
+
+- **AI & Retrieval Configuration** → параметры `cache_enabled` и `cache_ttl_seconds`.
+- `cache_ttl_seconds` по умолчанию **300 секунд** в `RetrievalTuning`; fallback на `CACHE_TTL_SECONDS` (default 86400).
+
+### Инвалидация
+
+Кэш сбрасывается автоматически при изменениях, которые могут повлиять на ответы:
+
+| Действие | Endpoint |
+|----------|----------|
+| Публикация / снятие с публикации KB | `POST /api/v1/admin/kb/documents/{id}/publish` |
+| Обработка / переиндексация документа | `POST /api/v1/admin/kb/documents/{id}/process`, `POST /api/v1/admin/kb/documents/{id}/reindex` |
+| Активация / переиндексация версии | `POST /api/v1/admin/kb/documents/{id}/versions/{version_id}/activate`, `/reindex` |
+| Сохранение cleaned-текста | `POST /api/v1/admin/kb/documents/{id}/versions/{version_id}/text` |
+| Массовая переиндексация | `POST /api/v1/admin/kb/reindex-all`, `POST /api/v1/admin/retrieval/reindex` |
+| Изменение AI-конфигурации | `POST /api/v1/admin/ai-config`, `POST /api/v1/admin/ai-config/{id}/activate` |
+| Изменение retrieval tuning | `PUT /api/v1/admin/retrieval/tuning` |
+| Изменение orchestrator config | `PUT /api/v1/admin/orchestrator/config` |
+
+### Наблюдаемость
+
+- `chat_logs.cache_hit` — `true` для ответов, возвращённых из кэша.
+- `execution_sessions.execution_metadata.cache_hit` — флаг в трасировке.
+- Operational Logs и Dialog Sessions отображают `cache_hit` в UI/API.
+
+---
+
 ## 4. Аналитика
 
 Раздел **Аналитика** содержит:
@@ -395,6 +437,8 @@ Endpoints:
 
 | `CHROMA_COLLECTION_NAME` | Продакшен коллекция Chroma (`ai_curator_kb`) |
 | `CHROMA_TEST_COLLECTION_NAME` | Тестовая коллекция Chroma (`ai_curator_kb_test`) |
+| `CACHE_FILE_PATH` | Путь к JSON-файлу кэша ответов (`/app/storage/cache/response_cache.json`) |
+| `CACHE_TTL_SECONDS` | TTL ответов по умолчанию, когда `RetrievalTuning.cache_ttl_seconds` не задан (86400) |
 
 ### AI Config tuning для latency
 
@@ -507,6 +551,7 @@ or set PYTEST_ALLOW_PROD_DB=true to intentionally use the production database fo
 | 2026-08-01 | 2.0 | Реструктуризация Dialog Sessions под схему `chat_sessions` + `execution_sessions` + `execution_steps`; обновлена структура консоли и описание timeline pipeline; раздел 7 «Аудит» дополнен полями `user_name`/`ip_address`, фильтрами по дате и детальной карточкой |
 | 2026-08-01 | 2.1 | `GET /api/v1/admin/audit` возвращает `{items, total, limit, offset}`; `POST /api/v1/chat` фиксирует `client_ip` и `user_agent` в `ExecutionSession`; в консоли Dialog Sessions отображается visitor IP и source |
 | 2026-08-01 | 2.2 | `POST /api/v1/chat` создаёт audit-запись `chat_request` с `session_id`, ролью студента и `ip_address`; в Журнале аудита можно отфильтровать запросы студентов по `action=chat_request` |
+| 2026-08-02 | 2.4 | Добавлен раздел 3.5 «Response Cache»: ключ кэша, инвалидация, наблюдаемость; добавлены переменные `CACHE_FILE_PATH` и `CACHE_TTL_SECONDS` |
 | 2026-08-02 | 2.3 | Убран аудит read-only действий; раздел 7 Аудит описывает новую политику: только изменяющие действия и `chat_request` |
 | 2026-07-30 | 1.0 | Создан документ |
  | 2026-07-30 | 1.1 | Добавлены расширенные параметры AI Config, retention и архивирование логов |

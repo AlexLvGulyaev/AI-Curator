@@ -31,6 +31,7 @@ const ROUTE_LABEL_RU = {
 
 const STAGE_NAME_RU = {
   intent_classify: 'Классификация intent',
+  cache_hit: 'Cache hit',
   lms_fetch: 'LMS fetch',
   rag_search: 'RAG поиск',
   context_build: 'Построение контекста',

@@ -37,6 +37,7 @@ def _log_to_summary(req: ChatRequest, log: Optional[ChatLog]) -> Dict[str, Any]:
         "latency_ms": log.latency_ms if log else None,
         "total_tokens": log.total_tokens if log else None,
         "llm_model": log.llm_model if log else None,
+        "cache_hit": log.cache_hit if log else False,
         "created_at": req.created_at.isoformat() if req.created_at else None,
     }
 
@@ -192,6 +193,7 @@ async def get_operational_log(
         "latency_ms": chat_log.latency_ms if chat_log else None,
         "total_tokens": chat_log.total_tokens if chat_log else None,
         "feedback_score": chat_log.feedback_score if chat_log else None,
+        "cache_hit": chat_log.cache_hit if chat_log else False,
         "error": chat_log.error if chat_log else None,
         "llm_calls": llm_calls,
         "analytics_events": analytics_events,

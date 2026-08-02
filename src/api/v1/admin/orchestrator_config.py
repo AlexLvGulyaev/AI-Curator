@@ -15,6 +15,7 @@ from models.orchestrator_config import (
     DEFAULT_INTENT_SOURCE_MAP,
     DEFAULT_NON_COURSE_STARTERS,
 )
+from services.cache import response_cache
 from services.logger import LoggerService
 from services.orchestrator_config import OrchestratorConfigService
 
@@ -34,6 +35,14 @@ async def _log_audit(action: str, resource_id, db: AsyncSession):
         user_id="admin",
         user_role="admin",
     )
+
+
+def _invalidate_response_cache() -> None:
+    """Invalidate the chat response cache after orchestrator config changes."""
+    try:
+        response_cache.invalidate_all()
+    except Exception:
+        pass
 
 
 class OrchestratorConfigIn(BaseModel):
@@ -107,4 +116,5 @@ async def update_config(
             detail=str(exc),
         ) from exc
     await _log_audit("update", config.id, service.db)
+    _invalidate_response_cache()
     return OrchestratorConfigOut.model_validate(config)

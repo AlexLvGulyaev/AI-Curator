@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db import get_db
 from models.ai_config import AiConfig
 from services.ai_config import AiConfigService
+from services.cache import response_cache
 from services.logger import LoggerService
 
 router = APIRouter(prefix="/ai-config", tags=["admin-ai-config"])
@@ -29,6 +30,14 @@ async def _log_audit(action: str, resource_id, db: AsyncSession):
         user_id="admin",
         user_role="admin",
     )
+
+
+def _invalidate_response_cache() -> None:
+    """Invalidate the chat response cache after AI config changes."""
+    try:
+        response_cache.invalidate_all()
+    except Exception:
+        pass
 
 
 class AiConfigIn(BaseModel):
@@ -104,6 +113,7 @@ async def create_config(
         created_by="admin",
     )
     await _log_audit("create", config.id, service.db)
+    _invalidate_response_cache()
     return AiConfigOut.model_validate(config)
 
 
@@ -116,6 +126,7 @@ async def activate_config(
     try:
         config = await service.activate(config_id)
         await _log_audit("activate", config.id, service.db)
+        _invalidate_response_cache()
         return AiConfigOut.model_validate(config)
     except ValueError as exc:
         raise HTTPException(

@@ -21,6 +21,7 @@ from schemas.knowledge_base import (
     KbVersionTextOut,
     KbVersionTextSaveIn,
 )
+from services.cache import response_cache
 from services.knowledge_base import (
     DocumentNotFoundError,
     KnowledgeBaseError,
@@ -77,6 +78,14 @@ def _event_out(event: Any) -> KbDocumentEventOut:
     return KbDocumentEventOut.model_validate(event)
 
 
+def _invalidate_response_cache() -> None:
+    """Invalidate the chat response cache after KB mutations."""
+    try:
+        response_cache.invalidate_all()
+    except Exception:
+        pass
+
+
 # ------------------------------------------------------------------
 # Documents
 # ------------------------------------------------------------------
@@ -111,6 +120,7 @@ async def create_document(
         )
         document = await service.create_document(data, file)
         await _log_audit("create", "kb_document", document.id, service.db)
+        _invalidate_response_cache()
         return _document_out(document)
     except UnsupportedFileError as exc:
         raise HTTPException(
@@ -170,6 +180,7 @@ async def update_document(
     try:
         document = await service.update_document(document_id, data)
         await _log_audit("update", "kb_document", document.id, service.db)
+        _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -187,6 +198,7 @@ async def delete_document(
     try:
         await service.delete_document(document_id)
         await _log_audit("delete", "kb_document", document_id, service.db)
+        _invalidate_response_cache()
     except DocumentNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -205,6 +217,7 @@ async def add_version(
         version = await service.add_version(document_id, file)
         document = await service.get_document(document_id)
         await _log_audit("add_version", "kb_document_version", version.id, service.db)
+        _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -228,6 +241,7 @@ async def publish_document(
     try:
         document = await service.toggle_publish(document_id, publish)
         await _log_audit("publish" if publish else "unpublish", "kb_document", document.id, service.db)
+        _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -250,6 +264,7 @@ async def process_document(
     try:
         document = await service.process_document(document_id)
         await _log_audit("process", "kb_document", document.id, service.db)
+        _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -350,6 +365,7 @@ async def save_version_text(
             document_id, version_id, payload.text, reindex=reindex
         )
         await _log_audit("save_cleaned_text", "kb_document_version", version_id, service.db)
+        _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -414,6 +430,7 @@ async def activate_version(
     try:
         document = await service.activate_version(document_id, version_id)
         await _log_audit("activate_version", "kb_document", document.id, service.db)
+        _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -440,6 +457,7 @@ async def reindex_version(
     try:
         document = await service.reindex_version(document_id, version_id)
         await _log_audit("reindex_version", "kb_document", document.id, service.db)
+        _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -468,6 +486,7 @@ async def reindex_document(
             )
         document = await service.reindex_version(document_id, active_version.id)
         await _log_audit("reindex", "kb_document", document.id, service.db)
+        _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -488,6 +507,7 @@ async def reindex_all(
     """Reindex all currently published documents."""
     result = await service.reindex_all_published()
     await _log_audit("reindex_all", "kb_document", None, service.db)
+    _invalidate_response_cache()
     return KbReindexAllOut(**result)
 
 

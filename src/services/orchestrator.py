@@ -9,8 +9,10 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.lms_adapter import lms_adapter
+from config import settings
 from services.ai_config import AiConfigService
 from services.answer_validator import AnswerValidator
+from services.cache.response_cache import ResponseCache, response_cache
 from services.llm_adapter import LLMAdapter, LlmResponse
 from services.logger import LoggerService
 from services.orchestrator_config import OrchestratorConfigService
@@ -101,13 +103,14 @@ class Orchestrator:
         "какие задания",
     ]
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, cache: ResponseCache = response_cache):
         self.db = db
         self.logger = LoggerService(db)
         self.tracer = self.logger.tracer
         self.ai_config_service = AiConfigService(db)
         self.orchestrator_config_service = OrchestratorConfigService(db)
         self._ocfg: dict = {}
+        self.response_cache = cache
 
     @staticmethod
     def _execution_mode_from_sources(need_lms: bool, need_rag: bool) -> str:
@@ -141,6 +144,35 @@ class Orchestrator:
             duration_ms=int(duration_ms) if duration_ms is not None else None,
             execution_metadata=execution_metadata,
         )
+
+    def _save_cache_result(
+        self,
+        message: str,
+        result: Dict[str, Any],
+        cache_key: str,
+        ttl_seconds: Optional[int],
+    ) -> Dict[str, Any]:
+        """Persist a successful result to the response cache.
+
+        Errors and explicit error intents are not cached. The helper is
+        synchronous because cache persistence is a single small JSON write.
+        """
+        if result.get("intent") == "error" or result.get("error"):
+            return result
+        self.response_cache.set_by_key(
+            cache_key,
+            query=message,
+            response=result["answer"],
+            metadata={
+                "sources": result.get("sources", []),
+                "intent": result.get("intent"),
+                "model": result.get("model"),
+                "latency_ms": result.get("latency_ms"),
+                "error": result.get("error"),
+            },
+            ttl_seconds=ttl_seconds,
+        )
+        return result
 
     def _non_course_starters(self) -> set:
         """Return common Russian sentence starters that are NOT course names."""
@@ -713,7 +745,7 @@ class Orchestrator:
         execution_steps: List[Dict[str, Any]] = []
 
         try:
-            return await self._process_core(
+            result = await self._process_core(
                 message=message,
                 role=role,
                 difficulty=difficulty,
@@ -727,6 +759,8 @@ class Orchestrator:
                 default_course_id=default_course_id,
                 history=history,
             )
+            result.setdefault("cache_hit", False)
+            return result
         except Exception as exc:
             error_text = f"{type(exc).__name__}: {exc}"
             import traceback
@@ -771,6 +805,7 @@ class Orchestrator:
                 "model": None,
                 "latency_ms": 0,
                 "session_id": session_id,
+                "cache_hit": False,
                 "error": error_text,
             }
 
@@ -791,6 +826,134 @@ class Orchestrator:
         history: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
         """Core pipeline: classify intent, fetch data, generate and validate answer."""
+        # Load operational configuration early. Intent classification and the cache
+        # decision are cheap and do not require LMS or LLM calls.
+        config = await self.ai_config_service.get_active()
+        retrieval_tuning = await RetrievalTuningService(self.db).get_or_create_default()
+        ocfg = await self.orchestrator_config_service.get_or_create_default()
+        self._set_config(ocfg)
+
+        # Early deterministic refusal before any expensive calls.
+        refusal_topic = AnswerValidator.requires_refusal(message)
+        if refusal_topic:
+            refusal = (
+                config.refusal_answer_text
+                or "Я не выставляю оценки и не изменяю учебный процесс. Обратитесь к преподавателю."
+            )
+            request = await self.logger.create_chat_request(
+                session_id=session_id,
+                chat_session_id=chat_session.id,
+                role=role,
+                course_id=course_id if course_id in available_course_ids else default_course_id,
+                difficulty=difficulty,
+                message=message,
+                intent="refusal",
+                lms_calls=[],
+                rag_filters={},
+            )
+            await self.logger.create_chat_log(
+                request_id=request.id,
+                answer=refusal,
+                sources=[],
+                llm_model=None,
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                latency_ms=0,
+                error=None,
+            )
+            execution_steps.extend([
+                {"stage_name": "intent_classify", "step_order": 1, "duration_ms": 0, "step_metadata": {"intent": "refusal", "refusal_topic": refusal_topic}},
+                {"stage_name": "response_save", "step_order": 2, "duration_ms": 0},
+            ])
+            await self._finish_execution(exec_session.id, request, execution_steps, "ok", 0)
+            return {
+                "answer": refusal,
+                "sources": [],
+                "intent": "refusal",
+                "model": None,
+                "latency_ms": 0,
+                "session_id": session_id,
+                "error": None,
+            }
+
+        t_start = time.perf_counter()
+        intent = self.detect_intent(message, ocfg=self._ocfg)
+        timings: Dict[str, float] = {
+            "intent_detect_ms": round((time.perf_counter() - t_start) * 1000, 2),
+        }
+        execution_steps.append({
+            "stage_name": "intent_classify",
+            "step_order": 1,
+            "duration_ms": timings["intent_detect_ms"],
+            "step_metadata": {"intent": intent},
+        })
+
+        # Response cache: identical requests skip LMS/RAG/LLM.
+        cache_key = self.response_cache.build_cache_key(message, role, difficulty, course_id, intent)
+        effective_cache_ttl = retrieval_tuning.cache_ttl_seconds or settings.cache_ttl_seconds
+        cache_entry = None
+        if retrieval_tuning.cache_enabled:
+            cache_entry = self.response_cache.get_entry_by_key(cache_key)
+        if cache_entry:
+            # Align canonical session mode with the intent's source route even though
+            # the actual answer came from cache.
+            source_map = self._ocfg.get("intent_source_map", {})
+            intent_sources = source_map.get(intent, {})
+            need_lms = bool(
+                intent_sources.get("lms", intent in ("organizational", "mixed", "progress", "deadline"))
+            )
+            need_rag = bool(intent_sources.get("rag", intent in ("study", "mixed")))
+            mode = self._execution_mode_from_sources(need_lms, need_rag)
+            if mode != chat_session.mode:
+                chat_session = await self.logger.create_or_update_chat_session(
+                    session_id=session_id,
+                    mode=mode,
+                )
+
+            cached_result = {
+                "answer": cache_entry.response,
+                **cache_entry.metadata,
+                "cache_hit": True,
+                "session_id": session_id,
+            }
+            request = await self.logger.create_chat_request(
+                session_id=session_id,
+                chat_session_id=chat_session.id,
+                role=role,
+                course_id=course_id if course_id in available_course_ids else default_course_id,
+                difficulty=difficulty,
+                message=message,
+                intent=intent,
+                lms_calls=[],
+                rag_filters={},
+            )
+            await self.logger.create_chat_log(
+                request_id=request.id,
+                answer=cached_result["answer"],
+                sources=cached_result.get("sources", []),
+                llm_model=cached_result.get("model"),
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                latency_ms=0,
+                error=cached_result.get("error"),
+                cache_hit=True,
+            )
+            execution_steps.extend([
+                {"stage_name": "cache_hit", "step_order": 2, "duration_ms": 0, "step_metadata": {"cache_key": cache_key, "intent": intent}},
+                {"stage_name": "response_save", "step_order": 3, "duration_ms": 0},
+            ])
+            await self._finish_execution(
+                exec_session.id,
+                request,
+                execution_steps,
+                "ok",
+                0,
+                execution_metadata={"cache_hit": True, "route": "cache", "timings_ms": timings},
+            )
+            return cached_result
+
         # Determine target course: mentioned course in message takes precedence over
         # explicit UI selection, then default, but only if the mentioned course is
         # actually available to this role. Otherwise we refuse.
@@ -835,15 +998,20 @@ class Orchestrator:
                 {"stage_name": "response_save", "step_order": 2, "duration_ms": 0},
             ])
             await self._finish_execution(exec_session.id, request, execution_steps, "ok", 0)
-            return {
-                "answer": refusal,
-                "sources": [],
-                "intent": "out_of_scope",
-                "model": None,
-                "latency_ms": 0,
-                "session_id": session_id,
-                "error": None,
-            }
+            return self._save_cache_result(
+                message,
+                {
+                    "answer": refusal,
+                    "sources": [],
+                    "intent": "out_of_scope",
+                    "model": None,
+                    "latency_ms": 0,
+                    "session_id": session_id,
+                    "error": None,
+                },
+                cache_key,
+                effective_cache_ttl,
+            )
 
         target_course_id = mentioned_course_id or explicit_course_id or default_course_id
 
@@ -853,69 +1021,6 @@ class Orchestrator:
                 session_id=session_id,
                 course_id=target_course_id,
             )
-
-        # Load active AI configuration, retrieval tuning and orchestrator config early.
-        config = await self.ai_config_service.get_active()
-        retrieval_tuning = await RetrievalTuningService(self.db).get_or_create_default()
-        ocfg = await self.orchestrator_config_service.get_or_create_default()
-        self._set_config(ocfg)
-
-        # Early short-circuit for requests that must be refused (grades, deadlines).
-        # This avoids wasting tokens and latency on LLM/RAG/LMS calls.
-        refusal_topic = AnswerValidator.requires_refusal(message)
-        if refusal_topic:
-            refusal = (
-                config.refusal_answer_text
-                or "Я не выставляю оценки и не изменяю учебный процесс. Обратитесь к преподавателю."
-            )
-            request = await self.logger.create_chat_request(
-                session_id=session_id,
-                chat_session_id=chat_session.id,
-                role=role,
-                course_id=target_course_id,
-                difficulty=difficulty,
-                message=message,
-                intent="refusal",
-                lms_calls=[],
-                rag_filters={},
-            )
-            await self.logger.create_chat_log(
-                request_id=request.id,
-                answer=refusal,
-                sources=[],
-                llm_model=None,
-                prompt_tokens=0,
-                completion_tokens=0,
-                total_tokens=0,
-                latency_ms=0,
-                error=None,
-            )
-            execution_steps.extend([
-                {"stage_name": "intent_classify", "step_order": 1, "duration_ms": 0, "step_metadata": {"intent": "refusal", "refusal_topic": refusal_topic}},
-                {"stage_name": "response_save", "step_order": 2, "duration_ms": 0},
-            ])
-            await self._finish_execution(exec_session.id, request, execution_steps, "ok", 0)
-            return {
-                "answer": refusal,
-                "sources": [],
-                "intent": "refusal",
-                "model": None,
-                "latency_ms": 0,
-                "session_id": session_id,
-                "error": None,
-            }
-
-        t_start = time.perf_counter()
-        intent = self.detect_intent(message, ocfg=self._ocfg)
-        timings: Dict[str, float] = {
-            "intent_detect_ms": round((time.perf_counter() - t_start) * 1000, 2),
-        }
-        execution_steps.append({
-            "stage_name": "intent_classify",
-            "step_order": 1,
-            "duration_ms": timings["intent_detect_ms"],
-            "step_metadata": {"intent": intent},
-        })
 
         # Determine if we need LMS data and/or RAG context from config.
         source_map = self._ocfg.get("intent_source_map", {})
@@ -1145,15 +1250,20 @@ class Orchestrator:
                     total_lms_ms,
                     execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "lms"},
                 )
-                return {
-                    "answer": deadline_answer,
-                    "sources": deadline_sources,
-                    "intent": intent,
-                    "model": None,
-                    "latency_ms": total_lms_ms,
-                    "session_id": session_id,
-                    "error": None,
-                }
+                return self._save_cache_result(
+                    message,
+                    {
+                        "answer": deadline_answer,
+                        "sources": deadline_sources,
+                        "intent": intent,
+                        "model": None,
+                        "latency_ms": total_lms_ms,
+                        "session_id": session_id,
+                        "error": None,
+                    },
+                    cache_key,
+                    effective_cache_ttl,
+                )
 
             # Short-circuit for progress questions: answer deterministically from LMS data.
             if intent == "progress":
@@ -1214,15 +1324,20 @@ class Orchestrator:
                     total_lms_ms,
                     execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "lms"},
                 )
-                return {
-                    "answer": progress_answer,
-                    "sources": progress_sources,
-                    "intent": intent,
-                    "model": None,
-                    "latency_ms": total_lms_ms,
-                    "session_id": session_id,
-                    "error": None,
-                }
+                return self._save_cache_result(
+                    message,
+                    {
+                        "answer": progress_answer,
+                        "sources": progress_sources,
+                        "intent": intent,
+                        "model": None,
+                        "latency_ms": total_lms_ms,
+                        "session_id": session_id,
+                        "error": None,
+                    },
+                    cache_key,
+                    effective_cache_ttl,
+                )
 
             # Short-circuit: if the user asks about deadlines/assignments and there are none.
             deadlines = lms_data.get("deadlines", [])
@@ -1292,15 +1407,20 @@ class Orchestrator:
                     total_lms_ms,
                     execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "lms"},
                 )
-                return {
-                    "answer": no_deadline_answer,
-                    "sources": [],
-                    "intent": intent,
-                    "model": None,
-                    "latency_ms": total_lms_ms,
-                    "session_id": session_id,
-                    "error": None,
-                }
+                return self._save_cache_result(
+                    message,
+                    {
+                        "answer": no_deadline_answer,
+                        "sources": [],
+                        "intent": intent,
+                        "model": None,
+                        "latency_ms": total_lms_ms,
+                        "session_id": session_id,
+                        "error": None,
+                    },
+                    cache_key,
+                    effective_cache_ttl,
+                )
 
         # Short-circuit: if this is a pure study question and no relevant context
         # was found, refuse immediately without calling the LLM.
@@ -1367,15 +1487,20 @@ class Orchestrator:
                 short_latency,
                 execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "rag" if need_rag else "text"},
             )
-            return {
-                "answer": refusal,
-                "sources": [],
-                "intent": "out_of_scope",
-                "model": None,
-                "latency_ms": short_latency,
-                "session_id": session_id,
-                "error": None,
-            }
+            return self._save_cache_result(
+                message,
+                {
+                    "answer": refusal,
+                    "sources": [],
+                    "intent": "out_of_scope",
+                    "model": None,
+                    "latency_ms": short_latency,
+                    "session_id": session_id,
+                    "error": None,
+                },
+                cache_key,
+                effective_cache_ttl,
+            )
 
         # Persist request
         request = await self.logger.create_chat_request(
@@ -1618,12 +1743,17 @@ class Orchestrator:
             execution_metadata={"timings_ms": timings, "route": mode},
         )
 
-        return {
-            "answer": final_answer,
-            "sources": final_sources,
-            "intent": intent,
-            "model": llm_result.model,
-            "latency_ms": total_latency,
-            "session_id": session_id,
-            "error": llm_result.error,
-        }
+        return self._save_cache_result(
+            message,
+            {
+                "answer": final_answer,
+                "sources": final_sources,
+                "intent": intent,
+                "model": llm_result.model,
+                "latency_ms": total_latency,
+                "session_id": session_id,
+                "error": llm_result.error,
+            },
+            cache_key,
+            effective_cache_ttl,
+        )

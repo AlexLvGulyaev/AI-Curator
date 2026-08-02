@@ -87,6 +87,7 @@ class LoggerService:
         total_tokens: Optional[int] = None,
         latency_ms: Optional[float] = None,
         error: Optional[str] = None,
+        cache_hit: bool = False,
     ) -> ChatLog:
         """Persist the generated answer for a request."""
         log = ChatLog(
@@ -99,6 +100,7 @@ class LoggerService:
             total_tokens=total_tokens,
             latency_ms=latency_ms,
             error=error,
+            cache_hit=cache_hit,
         )
         self.db.add(log)
         await self.db.commit()

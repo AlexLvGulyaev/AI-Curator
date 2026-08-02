@@ -198,6 +198,7 @@ async def get_dialog_session(
                 "latency_ms": log.latency_ms if log else None,
                 "total_tokens": log.total_tokens if log else None,
                 "feedback_score": log.feedback_score if log else None,
+                "cache_hit": log.cache_hit if log else False,
                 "error": log.error if log else None,
                 "rag_filters": req.rag_filters,
                 "lms_calls": req.lms_calls,

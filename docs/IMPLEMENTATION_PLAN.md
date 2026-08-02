@@ -1,7 +1,7 @@
 # IMPLEMENTATION_PLAN.md — AI Curator
 
 **Проект:** ai-curator
-**Версия:** 2.4
+**Версия:** 2.5
 **Дата:** 2026-08-02
 **Статус:** Approved
 **Срок реализации:** 7+ календарных дней основного цикла + 9–15 календарных дней спринтов стабилизации и аналитики
@@ -647,14 +647,15 @@ Backend и frontend завершены и задеплоены (2026-08-01). Д�
 | B4 | Testing Cost Contract | `docs/TESTING_CONTRACT.md` | Зафиксирована номенклатура, стоимость, время и цель каждого набора тестов |
 | B5 | Очистка prod БД | `scripts/cleanup_prod_test_trash.py` | ✅ Боевая БД очищена от тестового мусора |
 
-### 10.4. Спринт C — Кэширование запросов
+### 10.4. Спринт C — Кэширование запросов ✅
 
 | # | Задача | Артефакты | Критерий готовности |
 |---|--------|-----------|---------------------|
-| C1 | `ResponseCache` сервис | `src/services/cache/response_cache.py` | Unit-тесты cache проходят |
-| C2 | Интеграция в `Orchestrator.process()` | `src/services/orchestrator.py` | Повторный вопрос возвращается без LLM |
-| C3 | Инвалидация | KB/config/retrieval endpoints | После изменений cache сбрасывается |
-| C4 | UI флаг `cache_hit` | Operational Logs / Dialog Sessions | В консолях виден cache hit |
+| C1 | `ResponseCache` сервис | `src/services/cache/response_cache.py`, `src/services/cache/__init__.py` | Unit-тесты cache проходят |
+| C2 | Интеграция в `Orchestrator.process()` | `src/services/orchestrator.py`, `src/models/chat.py`, Alembic-миграция | Повторный вопрос возвращается без LLM |
+| C3 | Инвалидация | `src/api/v1/admin/kb.py`, `ai_config.py`, `retrieval.py`, `orchestrator_config.py` | После изменений cache сбрасывается |
+| C4 | UI флаг `cache_hit` | `src/api/v1/admin/operational_logs.py`, `dialog_sessions.py` | В консолях виден cache hit |
+| C5 | Тесты и документация | `tests/test_cache.py`, `docs/OPERATIONS.md`, `docs/API_CONTRACT.md` | `pytest` проходит |
 
 ### 10.5. Спринт D — Ручной E2E Admin Console на продакшене
 
@@ -683,7 +684,7 @@ A → B → C → D → E
 - [ ] A2/A3 — demo read-only login и RBAC.
 - [x] B1–B4 — тестовая БД `ai_curator_test`, Alembic-миграции, маркеры pytest, `docs/TESTING_CONTRACT.md` (2026-08-02).
 - [x] B5 — очистка prod БД от тестового мусора (2026-08-02).
-- [ ] C1–C4 — кэширование.
+- [x] C1–C5 — кэширование: ResponseCache, интеграция в Orchestrator, инвалидация, `cache_hit` в UI/API, тесты и документация (2026-08-02).
 - [ ] D1–D3 — ручной E2E.
 - [ ] E1–E2 — аналитика и отчёты.
 
@@ -807,4 +808,5 @@ A → B → C → D → E
 | 2026-08-01 | 2.2b | Sprint 5.6 Dialog Sessions отмечен выполненным; добавлен backend `dialog_sessions.py`, frontend `DialogSessions.jsx`, интеграция в `App.jsx`/`backend.js`; обновлён `API_CONTRACT.md` |
 | 2026-08-01 | 2.2c | Архитектурное совещание: принята структурная переделка Sprint 5.6 (выделение `chat_sessions`, `execution_sessions`, `execution_steps`) и доработка Sprint 5.8 Audit; план зафиксирован в task-файле и IMPLEMENTATION_PLAN.md |
 | 2026-08-01 | 2.2d | Реализован backend Sprint 5.6 Dialog Sessions (structural redesign) и Sprint 5.8 Audit: модели, миграция, `ExecutionTracerService`, интеграция в `orchestrator.py`, API, тесты; `pytest` 53 passed; документация обновлена |
+| 2026-08-02 | 2.5 | Спринт C «Кэширование запросов» выполнен: ResponseCache, интеграция в Orchestrator, инвалидация в admin endpoints, `cache_hit` в ChatLog/ExecutionSession/API, `tests/test_cache.py`; обновлены `OPERATIONS.md`, `API_CONTRACT.md`, `.env.example` |
 | 2026-08-02 | 2.3 | Добавлен раздел 10 «Спринты стабилизации и подготовки к аналитике» (A–E); Sprint 5.8 отмечен полностью выполненным (frontend + read-only audit cleanup); выполнен A1 — удалён `view_*` аудит из admin endpoints; обновлены `API_CONTRACT.md` и `OPERATIONS.md` |

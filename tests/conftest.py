@@ -181,6 +181,14 @@ async def override_get_db(db_session):
 
 
 @pytest.fixture(autouse=True)
+def reset_response_cache():
+    """Clear the global response cache before every test to avoid cross-test leaks."""
+    from services.cache import response_cache
+    response_cache.clear()
+    yield
+
+
+@pytest.fixture(autouse=True)
 def disable_admin_auth():
     """Disable admin bearer auth in tests to keep fixtures simple."""
     original = settings.admin_console_token

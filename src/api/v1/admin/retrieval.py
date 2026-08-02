@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
+from services.cache import response_cache
 from services.knowledge_base import KnowledgeBaseService
 from services.logger import LoggerService
 from services.retrieval_tuning import RetrievalTuningService
@@ -27,6 +28,14 @@ async def _log_audit(action: str, resource_id, db: AsyncSession):
         user_id="admin",
         user_role="admin",
     )
+
+
+def _invalidate_response_cache() -> None:
+    """Invalidate the chat response cache after retrieval tuning changes."""
+    try:
+        response_cache.invalidate_all()
+    except Exception:
+        pass
 
 
 class RetrievalTuningIn(BaseModel):
@@ -97,6 +106,7 @@ async def update_tuning(
             detail=str(exc),
         ) from exc
     await _log_audit("update", tuning.id, service.db)
+    _invalidate_response_cache()
     return RetrievalTuningOut.model_validate(tuning)
 
 
@@ -127,4 +137,5 @@ async def reindex_all(
             detail=f"Reindex failed: {exc}",
         ) from exc
     await _log_audit("reindex", None, db)
+    _invalidate_response_cache()
     return {"status": "ok", "message": "Reindex started"}

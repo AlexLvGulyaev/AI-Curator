@@ -66,6 +66,17 @@ function buildPipelineTimeline(detail) {
     timestamp: baseTime,
   });
 
+  if (detail.cache_hit) {
+    stages.push({
+      key: 'cache_hit',
+      label: 'Cache hit',
+      status: 'ok',
+      duration_ms: 0,
+      metadata: { source: 'response_cache' },
+      timestamp: baseTime,
+    });
+  }
+
   const hasLms = Array.isArray(detail.lms_calls) && detail.lms_calls.length > 0;
   if (hasLms) {
     const lmsDuration = detail.lms_calls.reduce((sum, c) => sum + (c.latency_ms || 0), 0);
@@ -338,6 +349,9 @@ export default function OperationalLogs() {
                   <span className={`ai-status ai-status--${log.status === 'ok' ? 'ok' : log.status === 'error' ? 'error' : 'info'}`}>
                     {statusLabelRu(log.status)}
                   </span>
+                  {log.cache_hit ? (
+                    <span className="ai-status ai-status--ok">кэш</span>
+                  ) : null}
                 </div>
                 <div className="text-sm font-medium text-ai-text line-clamp-2 mb-1">{log.message_preview}</div>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ai-text-secondary">
@@ -431,6 +445,7 @@ export default function OperationalLogs() {
                 <CompactRow label="total_tokens" value={detail.total_tokens} />
                 <CompactRow label="llm_model" value={detail.llm_model} />
                 <CompactRow label="feedback_score" value={detail.feedback_score} />
+                <CompactRow label="cache_hit" value={detail.cache_hit ? 'да' : 'нет'} />
               </div>
             </SectionBox>
           </div>

@@ -60,6 +60,7 @@ class ChatResponse(BaseModel):
     model: Optional[str] = None
     latency_ms: Optional[float] = None
     session_id: Optional[str] = None
+    cache_hit: bool = False
     error: Optional[str] = None
 
 
@@ -110,6 +111,7 @@ async def chat(
                 "intent": result.get("intent"),
                 "model": result.get("model"),
                 "latency_ms": result.get("latency_ms"),
+                "cache_hit": result.get("cache_hit", False),
                 "has_answer": bool(result.get("answer")),
                 "sources_count": len(result.get("sources") or []),
                 "user_agent": user_agent,

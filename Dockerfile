@@ -22,8 +22,8 @@ COPY alembic.ini .
 COPY pytest.ini .
 COPY tests/ ./tests/
 
-# Ensure document storage directory exists
-RUN mkdir -p /app/storage/documents
+# Ensure storage directories exist
+RUN mkdir -p /app/storage/documents /app/storage/cache
 
 EXPOSE 8000
 

@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     test_database_url: str = ""
     pytest_allow_prod_db: bool = False
 
+    # Response cache
+    cache_file_path: str = "./storage/cache/response_cache.json"
+    cache_ttl_seconds: int = 86400
+
     # Chroma vector store
     chroma_host: str = "localhost"
     chroma_port: int = 8000
