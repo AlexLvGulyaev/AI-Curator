@@ -476,7 +476,7 @@ Endpoints:
 | `max_tokens` | Жёсткий потолок длины ответа LLM | Для chat ограничен кодом через `orchestrator_configs.intent_max_tokens`: `organizational`=250, `study_beginner`=250, `mixed`=350, `default`=300 |
 | `top_k_retrieval` | Сколько RAG-чанков попадает в prompt | Для chat переопределяется кодом до 3; для Admin оставить 5 |
 | `intent_max_tokens` | Бюджет completion tokens по intent | Настраивается в Admin Console → Orchestrator; снижение ускоряет ответ, но при слишком низком значении возможно `response_truncated_by_max_tokens` |
-| `rag_distance_threshold` | Фильтр шумных чанков | 1.35 по умолчанию; уменьшение ускоряет, но может снизить recall |
+| `rag_distance_threshold` | Фильтр шумных чанков | **0.6** в текущей конфигурации. Было 1.35 — при этом пороге RAG возвращал нерелевантные материалы (например, уроки Claude Code по запросу «Fine-Tuning»), и LLM либо отказывалась отвечать на фоне ложных источников, либо давала общее определение из своих знаний. Уменьшение до 0.6 отсекло шум и улучшило точность source attribution. |
 | `course_boost_enabled` | Приоритизировать чанки, совпадающие по `course_id` | `true` — для учебных вопросов мягко повышает ранг материалов текущего курса, не отсекая общие материалы |
 | `course_boost_factor` | Сила курсового буста | 0.15 по умолчанию; 0 — отключить влияние `course_id` на ранжирование |
 | `system_prompt` + `output_rules` | Размер prompt | Избыточный текст увеличивает prompt tokens и latency |

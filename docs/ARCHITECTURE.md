@@ -574,6 +574,7 @@ Admin Console отображает:
 | **Parallel LMS calls** | `src/services/orchestrator.py` — `asyncio.gather(deadlines, progress, contents)` | Три LMS-вызова выполняются одновременно, а не последовательно. |
 | **Parallel RAG + LMS** | `src/services/orchestrator.py` — `asyncio.gather(_fetch_lms_data, _fetch_rag_context)` для `mixed` intent | LMS-данные и RAG-контекст собираются параллельно. |
 | **Reduced RAG top_k** | `src/services/orchestrator.py` — `rag_k = 3 if intent in ("study", "mixed")` | Меньше чанков в prompt → меньше токенов → быстрее LLM. |
+| **RAG distance threshold** | `src/services/retrieval_tuning.py` → `retrieval_tuning.rag_distance_threshold` | `0.6` отсекает семантически далёкие чанки. При `1.35` RAG возвращал нерелевантные материалы (например, уроки Claude Code по запросу «Fine-Tuning»), что приводило к ложным источникам и неуверенным отказам. |
 | **RAG deduplication** | `src/services/orchestrator.py` — content hash фильтр | Исключает дублирующиеся чанки из prompt. |
 | **Reduced LMS context** | `src/services/prompt_builder.py` — `contents[:12]`, `deadlines[:5]` | Меньше текста в prompt → меньше prompt tokens. |
 | **Intent-based max_tokens** | `src/services/orchestrator.py` + `src/services/llm_adapter.py` | `organizational` 250, `study` beginner 250, `mixed` 350, остальное 300. Жёстко ограничивает длину ответа и время генерации. Бюджеты хранятся в `orchestrator_configs.intent_max_tokens` и настраиваются без деплоя. |
