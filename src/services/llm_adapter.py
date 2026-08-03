@@ -138,6 +138,15 @@ class LLMAdapter:
         elapsed = round((time.perf_counter() - start) * 1000, 2)
         metadata = response.response_metadata or {}
         usage = metadata.get("token_usage", {})
+        finish_reason = None
+        choices = getattr(response, "choices", None) or metadata.get("choices") or []
+        if choices and isinstance(choices, list):
+            choice = choices[0]
+            if isinstance(choice, dict):
+                finish_reason = choice.get("finish_reason")
+        error: Optional[str] = None
+        if finish_reason == "length":
+            error = "response_truncated_by_max_tokens"
         return LlmResponse(
             content=response.content,
             model=metadata.get("model_name", self.config.model if self.config else settings.openai_model),
@@ -145,6 +154,7 @@ class LLMAdapter:
             completion_tokens=usage.get("completion_tokens"),
             total_tokens=usage.get("total_tokens"),
             latency_ms=elapsed,
+            error=error,
         )
 
     async def _generate_gigachat(self, prompt: str, max_tokens: Optional[int] = None) -> LlmResponse:

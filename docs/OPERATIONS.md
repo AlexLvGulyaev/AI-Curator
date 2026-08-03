@@ -194,10 +194,12 @@ Toolbar-кнопка **Переиндексировать** выполняет �
 
 | Ключ | По умолчанию | Применение |
 |------|--------------|------------|
-| `organizational` | 500 | Ответы на организационные вопросы |
-| `study_beginner` | 650 | Учебные вопросы для уровня beginner |
-| `mixed` | 800 | Смешанные вопросы (LMS + KB) |
-| `default` | 750 | Все остальные случаи, включая advanced-study |
+| `organizational` | 250 | Ответы на организационные вопросы |
+| `study_beginner` | 250 | Учебные вопросы для уровня beginner |
+| `mixed` | 350 | Смешанные вопросы (LMS + KB) |
+| `default` | 300 | Все остальные случаи, включая advanced-study |
+
+Эти значения подобраны так, чтобы при скорости генерации `gpt-4o-mini` ~100 tokens/sec время LLM-вызова не превышало ~3.5 сек, а суммарная latency оставалась в пределах NFR ≤ 5 сек. Если ответы часто обрезаются (`response_truncated_by_max_tokens` в `chat_logs.error` или `llm_truncated=true` в `analytics_events`), бюджет можно увеличить, но это повысит latency.
 
 #### 3.4.5. Fallback Messages
 
@@ -279,10 +281,11 @@ message | role | difficulty | course_id | intent
 | `rag_embedding_ms` | RAG embedding (кэш или OpenAI) | < 1000 мс холодный, < 10 мс из кэша |
 | `rag_chroma_ms` | Chroma query | < 500 мс |
 | `rag_postprocess_ms` | Фильтрация + дедупликация | < 50 мс |
-| `llm_generate_ms` | LLM generation | < 4000 мс (зависит от `max_tokens`) |
+| `llm_generate_ms` | LLM generation | < 4000 мс (зависит от `max_tokens`); с текущими бюджетами 250–350 tokens типично 1.5–3 сек |
 | `validation_ms` | Answer Validator | < 200 мс |
+| `response_cache_ms` | Response cache read/write | < 20 мс |
 
-Общая latency отчитывается в `chat_logs.latency_ms` и в ответе API как `latency_ms`.
+Общая latency отчитывается в `chat_logs.latency_ms` и в ответе API как `latency_ms`. Дополнительно в `analytics_events.payload` сохраняется флаг `llm_truncated=true`, если ответ обрезался по `finish_reason=length`.
 
 ### 4.2. Профилирование вручную
 
@@ -299,6 +302,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 - **NFR-1:** p50 latency на типовых chat-сценариях ≤ **5 секунд**.
 - **SLO:** p95 ≤ 8 сек для холодного старта.
 - **Профилирование Sprint 4 (2026-07-30):** все сценарии уложились в 5 сек; максимальный measured latency — 3547 мс (`study_basic`, холодный старт).
+- **Профилирование Sprint D follow-up (2026-08-03):** все сценарии уложились в 5 сек; p50 — 120–133 мс серверного времени (response cache hit), max — 144 мс. Холодный старт (очищенный response cache) — max 144 мс серверного времени благодаря embedding cache и сниженным token-бюджетам.
 
 ---
 
@@ -469,8 +473,9 @@ Endpoints:
 
 | Параметр | Влияние на latency | Рекомендация |
 |----------|-------------------|--------------|
-| `max_tokens` | Жёсткий потолок длины ответа LLM | 512–1024 для chat; выше — медленнее |
+| `max_tokens` | Жёсткий потолок длины ответа LLM | Для chat ограничен кодом через `orchestrator_configs.intent_max_tokens`: `organizational`=250, `study_beginner`=250, `mixed`=350, `default`=300 |
 | `top_k_retrieval` | Сколько RAG-чанков попадает в prompt | Для chat переопределяется кодом до 3; для Admin оставить 5 |
+| `intent_max_tokens` | Бюджет completion tokens по intent | Настраивается в Admin Console → Orchestrator; снижение ускоряет ответ, но при слишком низком значении возможно `response_truncated_by_max_tokens` |
 | `rag_distance_threshold` | Фильтр шумных чанков | 1.35 по умолчанию; уменьшение ускоряет, но может снизить recall |
 | `course_boost_enabled` | Приоритизировать чанки, совпадающие по `course_id` | `true` — для учебных вопросов мягко повышает ранг материалов текущего курса, не отсекая общие материалы |
 | `course_boost_factor` | Сила курсового буста | 0.15 по умолчанию; 0 — отключить влияние `course_id` на ранжирование |
@@ -484,7 +489,13 @@ Backend автоматически подставляет дефолтные з�
 Рекомендуемое содержание `beginner_instructions`:
 
 ```text
-Уровень подготовки: beginner. Объясняй просто и с примерами, но обязательно на основе предоставленных материалов. Если в контексте есть релевантная информация — ответь кратко, даже если она неполная. Не отказывайся от ответа, когда дан предоставленный контекст.
+Уровень подготовки: beginner. Объясняй простыми словами, избегай жаргона, давай конкретные примеры и аналогии. Не используй таблицы, не приводи код, не упоминай Big-O или сложность алгоритмов. Не углубляйся в технические детали. Обязательно отвечай на основе предоставленных материалов; если контекст неполный — всё равно дай краткий ответ на том, что есть. Не отказывайся от ответа, когда предоставлен релевантный контекст.
+```
+
+Рекомендуемое содержание `advanced_instructions`:
+
+```text
+Уровень подготовки: advanced. Дай структурированный углублённый ответ в формате: краткое определение, ключевые отличия списком, 1-2 конкретных примера кода на Python, практические нюансы и типичные ошибки. Используй markdown (заголовки, списки, выделение). Без таблиц, без Big-O, без длинных разборов edge cases. Примеры должны быть техническими и конкретными, но лаконичными.
 ```
 
 Проверить текущие инструкции активной конфигурации:
@@ -569,7 +580,7 @@ or set PYTEST_ALLOW_PROD_DB=true to intentionally use the production database fo
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
-| 2026-08-01 | 1.8 | Добавлен раздел 6 «Логи (Operational Logs)» с описанием консоли и endpoints; добавлен `GET /api/v1/admin/audit/{id}` в раздел 7 |
+| 2026-08-03 | 2.5 | Обновлён раздел 4 «Latency»: актуальные SLO/NFR и результаты профилирования Sprint D follow-up; token-бюджеты в Orchestrator Configuration снижены до 250–350 tokens; добавлена метрика `response_cache_ms`; добавлен флаг `llm_truncated` в analytics; обновлены рекомендуемые `beginner_instructions` и `advanced_instructions` |
 | 2026-08-01 | 1.9 | Добавлен подраздел 6.4 «Dialog Sessions» с описанием консоли диалогов и endpoints `GET /api/v1/admin/dialog-sessions` / `{session_id}` |
 | 2026-08-01 | 2.0 | Реструктуризация Dialog Sessions под схему `chat_sessions` + `execution_sessions` + `execution_steps`; обновлена структура консоли и описание timeline pipeline; раздел 7 «Аудит» дополнен полями `user_name`/`ip_address`, фильтрами по дате и детальной карточкой |
 | 2026-08-01 | 2.1 | `GET /api/v1/admin/audit` возвращает `{items, total, limit, offset}`; `POST /api/v1/chat` фиксирует `client_ip` и `user_agent` в `ExecutionSession`; в консоли Dialog Sessions отображается visitor IP и source |

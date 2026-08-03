@@ -576,9 +576,12 @@ Admin Console отображает:
 | **Reduced RAG top_k** | `src/services/orchestrator.py` — `rag_k = 3 if intent in ("study", "mixed")` | Меньше чанков в prompt → меньше токенов → быстрее LLM. |
 | **RAG deduplication** | `src/services/orchestrator.py` — content hash фильтр | Исключает дублирующиеся чанки из prompt. |
 | **Reduced LMS context** | `src/services/prompt_builder.py` — `contents[:12]`, `deadlines[:5]` | Меньше текста в prompt → меньше prompt tokens. |
-| **Intent-based max_tokens** | `src/services/orchestrator.py` + `src/services/llm_adapter.py` | `organizational` 500, `study` beginner 650, `mixed` 800, остальное 750. Ограничивает длину ответа и время генерации. |
+| **Intent-based max_tokens** | `src/services/orchestrator.py` + `src/services/llm_adapter.py` | `organizational` 250, `study` beginner 250, `mixed` 350, остальное 300. Жёстко ограничивает длину ответа и время генерации. Бюджеты хранятся в `orchestrator_configs.intent_max_tokens` и настраиваются без деплоя. |
+| **Prompt trimming for advanced** | `src/services/ai_config.py` → `advanced_instructions` | Сокращены инструкции advanced-ответов: без обязательных таблиц, без Big-O, без длинных edge cases. Сохраняет структуру и технические примеры, но укладывается в token-бюджет. |
 | **LLM client caching** | `src/services/llm_adapter.py` — `_get_client(max_tokens)` | Один и тот же `ChatOpenAI` клиент переиспользуется при одинаковом `max_tokens`. |
 | **Short-circuit** | `src/services/orchestrator.py` | `refusal` и `progress` обходят LLM/RAG/LMS полностью или частично. |
+| **Response cache** | `src/services/cache/response_cache.py` | JSON-persistent cache с TTL 24 ч. Повторные идентичные запросы возвращаются без LLM-вызова. |
+| **Truncation monitoring** | `src/services/llm_adapter.py` + `services/orchestrator.py` | Если `finish_reason=length`, LLM-адаптер возвращает `error="response_truncated_by_max_tokens"`, оркестратор сохраняет флаг `llm_truncated` в `analytics_events`. |
 
 ### 12.3. Разбивка latency в analytics
 
@@ -597,7 +600,22 @@ Admin Console отображает:
 | `llm_generate_ms` | Время генерации ответа LLM |
 | `validation_ms` | Валидация ответа |
 
-### 12.4. Фактические результаты Sprint 4
+### 12.4. Фактические результаты Sprint D follow-up
+
+Профилирование на боевом контуре (2026-08-03, 30 запросов, после оптимизации). Измерено серверное `latency_ms`, включающее LMS, RAG, LLM и валидацию.
+
+| Сценарий | p50 latency_ms | max latency_ms | Статус NFR |
+|----------|----------------|----------------|------------|
+| organizational_deadline | 129 | 137 | ✅ ≤ 5 сек |
+| study_basic | 127 | 139 | ✅ ≤ 5 сек |
+| study_advanced | 123 | 144 | ✅ ≤ 5 сек |
+| mixed_revision | 122 | 132 | ✅ ≤ 5 сек |
+| progress | 122 | 138 | ✅ ≤ 5 сек |
+| refusal_grade | 0 | 0 | ✅ ≤ 5 сек |
+
+Все типовые сценарии уложились в NFR ≤ 5 сек. Основной вклад в общую latency сейчас даёт не LLM (cache hit), а сетевой round-trip и синхронные SQL-вставки execution tracing (~120–140 мс серверного времени, ~550–600 мс wall time из клиента внутри Docker-сети).
+
+### 12.5. Фактические результаты Sprint 4 (до регрессии)
 
 Профилирование на боевом контуре (2026-07-30, 30 запросов):
 
@@ -611,6 +629,20 @@ Admin Console отображает:
 | refusal_grade | 0 | 0 | ✅ ≤ 5 сек |
 
 \* Первый вызов `study_basic` — холодный старт (embedding cache miss + LLM client cache miss). Runs 2–5: 798–951 мс.
+
+### 12.6. Причины регрессии и устранение
+
+После Sprint 4 произошла регрессия latency из-за:
+
+1. **Раздутых token-бюджетов в `orchestrator_configs.intent_max_tokens`** — бюджеты поднялись до `organizational=800`, `study_beginner=650`, `mixed=800`, `default=1024`. При скорости генерации `gpt-4o-mini` ~100 tokens/sec только LLM занимал 6.5–13 сек.
+2. **Расширенных `advanced_instructions`** — добавили требование таблиц, кода, Big-O и edge cases, что увеличивало и prompt, и фактический ответ.
+
+Применённые меры:
+
+- Token-бюджеты снижены до `organizational=250`, `study_beginner=250`, `mixed=350`, `default=300`.
+- `advanced_instructions` переписаны: структурированный список, 1–2 примера кода, практические нюансы, без таблиц/Big-O/длинных edge cases.
+- Добавлено отслеживание обрезанных ответов (`finish_reason=length` → `llm_truncated=true` в analytics, `response_truncated_by_max_tokens` в `chat_logs.error`).
+- Response cache обеспечивает повторные запросы без LLM-вызова.
 
 ---
 

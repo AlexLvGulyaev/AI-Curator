@@ -115,7 +115,11 @@ class GigaChatAdapter:
             message = choice.get("message", {}) if isinstance(choice, dict) else {}
             content = message.get("content", "") if isinstance(message, dict) else ""
             usage = response.get("usage") or {}
+            finish_reason = choice.get("finish_reason") if isinstance(choice, dict) else None
             elapsed = round((time.perf_counter() - start) * 1000, 2)
+            error: Optional[str] = None
+            if finish_reason == "length":
+                error = "response_truncated_by_max_tokens"
             return LlmResponse(
                 content=content or "",
                 model=response.get("model", self.model),
@@ -123,6 +127,7 @@ class GigaChatAdapter:
                 completion_tokens=usage.get("completion_tokens"),
                 total_tokens=usage.get("total_tokens"),
                 latency_ms=elapsed,
+                error=error,
             )
         except Exception as exc:
             elapsed = round((time.perf_counter() - start) * 1000, 2)

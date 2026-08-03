@@ -2023,6 +2023,8 @@ class Orchestrator:
             },
         })
 
+        # Detect truncated responses so methodologists can see when max_tokens is too tight.
+        llm_truncated = bool(llm_result.error and "truncated" in llm_result.error)
         await self.logger.create_llm_call(
             request_id=request.id,
             model=llm_result.model,
@@ -2160,6 +2162,7 @@ class Orchestrator:
             total_tokens=llm_result.total_tokens,
             latency_ms=total_latency,
             error=llm_result.error or ("; ".join(validation.issues) if validation.issues else None),
+            cache_hit=False,
         )
         execution_steps.append({
             "stage_name": "response_save",
@@ -2181,6 +2184,7 @@ class Orchestrator:
                 "has_lms_data": bool(lms_data),
                 "rag_chunks": len(rag_context),
                 "llm_status": "ok" if not llm_result.error else "error",
+                "llm_truncated": llm_truncated,
                 "validated": validation.is_valid,
                 "timings_ms": timings,
             },
