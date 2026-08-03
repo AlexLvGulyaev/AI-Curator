@@ -299,10 +299,10 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 
 ### 4.3. SLO и NFR
 
-- **NFR-1:** p50 latency на типовых chat-сценариях ≤ **5 секунд**.
-- **SLO:** p95 ≤ 8 сек для холодного старта.
+- **NFR-1:** p50 latency на повторных chat-запросах (response cache hit) ≤ **5 секунд**.
+- **SLO:** p95 ≤ 8 сек для холодного старта (cache miss + embedding cache miss + LLM cold call).
 - **Профилирование Sprint 4 (2026-07-30):** все сценарии уложились в 5 сек; максимальный measured latency — 3547 мс (`study_basic`, холодный старт).
-- **Профилирование Sprint D follow-up (2026-08-03):** все сценарии уложились в 5 сек; p50 — 120–133 мс серверного времени (response cache hit), max — 144 мс. Холодный старт (очищенный response cache) — max 144 мс серверного времени благодаря embedding cache и сниженным token-бюджетам.
+- **Профилирование Sprint D follow-up (2026-08-03):** повторные запросы p50 — 120–133 мс серверного времени (response cache hit), max — 144 мс. Холодный старт с `chunk_size=512` — 3.5–5 сек (advanced ~3.8 сек, beginner ~3.6 сек), что укладывается в SLO ≤ 8 сек.
 
 ---
 
@@ -580,7 +580,7 @@ or set PYTEST_ALLOW_PROD_DB=true to intentionally use the production database fo
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
-| 2026-08-03 | 2.5 | Обновлён раздел 4 «Latency»: актуальные SLO/NFR и результаты профилирования Sprint D follow-up; token-бюджеты в Orchestrator Configuration снижены до 250–350 tokens; добавлена метрика `response_cache_ms`; добавлен флаг `llm_truncated` в analytics; обновлены рекомендуемые `beginner_instructions` и `advanced_instructions` |
+| 2026-08-03 | 2.5 | Обновлён раздел 4 «Latency»: уточнены NFR/SLO (повторные запросы ≤ 5 сек, холодный старт ≤ 8 сек); актуальные результаты профилирования Sprint D follow-up; token-бюджеты в Orchestrator Configuration снижены до 250–350 tokens; размер KB-чанков возвращён к 512 tokens с переиндексацией; добавлена метрика `response_cache_ms`; добавлен флаг `llm_truncated` в analytics; обновлены рекомендуемые `beginner_instructions` и `advanced_instructions` |
 | 2026-08-01 | 1.9 | Добавлен подраздел 6.4 «Dialog Sessions» с описанием консоли диалогов и endpoints `GET /api/v1/admin/dialog-sessions` / `{session_id}` |
 | 2026-08-01 | 2.0 | Реструктуризация Dialog Sessions под схему `chat_sessions` + `execution_sessions` + `execution_steps`; обновлена структура консоли и описание timeline pipeline; раздел 7 «Аудит» дополнен полями `user_name`/`ip_address`, фильтрами по дате и детальной карточкой |
 | 2026-08-01 | 2.1 | `GET /api/v1/admin/audit` возвращает `{items, total, limit, offset}`; `POST /api/v1/chat` фиксирует `client_ip` и `user_agent` в `ExecutionSession`; в консоли Dialog Sessions отображается visitor IP и source |

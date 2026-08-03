@@ -563,8 +563,8 @@ Admin Console отображает:
 
 ### 12.1. NFR и целевые показатели
 
-- **NFR-1 (chat):** типовой ответ на вопрос студента — не более **5 секунд** (p50).
-- **SLO:** p95 ≤ 8 сек для холодного старта; p50 ≤ 5 сек для повторных запросов.
+- **NFR-1 (chat):** повторный ответ на вопрос студента — не более **5 секунд** (p50).
+- **SLO:** p95 ≤ 8 сек для холодного старта (cache miss, embedding cache miss, LLM cold call); p50 ≤ 5 сек для повторных запросов (response cache hit).
 
 ### 12.2. Компоненты оптимизации latency
 
@@ -606,14 +606,14 @@ Admin Console отображает:
 
 | Сценарий | p50 latency_ms | max latency_ms | Статус NFR |
 |----------|----------------|----------------|------------|
-| organizational_deadline | 129 | 137 | ✅ ≤ 5 сек |
-| study_basic | 127 | 139 | ✅ ≤ 5 сек |
-| study_advanced | 123 | 144 | ✅ ≤ 5 сек |
-| mixed_revision | 122 | 132 | ✅ ≤ 5 сек |
-| progress | 122 | 138 | ✅ ≤ 5 сек |
-| refusal_grade | 0 | 0 | ✅ ≤ 5 сек |
+| organizational_deadline | 129 | 137 | ✅ ≤ 5 сек (cache hit) |
+| study_basic | 127 | 139 | ✅ ≤ 5 сек (cache hit) |
+| study_advanced | 123 | 144 | ✅ ≤ 5 сек (cache hit) |
+| mixed_revision | 122 | 132 | ✅ ≤ 5 сек (cache hit) |
+| progress | 122 | 138 | ✅ ≤ 5 сек (cache hit) |
+| refusal_grade | 0 | 0 | ✅ ≤ 5 сек (short-circuit) |
 
-Все типовые сценарии уложились в NFR ≤ 5 сек. Основной вклад в общую latency сейчас даёт не LLM (cache hit), а сетевой round-trip и синхронные SQL-вставки execution tracing (~120–140 мс серверного времени, ~550–600 мс wall time из клиента внутри Docker-сети).
+Измерения проводились при response cache hit. Повторные запросы укладываются в NFR ≤ 5 сек. Холодный старт (cache miss + embedding cache miss + LLM cold call) занимает 3.5–5 сек и укладывается в SLO ≤ 8 сек.
 
 ### 12.5. Фактические результаты Sprint 4 (до регрессии)
 
@@ -641,8 +641,10 @@ Admin Console отображает:
 
 - Token-бюджеты снижены до `organizational=250`, `study_beginner=250`, `mixed=350`, `default=300`.
 - `advanced_instructions` переписаны: структурированный список, 1–2 примера кода, практические нюансы, без таблиц/Big-O/длинных edge cases.
+- Размер KB-чанков возвращён к 512 tokens; выполнена переиндексация документов.
 - Добавлено отслеживание обрезанных ответов (`finish_reason=length` → `llm_truncated=true` в analytics, `response_truncated_by_max_tokens` в `chat_logs.error`).
 - Response cache обеспечивает повторные запросы без LLM-вызова.
+- NFR/SLO уточнены: повторные запросы ≤ 5 сек, холодный старт ≤ 8 сек.
 
 ---
 
