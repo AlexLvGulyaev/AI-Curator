@@ -38,7 +38,7 @@ function Chat({ role, onChangeRole }) {
   useEffect(() => {
     clearMessages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseId]);
+  }, [courseId, difficulty]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
