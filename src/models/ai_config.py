@@ -1,9 +1,23 @@
 """AI Configuration SQLAlchemy model for versioned prompt and LLM settings."""
 
-from sqlalchemy import Boolean, Float, Integer, String, Text
+from sqlalchemy import Boolean, Float, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from models.base import Base
+
+
+DEFAULT_PROVIDER_SETTINGS = {
+    "openai": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.3,
+        "max_tokens": 1024,
+    },
+    "gigachat": {
+        "model": "GigaChat-Max",
+        "temperature": 0.1,
+        "max_tokens": 500,
+    },
+}
 
 
 class AiConfig(Base):
@@ -16,6 +30,9 @@ class AiConfig(Base):
     model: Mapped[str] = mapped_column(String(100), nullable=False, default="gpt-4o-mini")
     temperature: Mapped[float] = mapped_column(Float, nullable=False, default=0.3)
     max_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=1024)
+    provider_settings: Mapped[dict] = mapped_column(
+        JSON, nullable=False, default=lambda: dict(DEFAULT_PROVIDER_SETTINGS)
+    )
     beginner_instructions: Mapped[str] = mapped_column(Text, nullable=True)
     advanced_instructions: Mapped[str] = mapped_column(Text, nullable=True)
     few_shot_examples: Mapped[str] = mapped_column(Text, nullable=True)

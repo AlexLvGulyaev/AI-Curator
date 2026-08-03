@@ -37,6 +37,10 @@ def _llm_providers(config: Optional[AiConfig] = None):
     openai_enabled = config.openai_enabled if config else True
     gigachat_enabled = config.gigachat_enabled if config else True
 
+    provider_settings = getattr(config, "provider_settings", None) or {}
+    openai_settings = provider_settings.get("openai", {}) if isinstance(provider_settings, dict) else {}
+    gigachat_settings = provider_settings.get("gigachat", {}) if isinstance(provider_settings, dict) else {}
+
     providers = []
     providers.append({
         "key": "openai",
@@ -48,10 +52,10 @@ def _llm_providers(config: Optional[AiConfig] = None):
         "readiness_reason": None if openai_configured else "OpenAI API key not configured",
         "status": "ok" if (openai_enabled and openai_configured) else ("disabled" if not openai_enabled else "error"),
         "detail": "Active provider" if active_provider == "openai" else ("Fallback provider" if fallback_provider == "openai" else "Available"),
-        "model": settings.openai_model or "gpt-4o-mini",
+        "model": openai_settings.get("model") or settings.openai_model or "gpt-4o-mini",
         "base_url": "https://api.openai.com/v1",
-        "temperature": config.temperature if config else 0.3,
-        "max_tokens": config.max_tokens if config else 1024,
+        "temperature": openai_settings.get("temperature") if config else 0.3,
+        "max_tokens": openai_settings.get("max_tokens") if config else 1024,
     })
     providers.append({
         "key": "gigachat",
@@ -63,10 +67,10 @@ def _llm_providers(config: Optional[AiConfig] = None):
         "readiness_reason": None if gigachat_configured else "GIGACHAT_AUTH_KEY not configured",
         "status": "ok" if (gigachat_enabled and gigachat_configured) else ("disabled" if not gigachat_enabled else "error"),
         "detail": "Active provider" if active_provider == "gigachat" else ("Fallback provider" if fallback_provider == "gigachat" else "Available"),
-        "model": settings.gigachat_model or "GigaChat-Max",
+        "model": gigachat_settings.get("model") or settings.gigachat_model or "GigaChat-Max",
         "base_url": settings.gigachat_base_url or "https://gigachat.devices.sberbank.ru/api/v1",
-        "temperature": 0.1,
-        "max_tokens": 500,
+        "temperature": gigachat_settings.get("temperature") if config else 0.1,
+        "max_tokens": gigachat_settings.get("max_tokens") if config else 500,
     })
     return providers
 

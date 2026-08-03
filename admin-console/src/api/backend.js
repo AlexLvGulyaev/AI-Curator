@@ -201,6 +201,10 @@ export async function updateActiveAiConfig(data) {
     fallback_provider: data.fallback_provider || 'gigachat',
     openai_enabled: data.openai_enabled ?? true,
     gigachat_enabled: data.gigachat_enabled ?? true,
+    provider_settings: data.provider_settings || {
+      openai: { model: 'gpt-4o-mini', temperature: 0.3, max_tokens: 1024 },
+      gigachat: { model: 'GigaChat-Max', temperature: 0.1, max_tokens: 500 },
+    },
   };
   const created = await createAiConfig(payload);
   return activateAiConfig(created.id);
@@ -245,12 +249,6 @@ export async function getLlmProviders() {
   // Provider states are now driven by the active AI config via /monitoring/status.
   const status = await apiRequest('/api/v1/admin/monitoring/status');
   return status.llm_providers || [];
-}
-
-export async function updateLlmProvider(key, data) {
-  // Provider settings are saved together with AI Config; this helper is kept
-  // for interface compatibility and simply echoes back the merged provider data.
-  return { key, ...data };
 }
 
 export async function testLlmProvider(key) {

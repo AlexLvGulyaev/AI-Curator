@@ -7,14 +7,29 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict
 
 from db import get_db
-from models.ai_config import AiConfig
+from models.ai_config import AiConfig, DEFAULT_PROVIDER_SETTINGS
 from services.ai_config import AiConfigService
 from services.cache import response_cache
 from services.logger import LoggerService
 
 router = APIRouter(prefix="/ai-config", tags=["admin-ai-config"])
+
+
+def _merge_provider_settings(raw: Any) -> Dict[str, Dict[str, Any]]:
+    """Merge incoming provider settings with defaults, keeping only known keys."""
+    merged = {k: dict(v) for k, v in DEFAULT_PROVIDER_SETTINGS.items()}
+    if not raw or not isinstance(raw, dict):
+        return merged
+    for key, settings in raw.items():
+        if key not in merged or not isinstance(settings, dict):
+            continue
+        for field in ("model", "temperature", "max_tokens"):
+            if field in settings:
+                merged[key][field] = settings[field]
+    return merged
 
 
 def get_service(db: AsyncSession = Depends(get_db)) -> AiConfigService:
@@ -58,6 +73,7 @@ class AiConfigIn(BaseModel):
     fallback_provider: Optional[str] = Field("gigachat", pattern="^(openai|gigachat)$")
     openai_enabled: Optional[bool] = True
     gigachat_enabled: Optional[bool] = True
+    provider_settings: Optional[Dict[str, Dict[str, Any]]] = None
 
     @field_validator("system_prompt")
     @classmethod
@@ -65,6 +81,11 @@ class AiConfigIn(BaseModel):
         if not value or not value.strip():
             raise ValueError("system_prompt cannot be empty")
         return value
+
+    @field_validator("provider_settings")
+    @classmethod
+    def _provider_settings_shape(cls, value: Any) -> Dict[str, Dict[str, Any]]:
+        return _merge_provider_settings(value)
 
 
 class AiConfigOut(BaseModel):
@@ -88,6 +109,7 @@ class AiConfigOut(BaseModel):
     fallback_provider: str
     openai_enabled: bool
     gigachat_enabled: bool
+    provider_settings: Dict[str, Dict[str, Any]]
     is_active: bool
     created_by: Optional[str]
     created_at: datetime
@@ -130,6 +152,7 @@ async def create_config(
         fallback_provider=payload.fallback_provider,
         openai_enabled=payload.openai_enabled,
         gigachat_enabled=payload.gigachat_enabled,
+        provider_settings=payload.provider_settings,
         created_by="admin",
     )
     await _log_audit("create", config.id, service.db)

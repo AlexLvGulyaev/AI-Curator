@@ -8,7 +8,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from config import settings
-from models.ai_config import AiConfig
+from models.ai_config import AiConfig, DEFAULT_PROVIDER_SETTINGS
 
 
 @dataclass
@@ -68,11 +68,32 @@ class LLMAdapter:
             candidate = "gigachat" if active == "openai" else "openai"
         return candidate if self._is_provider_enabled(candidate) else None
 
+    def _provider_settings(self, provider: str) -> dict:
+        """Return per-provider settings merged with defaults."""
+        defaults = DEFAULT_PROVIDER_SETTINGS.get(provider, {})
+        if not self.config:
+            return dict(defaults)
+        configured = (self.config.provider_settings or {}).get(provider, {})
+        merged = {**defaults, **configured}
+        # Clamp temperature and max_tokens to sane ranges if present.
+        if "temperature" in merged:
+            try:
+                merged["temperature"] = max(0.0, min(2.0, float(merged["temperature"])))
+            except (TypeError, ValueError):
+                merged["temperature"] = defaults.get("temperature", 0.3)
+        if "max_tokens" in merged:
+            try:
+                merged["max_tokens"] = max(1, min(4096, int(merged["max_tokens"])))
+            except (TypeError, ValueError):
+                merged["max_tokens"] = defaults.get("max_tokens", 1024)
+        return merged
+
     def _get_openai_client(self, max_tokens: Optional[int] = None) -> ChatOpenAI:
-        """Lazy-build ChatOpenAI from active config or fall back to settings."""
-        model = self.config.model if self.config else settings.openai_model
-        temperature = self.config.temperature if self.config else 0.3
-        config_max_tokens = self.config.max_tokens if self.config else settings.openai_model_max_tokens
+        """Lazy-build ChatOpenAI from per-provider settings or fall back to settings."""
+        provider_settings = self._provider_settings("openai")
+        model = provider_settings.get("model") or settings.openai_model
+        temperature = provider_settings.get("temperature") if self.config else 0.3
+        config_max_tokens = provider_settings.get("max_tokens") if self.config else settings.openai_model_max_tokens
         effective_max_tokens = (
             min(max_tokens, config_max_tokens)
             if max_tokens is not None
@@ -88,11 +109,15 @@ class LLMAdapter:
             self._openai_client_max_tokens = effective_max_tokens
         return self._openai_client
 
-    def _get_gigachat_adapter(self):
-        """Lazy-build GigaChat adapter."""
+    def _get_gigachat_adapter(self, max_tokens: Optional[int] = None):
+        """Lazy-build GigaChat adapter with per-provider settings."""
         if self._gigachat_adapter is None:
             from services.gigachat_adapter import GigaChatAdapter
-            self._gigachat_adapter = GigaChatAdapter()
+            provider_settings = self._provider_settings("gigachat")
+            self._gigachat_adapter = GigaChatAdapter(
+                model=provider_settings.get("model"),
+                max_tokens=provider_settings.get("max_tokens"),
+            )
         return self._gigachat_adapter
 
     async def _generate_openai(self, prompt: str, max_tokens: Optional[int] = None) -> LlmResponse:
@@ -123,9 +148,12 @@ class LLMAdapter:
         )
 
     async def _generate_gigachat(self, prompt: str, max_tokens: Optional[int] = None) -> LlmResponse:
-        """Generate with GigaChat."""
+        """Generate with GigaChat using per-provider effective max_tokens."""
         adapter = self._get_gigachat_adapter()
-        return await adapter.generate(prompt, max_tokens=max_tokens)
+        effective_max_tokens = max_tokens
+        if effective_max_tokens is None and self.config:
+            effective_max_tokens = self._provider_settings("gigachat").get("max_tokens")
+        return await adapter.generate(prompt, max_tokens=effective_max_tokens)
 
     async def generate(
         self,
@@ -147,9 +175,11 @@ class LLMAdapter:
                 last_error = f"{provider}: {type(exc).__name__}: {exc}"
                 continue
 
+        active_settings = self._provider_settings(active) if self.config else {}
+        model = active_settings.get("model") if self.config else settings.openai_model
         return LlmResponse(
             content="",
-            model=self.config.model if self.config else settings.openai_model,
+            model=model or (self.config.model if self.config else settings.openai_model),
             latency_ms=None,
             error=last_error or "No LLM provider is configured or enabled",
         )

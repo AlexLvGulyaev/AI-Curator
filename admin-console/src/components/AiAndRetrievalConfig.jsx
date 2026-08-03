@@ -5,7 +5,6 @@ import {
   getRetrievalTuning,
   updateRetrievalTuning,
   getLlmProviders,
-  updateLlmProvider,
   testLlmProvider,
 } from '../api/backend';
 
@@ -129,12 +128,17 @@ function AiAndRetrievalConfig() {
       setConfig(cfg);
       setTuning(tun);
       setProviders(provs);
-      setProviderForms(
-        provs.reduce((acc, p) => {
-          acc[p.key] = { ...p };
-          return acc;
-        }, {}),
-      );
+      const mergedProviders = provs.reduce((acc, p) => {
+        const settings = cfg.provider_settings?.[p.key] || {};
+        acc[p.key] = {
+          ...p,
+          model: settings.model ?? p.model,
+          temperature: settings.temperature ?? p.temperature,
+          max_tokens: settings.max_tokens ?? p.max_tokens,
+        };
+        return acc;
+      }, {});
+      setProviderForms(mergedProviders);
       setTuningForms({ ...tun });
     } catch (err) {
       setError(err.message);
@@ -237,6 +241,18 @@ function AiAndRetrievalConfig() {
           fallback_provider: config.fallback_provider,
           openai_enabled: config.openai_enabled,
           gigachat_enabled: config.gigachat_enabled,
+          provider_settings: {
+            openai: {
+              model: providerForms.openai?.model,
+              temperature: Number(providerForms.openai?.temperature),
+              max_tokens: Number(providerForms.openai?.max_tokens),
+            },
+            gigachat: {
+              model: providerForms.gigachat?.model,
+              temperature: Number(providerForms.gigachat?.temperature),
+              max_tokens: Number(providerForms.gigachat?.max_tokens),
+            },
+          },
         }),
         updateRetrievalTuning({
           top_k: tuningForms.top_k,
@@ -257,29 +273,19 @@ function AiAndRetrievalConfig() {
       // Refresh provider states from backend after config change.
       const provs = await getLlmProviders();
       setProviders(provs);
-      setProviderForms(
-        provs.reduce((acc, p) => {
-          acc[p.key] = { ...p };
-          return acc;
-        }, {}),
-      );
+      const mergedProviders = provs.reduce((acc, p) => {
+        const settings = updatedConfig.provider_settings?.[p.key] || {};
+        acc[p.key] = {
+          ...p,
+          model: settings.model ?? p.model,
+          temperature: settings.temperature ?? p.temperature,
+          max_tokens: settings.max_tokens ?? p.max_tokens,
+        };
+        return acc;
+      }, {});
+      setProviderForms(mergedProviders);
       setMessage('Настройки сохранены');
       setTimeout(() => setMessage(null), 3000);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function saveProviderCard(key) {
-    setSaving(true);
-    setError(null);
-    setMessage(null);
-    try {
-      const updated = await updateLlmProvider(key, providerForms[key]);
-      setProviderForms((prev) => ({ ...prev, [key]: updated }));
-      setMessage(`Провайдер ${key} обновлён`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -497,14 +503,6 @@ function AiAndRetrievalConfig() {
                   </InputRow>
 
                   <div className="ai-actions-center">
-                    <button
-                      type="button"
-                      className="ai-btn ai-btn--small"
-                      onClick={() => saveProviderCard(p.key)}
-                      disabled={!isImplemented || saving}
-                    >
-                      {saving ? 'Сохранение…' : 'Сохранить'}
-                    </button>
                     <button
                       type="button"
                       className="ai-btn ai-btn--secondary ai-btn--small"

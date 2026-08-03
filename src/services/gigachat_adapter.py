@@ -37,8 +37,12 @@ class GigaChatAdapter:
         model: Optional[str] = None,
         base_url: Optional[str] = None,
         auth_key: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
     ):
         self.model = model or settings.gigachat_model or "GigaChat-Max"
+        self.temperature = temperature if temperature is not None else getattr(settings, "gigachat_temperature", 0.1)
+        self.default_max_tokens = max_tokens if max_tokens is not None else getattr(settings, "gigachat_max_tokens", 1024)
         self.base_url = (base_url or settings.gigachat_base_url or "https://gigachat.devices.sberbank.ru/api/v1").rstrip("/")
         token_url = getattr(settings, "gigachat_token_url", None)
         self.token_url = token_url or "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
@@ -93,11 +97,12 @@ class GigaChatAdapter:
         try:
             access_token = self._get_access_token()
             url = f"{self.base_url}/chat/completions"
-            effective_max_tokens = max_tokens or 1024
+            effective_max_tokens = max_tokens if max_tokens is not None else self.default_max_tokens
             payload = {
                 "model": self.model,
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": effective_max_tokens,
+                "temperature": self.temperature,
             }
             headers = {
                 "Authorization": f"Bearer {access_token}",

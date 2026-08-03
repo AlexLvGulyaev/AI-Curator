@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.ai_config import AiConfig
+from models.ai_config import AiConfig, DEFAULT_PROVIDER_SETTINGS
 
 DEFAULT_SYSTEM_PROMPT = """Ты — AI Curator, цифровой наставник студентов.
 
@@ -135,6 +135,18 @@ class AiConfigService:
             if not config.fallback_provider:
                 config.fallback_provider = DEFAULT_FALLBACK_PROVIDER
                 updated = True
+            if not config.provider_settings:
+                config.provider_settings = dict(DEFAULT_PROVIDER_SETTINGS)
+                updated = True
+            else:
+                # Ensure each provider has all required keys with defaults.
+                merged = dict(DEFAULT_PROVIDER_SETTINGS)
+                for key, settings in (config.provider_settings or {}).items():
+                    if key in merged and isinstance(settings, dict):
+                        merged[key].update(settings)
+                if merged != config.provider_settings:
+                    config.provider_settings = merged
+                    updated = True
             if updated:
                 await self.db.commit()
                 await self.db.refresh(config)
@@ -168,15 +180,22 @@ class AiConfigService:
         fallback_provider: Optional[str] = None,
         openai_enabled: Optional[bool] = None,
         gigachat_enabled: Optional[bool] = None,
+        provider_settings: Optional[dict] = None,
         created_by: Optional[str] = None,
     ) -> AiConfig:
         """Create a new configuration version as inactive."""
+        merged_settings = dict(DEFAULT_PROVIDER_SETTINGS)
+        if provider_settings:
+            for key, settings in provider_settings.items():
+                if key in merged_settings and isinstance(settings, dict):
+                    merged_settings[key].update(settings)
         config = AiConfig(
             name=name,
             system_prompt=system_prompt,
             model=model,
             temperature=temperature,
             max_tokens=max_tokens,
+            provider_settings=merged_settings,
             beginner_instructions=beginner_instructions or DEFAULT_BEGINNER_INSTRUCTIONS,
             advanced_instructions=advanced_instructions or DEFAULT_ADVANCED_INSTRUCTIONS,
             few_shot_examples=few_shot_examples or DEFAULT_FEW_SHOT_EXAMPLES,
