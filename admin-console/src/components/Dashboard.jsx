@@ -14,6 +14,22 @@ const STATUS_MAP = {
   unknown: { variant: 'muted', label: 'Н/Д' },
 };
 
+const INTENT_ORDER = ['deadline', 'progress', 'mixed', 'study', 'organizational', 'unknown'];
+
+const INTENT_LABELS = {
+  deadline: 'Дедлайн',
+  progress: 'Прогресс',
+  mixed: 'Смешанный',
+  study: 'Учёба',
+  organizational: 'Организационный',
+  unknown: 'Не определён',
+};
+
+function normalizeIntentBreakdown(breakdown) {
+  const map = new Map((breakdown || []).map((item) => [item.intent || 'unknown', item.count || 0]));
+  return INTENT_ORDER.map((intent) => ({ intent, count: map.get(intent) || 0 }));
+}
+
 function StatusBadge({ status }) {
   const safeStatus = (status || 'unknown').toLowerCase();
   const mapped = STATUS_MAP[safeStatus] || STATUS_MAP.unknown;
@@ -93,6 +109,10 @@ function Dashboard() {
   const components = status?.components || {};
   const ai = status?.ai_activity || {};
   const kb = status?.kb_status || {};
+  const providers = status?.llm_providers || [];
+  const openai = providers.find((p) => p.key === 'openai');
+  const gigachat = providers.find((p) => p.key === 'gigachat');
+  const normalizedIntents = normalizeIntentBreakdown(ai.intent_breakdown);
 
   return (
     <div className="flex flex-col gap-3">
@@ -113,7 +133,7 @@ function Dashboard() {
 
       {/* System status */}
       <Section title="Состояние системы" subtitle="Runtime health, зависимости и оперативный статус.">
-        <div className="ai-grid ai-grid--5">
+        <div className="ai-grid ai-grid--6">
           <Metric
             label="API"
             value={<StatusBadge status={components.api?.status} />}
@@ -135,28 +155,29 @@ function Dashboard() {
             note={components.chroma?.latency_ms !== undefined ? `${components.chroma.latency_ms} мс` : undefined}
           />
           <Metric
-            label="LLM"
-            value={<StatusBadge status={components.llm?.status} />}
-            note={components.llm?.detail}
+            label="OpenAI"
+            value={<StatusBadge status={openai?.status} />}
+            note={openai?.is_active ? 'Активный провайдер' : openai?.is_fallback ? 'Резервный провайдер' : 'Доступен'}
+          />
+          <Metric
+            label="GigaChat"
+            value={<StatusBadge status={gigachat?.status} />}
+            note={gigachat?.is_active ? 'Активный провайдер' : gigachat?.is_fallback ? 'Резервный провайдер' : 'Доступен'}
           />
         </div>
       </Section>
 
       {/* Intent breakdown */}
       <Section title="Распределение по интентам" subtitle="Интенты запросов за последние 24 часа.">
-        {ai.intent_breakdown?.length > 0 ? (
-          <div className="ai-grid ai-grid--5">
-            {ai.intent_breakdown.slice(0, 5).map((item) => (
-              <Metric
-                key={item.intent}
-                label={item.intent || 'unknown'}
-                value={item.count?.toLocaleString('ru-RU') ?? 0}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="ai-empty">Нет данных за последние 24 часа.</div>
-        )}
+        <div className="ai-grid ai-grid--6">
+          {normalizedIntents.map((item) => (
+            <Metric
+              key={item.intent}
+              label={INTENT_LABELS[item.intent] || item.intent}
+              value={item.count?.toLocaleString('ru-RU') ?? 0}
+            />
+          ))}
+        </div>
       </Section>
 
       {/* Bottom grid: left column (AI activity + KB), right column (errors) */}
@@ -172,7 +193,7 @@ function Dashboard() {
             </div>
           </Section>
 
-          <Section title="Knowledge Base" subtitle="Состояние базы знаний.">
+          <Section title="База знаний" subtitle="Состояние базы знаний.">
             <div className="ai-grid ai-grid--2">
               <Metric label="Документов" value={kb.total_documents ?? 0} />
               <Metric label="Опубликовано" value={kb.published_documents ?? 0} />
@@ -193,11 +214,11 @@ function Dashboard() {
                   <tr>
                     <th>Время</th>
                     <th>Источник</th>
-                    <th>Status</th>
-                    <th>Intent</th>
-                    <th>Stage</th>
+                    <th>Статус</th>
+                    <th>Интент</th>
+                    <th>Этап</th>
                     <th>Сообщение</th>
-                    <th>Session</th>
+                    <th>Сессия</th>
                   </tr>
                 </thead>
                 <tbody>

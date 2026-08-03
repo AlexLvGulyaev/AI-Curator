@@ -361,6 +361,10 @@
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
+  .ai-grid--6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
   .ai-metric {
     padding: 12px;
     background-color: rgba(255, 255, 255, 0.02);
@@ -1607,7 +1611,8 @@
 
 @media (max-width: 1280px) {
   .ai-grid--4,
-  .ai-grid--5 {
+  .ai-grid--5,
+  .ai-grid--6 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
@@ -1620,7 +1625,8 @@
   .ai-grid--2,
   .ai-grid--3,
   .ai-grid--4,
-  .ai-grid--5 {
+  .ai-grid--5,
+  .ai-grid--6 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1641,7 +1647,8 @@
   .ai-grid--2,
   .ai-grid--3,
   .ai-grid--4,
-  .ai-grid--5 {
+  .ai-grid--5,
+  .ai-grid--6 {
     grid-template-columns: 1fr;
   }
 
@@ -1659,7 +1666,8 @@
   .ai-grid--2,
   .ai-grid--3,
   .ai-grid--4,
-  .ai-grid--5 {
+  .ai-grid--5,
+  .ai-grid--6 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1668,7 +1676,8 @@
   .ai-grid--2,
   .ai-grid--3,
   .ai-grid--4,
-  .ai-grid--5 {
+  .ai-grid--5,
+  .ai-grid--6 {
     grid-template-columns: 1fr;
   }
 

@@ -4,8 +4,8 @@ const MENU_GROUPS = [
     label: 'Системные настройки',
     items: [
       { id: 'dashboard', label: 'Панель состояния', icon: '📊' },
-      { id: 'ai-config', label: 'AI & Retrieval', icon: '⚙️' },
-      { id: 'orchestrator', label: 'Orchestrator', icon: '🧭' },
+      { id: 'ai-config', label: 'AI и Retrieval', icon: '⚙️' },
+      { id: 'orchestrator', label: 'Оркестратор', icon: '🧭' },
     ],
   },
   {

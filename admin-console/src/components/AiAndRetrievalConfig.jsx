@@ -38,7 +38,13 @@ function StatusBadge({ variant, label }) {
     'not-ready': 'ai-status--muted',
     disabled: 'ai-status--muted',
   };
-  return <span className={`ai-status ${map[variant] || 'ai-status--muted'}`}>{label}</span>;
+  const labelMap = {
+    ACTIVE: 'АКТИВНЫЙ',
+    FALLBACK: 'РЕЗЕРВ',
+    READY: 'ГОТОВ',
+    'NOT READY': 'НЕ ГОТОВ',
+  };
+  return <span className={`ai-status ${map[variant] || 'ai-status--muted'}`}>{labelMap[label] || label}</span>;
 }
 
 function InputRow({ label, children, inline = false, error }) {
@@ -354,7 +360,7 @@ function AiAndRetrievalConfig() {
     <div className="ai-config-page">
       <div className="ai-page__header">
         <div>
-          <h1 className="ai-page__title">AI & Retrieval</h1>
+          <h1 className="ai-page__title">AI и Retrieval</h1>
           <p className="ai-page__subtitle">Настройки LLM-провайдеров, поведения модели и параметров поиска.</p>
         </div>
         <div className="ai-page__actions">
@@ -518,7 +524,7 @@ function AiAndRetrievalConfig() {
           )}
         </Section>
 
-        <Section title="Retrieval Settings" subtitle="Параметры поиска, чанкования и кэширования.">
+        <Section title="Параметры поиска" subtitle="Параметры поиска, чанкования и кэширования.">
           <div className="ai-retrieval-fields">
             <InputRow label="Top-K" error={tuningErrors.top_k}>
               <input

@@ -193,7 +193,7 @@ function IntentRuleEditor({ intent, rule, source, onChange }) {
             className="ai-btn ai-btn--secondary ai-btn--tiny"
             onClick={() => setShowAdvanced((s) => !s)}
           >
-            {showAdvanced ? '▾ Advanced' : '▸ Advanced'}
+            {showAdvanced ? '▾ Дополнительно' : '▸ Дополнительно'}
           </button>
         </Tooltip>
       </div>
@@ -373,7 +373,7 @@ function OrchestratorConfig() {
     <div className="ai-config-page">
       <div className="ai-page__header">
         <div>
-          <h1 className="ai-page__title">Orchestrator</h1>
+          <h1 className="ai-page__title">Оркестратор</h1>
           <p className="ai-page__subtitle">Классификация запросов, источники данных, лимиты и fallback.</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -407,7 +407,7 @@ function OrchestratorConfig() {
             className="ai-section__title"
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}
           >
-            <span>Intent Classification</span>
+            <span>Классификация интентов</span>
             <div className="ai-field-row ai-field-row--inline" style={{ gap: '4px' }}>
               <Tooltip text={TOOLTIPS.default_intent}>
                 <label className="ai-field-label" style={{ margin: 0 }}>
@@ -453,7 +453,7 @@ function OrchestratorConfig() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0 }}>
           <div className="ai-config-top" style={{ gridTemplateColumns: '1fr 1fr', flex: '0 0 auto', gap: '8px' }}>
             <div className="ai-card ai-section" style={{ minHeight: '160px', padding: '10px 12px' }}>
-              <h2 className="ai-section__title" style={{ marginBottom: '8px' }}>Source Routing</h2>
+              <h2 className="ai-section__title" style={{ marginBottom: '8px' }}>Маршрутизация источников</h2>
               <table className="ai-table" style={{ fontSize: '0.875rem' }}>
                 <thead>
                   <tr>
@@ -516,7 +516,7 @@ function OrchestratorConfig() {
             </div>
 
             <div className="ai-card ai-section" style={{ minHeight: '160px', padding: '10px 12px' }}>
-              <h2 className="ai-section__title" style={{ marginBottom: '8px' }}>Limits &amp; Token Budgets</h2>
+              <h2 className="ai-section__title" style={{ marginBottom: '8px' }}>Лимиты и токен-бюджеты</h2>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px' }}>
                 <NumberField
                   label="Max contents"
@@ -561,7 +561,7 @@ function OrchestratorConfig() {
           </div>
 
           <div className="ai-card ai-section" style={{ flex: '1 1 auto', minHeight: 0, padding: '10px 12px' }}>
-            <h2 className="ai-section__title" style={{ marginBottom: '8px' }}>Fallbacks &amp; Course Starters</h2>
+            <h2 className="ai-section__title" style={{ marginBottom: '8px' }}>Fallback-ответы и фильтры курсов</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minHeight: 0 }}>
               <Tooltip text={TOOLTIPS.fallback_no_lms_data}>
                 <label className="ai-field-label" style={{ margin: 0 }}>No LMS data</label>
