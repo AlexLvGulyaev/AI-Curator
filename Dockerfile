@@ -25,6 +25,11 @@ COPY tests/ ./tests/
 # Ensure storage directories exist
 RUN mkdir -p /app/storage/documents /app/storage/cache
 
+# Copy entrypoint script and make it executable
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 EXPOSE 8000
 
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
