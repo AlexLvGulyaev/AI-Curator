@@ -799,8 +799,33 @@
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
-| `GET` | `/api/v1/admin/monitoring/status` | Состояние компонентов с задержками |
+| `GET` | `/api/v1/admin/monitoring/status` | Состояние компонентов с задержками, AI-активностью, KB-статусом и последними ошибками |
 | `GET` | `/api/v1/admin/monitoring/health` | Агрегированный health check |
+| `GET` | `/api/v1/admin/monitoring/errors` | Последние ошибки и предупреждения обработки запросов |
+
+**Параметры `GET /api/v1/admin/monitoring/errors`:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `limit` | int | Лимит, по умолчанию 10, max 100 |
+
+**Каноническая модель `RecentError`:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `source` | string | Источник: `chat_log`, `execution_session`, `execution_step` |
+| `session_id` | string \| null | Business session ID |
+| `intent` | string \| null | Intent запроса |
+| `stage_name` | string \| null | Стадия pipeline (для `execution_step`) |
+| `status` | string | `error` / `warning` |
+| `error` | string | Текст ошибки или предупреждения |
+| `execution_session_id` | int \| null | ID execution-сессии (для `execution_session` / `execution_step`) |
+| `created_at` | string | ISO timestamp |
+
+Ошибки собираются из трёх источников:
+1. `chat_logs.error` — ошибки LLM и exception в `process()`.
+2. `execution_sessions.status IN ('error', 'warning')` — статус всего pipeline.
+3. `execution_steps.status IN ('error', 'warning')` — ошибки отдельных стадий (`lms_fetch`, `rag_search` и др.), включая частичные сбои, которые были замаскированы fallback-ответом.
 
 ### 4.4. Operational Logs
 

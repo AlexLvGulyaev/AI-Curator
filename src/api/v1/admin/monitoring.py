@@ -11,7 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from adapters.lms_adapter import lms_adapter
 from config import settings
 from db import get_db
-from models.chat import ChatLog, ChatRequest, LlmCall
+from models.chat import (
+    ChatLog,
+    ChatRequest,
+    ChatSession,
+    ExecutionSession,
+    ExecutionStep,
+    LlmCall,
+)
 from services.chroma_client import get_chroma_client
 from services.knowledge_base import KnowledgeBaseService
 
@@ -88,23 +95,124 @@ async def _ai_activity(db: AsyncSession):
 
 
 async def _recent_errors(db: AsyncSession, limit: int = 10):
-    """Return recent non-empty error entries."""
-    result = await db.execute(
-        select(ChatLog.error, ChatRequest.intent, ChatRequest.created_at)
+    """Return recent error/warning entries from chat logs and execution trace.
+
+    Unlike the older implementation that only looked at ``chat_logs.error``,
+    this version also surfaces partial pipeline failures captured in
+    ``execution_sessions`` and ``execution_steps`` (e.g. LMS fetch error or
+    RAG search error that was masked by a fallback answer).
+    """
+    chat_log_rows = await db.execute(
+        select(
+            ChatRequest.session_id,
+            ChatRequest.intent,
+            ChatLog.error,
+            ChatLog.created_at,
+        )
         .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
         .where(ChatLog.error != None)
         .where(ChatLog.error != "")
-        .order_by(ChatRequest.created_at.desc())
+        .order_by(ChatLog.created_at.desc())
         .limit(limit)
     )
-    errors = []
-    for error, intent, created_at in result.all():
+
+    session_rows = await db.execute(
+        select(
+            ChatSession.session_id,
+            ChatRequest.intent,
+            ExecutionSession.status,
+            ExecutionSession.execution_metadata,
+            ExecutionSession.finished_at,
+            ExecutionSession.id,
+        )
+        .join(ChatSession, ExecutionSession.chat_session_id == ChatSession.id)
+        .outerjoin(ChatRequest, ExecutionSession.request_id == ChatRequest.id)
+        .where(ExecutionSession.status.in_(["error", "warning"]))
+        .order_by(ExecutionSession.finished_at.desc().nullslast())
+        .limit(limit)
+    )
+
+    step_rows = await db.execute(
+        select(
+            ChatSession.session_id,
+            ChatRequest.intent,
+            ExecutionSession.id.label("execution_session_id"),
+            ExecutionStep.stage_name,
+            ExecutionStep.status,
+            ExecutionStep.step_metadata,
+            ExecutionStep.finished_at,
+            ExecutionStep.started_at,
+        )
+        .join(ExecutionSession, ExecutionStep.execution_session_id == ExecutionSession.id)
+        .join(ChatSession, ExecutionSession.chat_session_id == ChatSession.id)
+        .outerjoin(ChatRequest, ExecutionSession.request_id == ChatRequest.id)
+        .where(ExecutionStep.status.in_(["error", "warning"]))
+        .order_by(ExecutionStep.finished_at.desc().nullslast())
+        .limit(limit)
+    )
+
+    errors: list[dict] = []
+
+    for session_id, intent, error, created_at in chat_log_rows.all():
         errors.append({
-            "error": error[:200],
+            "source": "chat_log",
+            "session_id": session_id,
             "intent": intent or "unknown",
+            "stage_name": None,
+            "status": "error",
+            "error": (error or "")[:500],
             "created_at": created_at.isoformat() if created_at else None,
         })
-    return errors
+
+    for session_id, intent, status, metadata, finished_at, exec_id in session_rows.all():
+        meta = metadata or {}
+        message = meta.get("error") or f"Execution session status: {status}"
+        errors.append({
+            "source": "execution_session",
+            "session_id": session_id,
+            "intent": intent or "unknown",
+            "stage_name": None,
+            "status": status,
+            "error": message[:500],
+            "execution_session_id": exec_id,
+            "created_at": finished_at.isoformat() if finished_at else None,
+        })
+
+    for session_id, intent, exec_id, stage_name, status, metadata, finished_at, started_at in step_rows.all():
+        meta = metadata or {}
+        # Pull a human-readable error from step_metadata if available.
+        step_errors = meta.get("errors", [])
+        if step_errors:
+            message = "; ".join(str(e.get("error", e)) for e in step_errors[:3])
+        elif meta.get("error"):
+            message = str(meta["error"])
+        else:
+            message = f"Step {stage_name} status: {status}"
+        ts = finished_at or started_at
+        errors.append({
+            "source": "execution_step",
+            "session_id": session_id,
+            "intent": intent or "unknown",
+            "stage_name": stage_name,
+            "status": status,
+            "error": message[:500],
+            "execution_session_id": exec_id,
+            "created_at": ts.isoformat() if ts else None,
+        })
+
+    # Deduplicate by session_id + stage_name + truncated error, keep newest first.
+    seen: set = set()
+    deduped: list[dict] = []
+    for entry in sorted(errors, key=lambda x: x["created_at"] or "", reverse=True):
+        key = (entry.get("session_id"), entry.get("stage_name"), entry["error"][:120])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(entry)
+        if len(deduped) >= limit:
+            break
+
+    return deduped
 
 
 async def _kb_status(db: AsyncSession):

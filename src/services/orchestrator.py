@@ -834,6 +834,7 @@ class Orchestrator:
         """Core pipeline: classify intent, fetch data, generate and validate answer."""
         t_core_start = time.perf_counter()
         t_core_start_utc = self._utc_now()
+        execution_session_status = "ok"
 
         # Load operational configuration early. Intent classification and the cache
         # decision are cheap and do not require LMS or LLM calls.
@@ -875,7 +876,7 @@ class Orchestrator:
                 {"stage_name": "intent_classify", "step_order": 1, "duration_ms": 0, "step_metadata": {"intent": "refusal", "refusal_topic": refusal_topic}},
                 {"stage_name": "response_save", "step_order": 2, "duration_ms": 0},
             ])
-            await self._finish_execution(exec_session.id, request, execution_steps, "ok", 0)
+            await self._finish_execution(exec_session.id, request, execution_steps, execution_session_status, 0)
             return {
                 "answer": refusal,
                 "sources": [],
@@ -986,7 +987,7 @@ class Orchestrator:
                 exec_session.id,
                 request,
                 execution_steps,
-                "ok",
+                execution_session_status,
                 t_core_total_ms,
                 execution_metadata={"cache_hit": True, "route": "cache", "timings_ms": timings},
             )
@@ -1035,7 +1036,7 @@ class Orchestrator:
                 {"stage_name": "intent_classify", "step_order": 1, "duration_ms": 0, "step_metadata": {"intent": "out_of_scope"}},
                 {"stage_name": "response_save", "step_order": 2, "duration_ms": 0},
             ])
-            await self._finish_execution(exec_session.id, request, execution_steps, "ok", 0)
+            await self._finish_execution(exec_session.id, request, execution_steps, execution_session_status, 0)
             return self._save_cache_result(
                 message,
                 {
@@ -1106,6 +1107,7 @@ class Orchestrator:
                     result["contents"] = self._format_course_contents(value)
             return {
                 "data": result,
+                "has_errors": bool(result["errors"]),
                 "calls": [
                     {"type": "deadlines", "course_id": course_id, "latency_ms": t_total},
                     {"type": "progress", "course_id": course_id, "user_id": student_user_id, "latency_ms": t_total},
@@ -1128,41 +1130,53 @@ class Orchestrator:
             Course-matching chunks are boosted at ranking stage.
             """
             t_rag = time.perf_counter()
-            rag = RagPipeline()
-            results, search_timings = await rag.search(
-                query=query,
-                k=k,
-                course_id=course_id,
-                strict_course=strict_course,
-                course_boost_enabled=retrieval_tuning.course_boost_enabled,
-                course_boost_factor=retrieval_tuning.course_boost_factor,
-            )
-            t_post_start = time.perf_counter()
-            seen_hashes = set()
-            output: List[Dict[str, Any]] = []
-            for r in results:
-                if r.distance is not None and r.distance > threshold:
-                    continue
-                content_hash = hash((r.content.strip(), r.metadata.get("document_id"), r.metadata.get("chunk_index")))
-                if content_hash in seen_hashes:
-                    continue
-                seen_hashes.add(content_hash)
-                output.append({
-                    "content": r.content,
-                    "metadata": r.metadata,
-                    "distance": r.distance,
-                })
-            t_post = round((time.perf_counter() - t_post_start) * 1000, 2)
-            t_total = round((time.perf_counter() - t_rag) * 1000, 2)
-            return {
-                "chunks": output,
-                "timings": {
-                    "rag_embedding_ms": search_timings["embedding_ms"],
-                    "rag_chroma_ms": search_timings["chroma_ms"],
-                    "rag_postprocess_ms": t_post,
-                    "rag_search_ms": t_total,
-                },
-            }
+            try:
+                rag = RagPipeline()
+                results, search_timings = await rag.search(
+                    query=query,
+                    k=k,
+                    course_id=course_id,
+                    strict_course=strict_course,
+                    course_boost_enabled=retrieval_tuning.course_boost_enabled,
+                    course_boost_factor=retrieval_tuning.course_boost_factor,
+                )
+                t_post_start = time.perf_counter()
+                seen_hashes = set()
+                output: List[Dict[str, Any]] = []
+                for r in results:
+                    if r.distance is not None and r.distance > threshold:
+                        continue
+                    content_hash = hash((r.content.strip(), r.metadata.get("document_id"), r.metadata.get("chunk_index")))
+                    if content_hash in seen_hashes:
+                        continue
+                    seen_hashes.add(content_hash)
+                    output.append({
+                        "content": r.content,
+                        "metadata": r.metadata,
+                        "distance": r.distance,
+                    })
+                t_post = round((time.perf_counter() - t_post_start) * 1000, 2)
+                t_total = round((time.perf_counter() - t_rag) * 1000, 2)
+                return {
+                    "chunks": output,
+                    "timings": {
+                        "rag_embedding_ms": search_timings["embedding_ms"],
+                        "rag_chroma_ms": search_timings["chroma_ms"],
+                        "rag_postprocess_ms": t_post,
+                        "rag_search_ms": t_total,
+                    },
+                }
+            except Exception as exc:
+                return {
+                    "chunks": [],
+                    "error": str(exc),
+                    "timings": {
+                        "rag_embedding_ms": 0,
+                        "rag_chroma_ms": 0,
+                        "rag_postprocess_ms": 0,
+                        "rag_search_ms": round((time.perf_counter() - t_rag) * 1000, 2),
+                    },
+                }
 
         # Pick retrieval size: smaller for chat to reduce prompt size and latency.
         rag_k = 3 if intent in ("study", "mixed") else retrieval_tuning.top_k
@@ -1182,6 +1196,7 @@ class Orchestrator:
             ))
         if fetch_tasks:
             gathered = await asyncio.gather(*fetch_tasks, return_exceptions=True)
+            rag_search_error = None
             for item in gathered:
                 if isinstance(item, Exception):
                     lms_calls.append({"type": "fetch_error", "error": str(item)})
@@ -1194,6 +1209,19 @@ class Orchestrator:
                 if "chunks" in item:
                     rag_context = item["chunks"]
                     timings.update(item["timings"])
+                    if item.get("error"):
+                        rag_search_error = item["error"]
+
+            lms_fetch_errors = [c for c in lms_calls if "error" in c]
+            lms_fetch_status = "error" if any(
+                c.get("type") == "fetch_error" for c in lms_fetch_errors
+            ) else ("warning" if lms_fetch_errors else "ok")
+            rag_search_status = "error" if rag_search_error else "ok"
+
+            if lms_fetch_status == "error" or rag_search_status == "error":
+                execution_session_status = "error"
+            elif lms_fetch_status == "warning" or rag_search_status == "warning":
+                execution_session_status = "warning"
 
             if need_lms:
                 lms_total_ms = round(
@@ -1207,20 +1235,23 @@ class Orchestrator:
                 execution_steps.append({
                     "stage_name": "lms_fetch",
                     "step_order": 2,
+                    "status": lms_fetch_status,
                     "duration_ms": lms_total_ms,
                     "step_metadata": {
                         "has_data": bool(lms_data),
-                        "errors": [c for c in lms_calls if "error" in c],
+                        "errors": lms_fetch_errors,
                     },
                 })
             if need_rag:
                 execution_steps.append({
                     "stage_name": "rag_search",
                     "step_order": 3 if not need_lms else 3,
+                    "status": rag_search_status,
                     "duration_ms": timings.get("rag_search_ms", 0),
                     "step_metadata": {
                         "chunks_count": len(rag_context),
                         "rag_filters": rag_filters,
+                        "error": rag_search_error,
                     },
                 })
 
@@ -1284,7 +1315,7 @@ class Orchestrator:
                     exec_session.id,
                     request,
                     execution_steps,
-                    "ok",
+                    execution_session_status,
                     total_lms_ms,
                     execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "lms"},
                 )
@@ -1358,7 +1389,7 @@ class Orchestrator:
                     exec_session.id,
                     request,
                     execution_steps,
-                    "ok",
+                    execution_session_status,
                     total_lms_ms,
                     execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "lms"},
                 )
@@ -1441,7 +1472,7 @@ class Orchestrator:
                     exec_session.id,
                     request,
                     execution_steps,
-                    "ok",
+                    execution_session_status,
                     total_lms_ms,
                     execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "lms"},
                 )
@@ -1521,7 +1552,7 @@ class Orchestrator:
                 exec_session.id,
                 request,
                 execution_steps,
-                "ok",
+                execution_session_status,
                 short_latency,
                 execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "rag" if need_rag else "text"},
             )
@@ -1771,12 +1802,13 @@ class Orchestrator:
             },
         )
 
-        final_status = "ok" if not llm_result.error else "error"
+        if llm_result.error:
+            execution_session_status = "error"
         await self._finish_execution(
             exec_session.id,
             request,
             execution_steps,
-            final_status,
+            execution_session_status,
             total_latency,
             execution_metadata={"timings_ms": timings, "route": mode},
         )

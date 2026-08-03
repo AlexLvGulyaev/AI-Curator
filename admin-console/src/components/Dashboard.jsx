@@ -183,17 +183,21 @@ function Dashboard() {
         </div>
 
         {/* Right column: recent errors */}
-        <Section title="Последние ошибки" subtitle="Недавние ошибки обработки запросов." className="flex-1 min-h-0">
+        <Section title="Последние ошибки" subtitle="Недавние ошибки и предупреждения обработки запросов." className="flex-1 min-h-0">
           {errors.length === 0 ? (
-            <div className="ai-empty">Ошибок не найдено.</div>
+            <div className="ai-empty">Ошибок и предупреждений не найдено.</div>
           ) : (
             <div className="overflow-auto flex-1 min-h-0">
               <table className="ai-table">
                 <thead>
                   <tr>
                     <th>Время</th>
+                    <th>Источник</th>
+                    <th>Status</th>
                     <th>Intent</th>
+                    <th>Stage</th>
                     <th>Сообщение</th>
+                    <th>Session</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -204,9 +208,19 @@ function Dashboard() {
                           ? new Date(entry.created_at).toLocaleString('ru-RU')
                           : '—'}
                       </td>
+                      <td>
+                        <span className={`ai-status ai-status--${entry.source === 'chat_log' ? 'error' : 'warning'}`}>
+                          {entry.source || '—'}
+                        </span>
+                      </td>
+                      <td>{entry.status || '—'}</td>
                       <td>{entry.intent || '—'}</td>
+                      <td>{entry.stage_name || '—'}</td>
                       <td className="ai-table__cell--truncate" title={entry.error}>
                         {entry.error}
+                      </td>
+                      <td className="ai-table__cell--nowrap" title={entry.session_id}>
+                        {entry.session_id ? `${entry.session_id.slice(0, 8)}…` : '—'}
                       </td>
                     </tr>
                   ))}

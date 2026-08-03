@@ -315,6 +315,29 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 
 - `GET /api/v1/admin/monitoring/status`
 - `GET /api/v1/admin/monitoring/health`
+- `GET /api/v1/admin/monitoring/errors`
+
+### 5.1. Виджет «Последние ошибки»
+
+Виджет показывает недавние ошибки и предупреждения обработки запросов. Он объединяет три источника:
+
+1. **`chat_logs.error`** — ошибки LLM и неперехваченные исключения в `Orchestrator.process()`.
+2. **`execution_sessions.status`** — статус `error` или `warning` для всего pipeline.
+3. **`execution_steps.status`** — статус `error` или `warning` для отдельных стадий (`lms_fetch`, `rag_search` и др.).
+
+Это позволяет увидеть частичные сбои, которые ранее маскировались fallback-ответами. Например, если LMS Adapter недоступен, оркестратор может вернуть стандартный fallback «В курсе пока нет опубликованных заданий…». В `chat_logs.error` записи не будет, но `execution_steps.lms_fetch` получит статус `warning` или `error`, и инцидент отобразится в виджете.
+
+Колонки таблицы:
+
+| Колонка | Описание |
+|---------|----------|
+| Время | `finished_at` execution-сессии/шага или `created_at` chat_log |
+| Источник | `chat_log` / `execution_session` / `execution_step` |
+| Status | `error` или `warning` |
+| Intent | Классифицированный intent запроса |
+| Stage | Стадия pipeline (для `execution_step`) |
+| Сообщение | Текст ошибки |
+| Session | Business `session_id` (первые 8 символов) |
 
 ---
 
