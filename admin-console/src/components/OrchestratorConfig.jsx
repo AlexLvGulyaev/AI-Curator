@@ -435,7 +435,7 @@ function OrchestratorConfig() {
               gridTemplateColumns: '1fr 1fr',
               gridTemplateRows: 'repeat(3, minmax(0, 1fr))',
               gap: '8px',
-              overflow: 'auto',
+              minWidth: 0,
             }}
           >
             {DEFAULT_INTENTS.map((intent) => (
