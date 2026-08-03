@@ -20,6 +20,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from config import settings
 from schemas.lms import (
+    ActivityCompletion,
     Course,
     CourseModule,
     Deadline,
@@ -416,6 +417,7 @@ class MoodleLMSAdapter:
 
         progress = grades[0]
         progress.completion_status = "in_progress"
+        activity_completions: List[ActivityCompletion] = []
 
         # Try to enrich completion status via activity completion API if available.
         try:
@@ -430,9 +432,22 @@ class MoodleLMSAdapter:
                 progress.completion_status = (
                     "completed" if total > 0 and completed == total else "in_progress"
                 )
+                for s in statuses:
+                    activity_completions.append(
+                        ActivityCompletion(
+                            cmid=s.get("cmid"),
+                            modname=s.get("modname", "unknown"),
+                            instance_id=s.get("instance"),
+                            name=s.get("name"),
+                            completed=bool(s.get("state")),
+                            raw=s,
+                        )
+                    )
         except LMSResponseError:
             # Completion criteria may not be configured; leave as in_progress.
             pass
+
+        progress.activity_completions = activity_completions
 
         # Compute a simple overall grade from assignment grade items.
         assignments = [gi for gi in progress.grade_items if gi.item_module == "assign"]

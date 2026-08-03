@@ -92,6 +92,24 @@ async def test_update_intent_rules(client):
         assert Orchestrator.detect_intent("о чём будет итоговый проект", ocfg=updated_cfg) == "mixed"
 
 
+async def test_update_intent_rules_lowercases_keywords(client):
+    """Keywords are normalized to lowercase on save to avoid case mismatches."""
+    async with client:
+        get_response = await client.get("/api/v1/admin/orchestrator/config")
+        assert get_response.status_code == 200
+        cfg = get_response.json()
+
+        cfg["intent_rules"]["study"]["keywords"] = ["Как Решать Задачу", "ПРИМЕРЫ"]
+        response = await client.put(
+            "/api/v1/admin/orchestrator/config",
+            json={"intent_rules": cfg["intent_rules"]},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "как решать задачу" in data["intent_rules"]["study"]["keywords"]
+        assert "примеры" in data["intent_rules"]["study"]["keywords"]
+
+
 
 @pytest.mark.anyio
 async def test_update_invalid_intent_source_map(client):

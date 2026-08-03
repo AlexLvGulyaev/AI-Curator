@@ -3,6 +3,40 @@ import { getOrchestratorConfig, updateOrchestratorConfig } from '../api/backend'
 
 const DEFAULT_INTENTS = ['deadline', 'progress', 'study', 'mixed', 'organizational'];
 
+const TOOLTIPS = {
+  default_intent: 'Интент, который выбирается, если сообщение студента не подошло ни под одно правило.',
+  keywords:
+    'Каждая строка — фраза, по которой Orchestrator понимает, что вопрос относится к этому интенту.',
+  priority:
+    'Приоритет правила. Меньше число — выше приоритет. Применяется только к интентам, определённым через условия (conditions). Интенты deadline и progress определяются по keywords раньше и не участвуют в сравнении priority.',
+  priority_deadline_progress:
+    'Deadline и progress всегда определяются по keywords раньше условий (conditions), поэтому их priority не влияет на перехват организационных вопросов.',
+  advanced_conditions:
+    'Дополнительные условия: требовать наличие keywords другого типа, прежде чем применить это правило.',
+  source_lms: 'Обращаться к Moodle LMS за курсами, дедлайнами, прогрессом.',
+  source_rag: 'Искать релевантные фрагменты в Knowledge Base AI Curator.',
+  source_strict_course:
+    'Жёстко фильтровать RAG-поиск по course_id текущего курса. Если выключено — разрешены общие материалы из других курсов.',
+  max_lms_contents:
+    'Сколько элементов курса (уроков/модулей) передавать в prompt LLM из LMS. Не ограничивает детерминированные ответы deadline, progress и подсчёты "сколько".',
+  max_lms_deadlines:
+    'Сколько ближайших дедлайнов передавать в prompt LLM из LMS и показывать в коротком deadline-ответе.',
+  intent_max_tokens_organizational:
+    'Soft-лимит токенов для LLM на организационные вопросы. Модель постарается не превысить лимит, но не гарантирует заполнение до него.',
+  intent_max_tokens_study_beginner:
+    'Soft-лимит токенов для LLM на учебные вопросы в режиме beginner.',
+  intent_max_tokens_mixed:
+    'Soft-лимит токенов для LLM на смешанные вопросы.',
+  intent_max_tokens_default:
+    'Soft-лимит токенов для LLM на остальные сценарии.',
+  fallback_no_lms_data: 'Текст ответа, когда в LMS нет запрошенных данных.',
+  fallback_no_rag_context: 'Текст ответа, когда в Knowledge Base не найдено релевантных фрагментов.',
+  fallback_out_of_scope_course:
+    'Шаблон отказа, когда студент спрашивает про курс, к которому не имеет доступа. Используйте {course} для подстановки названия.',
+  non_course_starters:
+    'Слова, с которых обычно начинаются вопросы, но которые не являются названием курса. Помогают избежать ложного «курс не найден».',
+};
+
 function keywordsToText(keywords) {
   return Array.isArray(keywords) ? keywords.join('\n') : '';
 }
@@ -62,6 +96,25 @@ function buildConditions({ requireOrg, requireStudy, requireProgress }) {
   return [{ and: predicates }];
 }
 
+function Tooltip({ children, text }) {
+  return (
+    <span className="ai-tooltip">
+      {children}
+      <span className="ai-tooltip__text">{text}</span>
+    </span>
+  );
+}
+
+function validateNumber(value, { min, max, integer }) {
+  if (value === '' || value === null || value === undefined) return 'Введите число';
+  const num = Number(value);
+  if (Number.isNaN(num)) return 'Введите число';
+  if (integer && !Number.isInteger(num)) return 'Целое число';
+  if (min !== undefined && num < min) return `Минимум ${min}`;
+  if (max !== undefined && num > max) return `Максимум ${max}`;
+  return null;
+}
+
 function IntentRuleEditor({ intent, rule, source, onChange }) {
   const [keywordsText, setKeywordsText] = useState(keywordsToText(rule.keywords));
   const [priority, setPriority] = useState(rule.priority);
@@ -94,6 +147,8 @@ function IntentRuleEditor({ intent, rule, source, onChange }) {
     });
   }
 
+  const priorityError = validateNumber(priority, { min: 1, max: 100, integer: true });
+
   return (
     <div className="ai-provider-card" style={{ padding: '8px 10px', gap: '6px' }}>
       <div className="ai-provider-card__header" style={{ marginBottom: '2px' }}>
@@ -103,34 +158,44 @@ function IntentRuleEditor({ intent, rule, source, onChange }) {
         </span>
       </div>
 
-      <textarea
-        className="ai-textarea ai-textarea--small"
-        rows={2}
-        style={{ minHeight: '54px', padding: '5px 8px', fontSize: '0.875rem' }}
-        value={keywordsText}
-        placeholder="keywords, одна фраза на строку"
-        onChange={(e) => setKeywordsText(e.target.value)}
-      />
+      <Tooltip text={TOOLTIPS.keywords}>
+        <textarea
+          className="ai-textarea ai-textarea--small"
+          rows={2}
+          style={{ minHeight: '54px', padding: '5px 8px', fontSize: '0.875rem' }}
+          value={keywordsText}
+          placeholder="keywords, одна фраза на строку"
+          onChange={(e) => setKeywordsText(e.target.value)}
+        />
+      </Tooltip>
 
       <div className="ai-field-row ai-field-row--inline" style={{ justifyContent: 'space-between', gap: '6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <label className="ai-field-label" style={{ margin: 0 }}>Priority</label>
+          <Tooltip text={intent === 'deadline' || intent === 'progress' ? TOOLTIPS.priority_deadline_progress : TOOLTIPS.priority}>
+            <label className="ai-field-label" style={{ margin: 0 }}>
+              Priority
+            </label>
+          </Tooltip>
           <input
             type="number"
-            className="ai-input ai-input--inline"
+            className={`ai-input ai-input--inline ${priorityError ? 'ai-input--error' : ''}`}
             style={{ width: '48px', height: '26px', padding: '2px 4px' }}
             value={priority}
             min={1}
+            max={100}
             onChange={(e) => setPriority(Number(e.target.value))}
           />
+          {priorityError && <span className="ai-field-error-inline">{priorityError}</span>}
         </div>
-        <button
-          type="button"
-          className="ai-btn ai-btn--secondary ai-btn--tiny"
-          onClick={() => setShowAdvanced((s) => !s)}
-        >
-          {showAdvanced ? '▾ Advanced' : '▸ Advanced'}
-        </button>
+        <Tooltip text={TOOLTIPS.advanced_conditions}>
+          <button
+            type="button"
+            className="ai-btn ai-btn--secondary ai-btn--tiny"
+            onClick={() => setShowAdvanced((s) => !s)}
+          >
+            {showAdvanced ? '▾ Advanced' : '▸ Advanced'}
+          </button>
+        </Tooltip>
       </div>
 
       {showAdvanced && (
@@ -170,21 +235,27 @@ function IntentRuleEditor({ intent, rule, source, onChange }) {
   );
 }
 
-function NumberField({ label, value, min = 1, max = 4096, onChange }) {
+function NumberField({ label, value, min = 1, max = 4096, onChange, tooltip }) {
+  const error = validateNumber(value, { min, max, integer: true });
   return (
     <div className="ai-field-row ai-field-row--inline" style={{ gap: '8px', justifyContent: 'space-between' }}>
-      <label className="ai-field-label" style={{ flex: 1 }}>
-        {label}
-      </label>
-      <input
-        type="number"
-        className="ai-input ai-input--inline"
-        style={{ width: '64px', height: '26px', padding: '2px 4px', textAlign: 'right' }}
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
+      <Tooltip text={tooltip}>
+        <label className="ai-field-label" style={{ flex: 1 }}>
+          {label}
+        </label>
+      </Tooltip>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <input
+          type="number"
+          className={`ai-input ai-input--inline ${error ? 'ai-input--error' : ''}`}
+          style={{ width: '64px', height: '26px', padding: '2px 4px', textAlign: 'right' }}
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+        />
+        {error && <span className="ai-field-error-inline">{error}</span>}
+      </div>
     </div>
   );
 }
@@ -240,7 +311,27 @@ function OrchestratorConfig() {
     load();
   }, []);
 
+  function hasErrors() {
+    const priorityErrors = DEFAULT_INTENTS.some(
+      (intent) =>
+        validateNumber(intentRules[intent]?.priority, { min: 1, max: 100, integer: true }) !== null
+    );
+    const limitErrors =
+      validateNumber(maxLmsContents, { min: 1, max: 100, integer: true }) !== null ||
+      validateNumber(maxLmsDeadlines, { min: 1, max: 50, integer: true }) !== null;
+    const tokenErrors =
+      validateNumber(intentMaxTokens.organizational, { min: 1, max: 4096, integer: true }) !== null ||
+      validateNumber(intentMaxTokens.study_beginner, { min: 1, max: 4096, integer: true }) !== null ||
+      validateNumber(intentMaxTokens.mixed, { min: 1, max: 4096, integer: true }) !== null ||
+      validateNumber(intentMaxTokens.default, { min: 1, max: 4096, integer: true }) !== null;
+    return priorityErrors || limitErrors || tokenErrors;
+  }
+
   async function save() {
+    if (hasErrors()) {
+      setError('Исправьте ошибки в форме перед сохранением');
+      return;
+    }
     const payload = {
       intent_rules: intentRules,
       default_intent: defaultIntent,
@@ -261,6 +352,7 @@ function OrchestratorConfig() {
       setIntentRules(ensureIntentRulesShape(updated.intent_rules));
       setSourceMap(ensureSourceMapShape(updated.intent_source_map));
       setMessage('Конфигурация сохранена');
+      setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -285,17 +377,29 @@ function OrchestratorConfig() {
           <p className="ai-page__subtitle">Классификация запросов, источники данных, лимиты и fallback.</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={load} className="ai-btn ai-btn--small ai-btn--secondary" type="button">
+          <button onClick={load} className="ai-btn ai-btn--small ai-btn--secondary" type="button" disabled={saving}>
             Обновить
           </button>
-          <button type="button" className="ai-btn ai-btn--small" onClick={save} disabled={saving}>
+          <button type="button" className="ai-btn ai-btn--small" onClick={save} disabled={saving || hasErrors()}>
             {saving ? 'Сохранение…' : 'Сохранить'}
           </button>
         </div>
       </div>
 
       {error && <div className="ai-error">{error}</div>}
-      {message && <div className="ai-success">{message}</div>}
+      {message && (
+        <div className="ai-toast ai-toast--success ai-toast--floating">
+          {message}
+          <button
+            type="button"
+            className="ai-toast__close"
+            onClick={() => setMessage(null)}
+            aria-label="Закрыть"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <div className="ai-config-top" style={{ gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
         <div className="ai-card ai-section" style={{ minHeight: 0, padding: '10px 12px' }}>
@@ -305,7 +409,11 @@ function OrchestratorConfig() {
           >
             <span>Intent Classification</span>
             <div className="ai-field-row ai-field-row--inline" style={{ gap: '4px' }}>
-              <label className="ai-field-label" style={{ margin: 0 }}>Default</label>
+              <Tooltip text={TOOLTIPS.default_intent}>
+                <label className="ai-field-label" style={{ margin: 0 }}>
+                  Default
+                </label>
+              </Tooltip>
               <select
                 className="ai-select"
                 style={{ width: '110px', height: '24px', padding: '1px 4px', fontSize: '0.75rem' }}
@@ -350,9 +458,15 @@ function OrchestratorConfig() {
                 <thead>
                   <tr>
                     <th>Intent</th>
-                    <th style={{ textAlign: 'center' }}>LMS</th>
-                    <th style={{ textAlign: 'center' }}>RAG</th>
-                    <th style={{ textAlign: 'center' }}>Strict</th>
+                    <th style={{ textAlign: 'center' }}>
+                      <Tooltip text={TOOLTIPS.source_lms}>LMS</Tooltip>
+                    </th>
+                    <th style={{ textAlign: 'center' }}>
+                      <Tooltip text={TOOLTIPS.source_rag}>RAG</Tooltip>
+                    </th>
+                    <th style={{ textAlign: 'center' }}>
+                      <Tooltip text={TOOLTIPS.source_strict_course}>Strict</Tooltip>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -404,27 +518,43 @@ function OrchestratorConfig() {
             <div className="ai-card ai-section" style={{ minHeight: '160px', padding: '10px 12px' }}>
               <h2 className="ai-section__title" style={{ marginBottom: '8px' }}>Limits &amp; Token Budgets</h2>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px' }}>
-                <NumberField label="Max contents" value={maxLmsContents} max={100} onChange={setMaxLmsContents} />
-                <NumberField label="Max deadlines" value={maxLmsDeadlines} max={50} onChange={setMaxLmsDeadlines} />
+                <NumberField
+                  label="Max contents"
+                  value={maxLmsContents}
+                  max={100}
+                  onChange={setMaxLmsContents}
+                  tooltip={TOOLTIPS.max_lms_contents}
+                />
+                <NumberField
+                  label="Max deadlines"
+                  value={maxLmsDeadlines}
+                  max={50}
+                  onChange={setMaxLmsDeadlines}
+                  tooltip={TOOLTIPS.max_lms_deadlines}
+                />
                 <NumberField
                   label="Organizational"
                   value={intentMaxTokens.organizational}
                   onChange={(v) => setIntentMaxTokens({ ...intentMaxTokens, organizational: v })}
+                  tooltip={TOOLTIPS.intent_max_tokens_organizational}
                 />
                 <NumberField
                   label="Study beginner"
                   value={intentMaxTokens.study_beginner}
                   onChange={(v) => setIntentMaxTokens({ ...intentMaxTokens, study_beginner: v })}
+                  tooltip={TOOLTIPS.intent_max_tokens_study_beginner}
                 />
                 <NumberField
                   label="Mixed"
                   value={intentMaxTokens.mixed}
                   onChange={(v) => setIntentMaxTokens({ ...intentMaxTokens, mixed: v })}
+                  tooltip={TOOLTIPS.intent_max_tokens_mixed}
                 />
                 <NumberField
                   label="Default"
                   value={intentMaxTokens.default}
                   onChange={(v) => setIntentMaxTokens({ ...intentMaxTokens, default: v })}
+                  tooltip={TOOLTIPS.intent_max_tokens_default}
                 />
               </div>
             </div>
@@ -433,7 +563,9 @@ function OrchestratorConfig() {
           <div className="ai-card ai-section" style={{ flex: '1 1 auto', minHeight: 0, padding: '10px 12px' }}>
             <h2 className="ai-section__title" style={{ marginBottom: '8px' }}>Fallbacks &amp; Course Starters</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minHeight: 0 }}>
-              <label className="ai-field-label" style={{ margin: 0 }}>No LMS data</label>
+              <Tooltip text={TOOLTIPS.fallback_no_lms_data}>
+                <label className="ai-field-label" style={{ margin: 0 }}>No LMS data</label>
+              </Tooltip>
               <textarea
                 className="ai-textarea ai-textarea--small"
                 rows={2}
@@ -441,7 +573,9 @@ function OrchestratorConfig() {
                 value={fallbackMessages.no_lms_data}
                 onChange={(e) => setFallbackMessages({ ...fallbackMessages, no_lms_data: e.target.value })}
               />
-              <label className="ai-field-label" style={{ margin: 0 }}>No RAG context</label>
+              <Tooltip text={TOOLTIPS.fallback_no_rag_context}>
+                <label className="ai-field-label" style={{ margin: 0 }}>No RAG context</label>
+              </Tooltip>
               <textarea
                 className="ai-textarea ai-textarea--small"
                 rows={2}
@@ -449,7 +583,11 @@ function OrchestratorConfig() {
                 value={fallbackMessages.no_rag_context}
                 onChange={(e) => setFallbackMessages({ ...fallbackMessages, no_rag_context: e.target.value })}
               />
-              <label className="ai-field-label" style={{ margin: 0 }}>Out of scope (placeholder: {'{course}'})</label>
+              <Tooltip text={TOOLTIPS.fallback_out_of_scope_course}>
+                <label className="ai-field-label" style={{ margin: 0 }}>
+                  Out of scope (placeholder: {'{course}'})
+                </label>
+              </Tooltip>
               <textarea
                 className="ai-textarea ai-textarea--small"
                 rows={2}
@@ -459,7 +597,9 @@ function OrchestratorConfig() {
                   setFallbackMessages({ ...fallbackMessages, out_of_scope_course: e.target.value })
                 }
               />
-              <label className="ai-field-label" style={{ margin: '4px 0 0' }}>Non-course starters</label>
+              <Tooltip text={TOOLTIPS.non_course_starters}>
+                <label className="ai-field-label" style={{ margin: '4px 0 0' }}>Non-course starters</label>
+              </Tooltip>
               <textarea
                 className="ai-textarea"
                 rows={6}

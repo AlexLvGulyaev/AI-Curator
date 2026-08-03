@@ -197,6 +197,10 @@ export async function updateActiveAiConfig(data) {
     output_rules: data.output_rules,
     refusal_answer_text: data.refusal_answer_text,
     max_history_messages: data.max_history_messages ?? 6,
+    active_provider: data.active_provider || 'openai',
+    fallback_provider: data.fallback_provider || 'gigachat',
+    openai_enabled: data.openai_enabled ?? true,
+    gigachat_enabled: data.gigachat_enabled ?? true,
   };
   const created = await createAiConfig(payload);
   return activateAiConfig(created.id);
@@ -238,43 +242,19 @@ export async function reindexKnowledgeBase() {
 
 // LLM Providers
 export async function getLlmProviders() {
-  return [
-    {
-      key: 'openai',
-      display_name: 'OpenAI',
-      is_active: true,
-      is_fallback: false,
-      implementation_status: 'implemented',
-      base_url: 'https://api.openai.com/v1',
-      model: 'gpt-4o-mini',
-      temperature: 0.3,
-      max_tokens: 1024,
-      is_enabled: true,
-    },
-    {
-      key: 'gigachat',
-      display_name: 'GigaChat',
-      is_active: false,
-      is_fallback: true,
-      implementation_status: 'not_implemented',
-      readiness_reason: 'Интеграция GigaChat не реализована в текущей версии.',
-      base_url: 'https://gigachat.devices.sberbank.ru/api/v1/chat/completions',
-      model: 'GigaChat-Max',
-      temperature: 0.1,
-      max_tokens: 500,
-      is_enabled: false,
-    },
-  ];
+  // Provider states are now driven by the active AI config via /monitoring/status.
+  const status = await apiRequest('/api/v1/admin/monitoring/status');
+  return status.llm_providers || [];
 }
 
 export async function updateLlmProvider(key, data) {
-  // Placeholder until provider settings backend is implemented.
+  // Provider settings are saved together with AI Config; this helper is kept
+  // for interface compatibility and simply echoes back the merged provider data.
   return { key, ...data };
 }
 
 export async function testLlmProvider(key) {
-  // Placeholder until provider test backend is implemented.
-  return { ok: key === 'openai', message: key === 'openai' ? 'OpenAI доступен' : 'Provider не реализован' };
+  return apiRequest(`/api/v1/admin/llm-providers/${key}/test`, { method: 'POST' });
 }
 
 // Analytics

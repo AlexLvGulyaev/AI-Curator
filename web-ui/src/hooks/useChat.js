@@ -48,7 +48,7 @@ function useChat({ role, courseId, difficulty }) {
   const [messages, setMessages] = useState(() => loadMessages(role));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [sessionId] = useState(() => getSessionId());
+  const [sessionId, setSessionId] = useState(() => getSessionId());
 
   useEffect(() => {
     saveMessages(role, messages);
@@ -96,6 +96,11 @@ function useChat({ role, courseId, difficulty }) {
   );
 
   const clearMessages = useCallback(() => {
+    const newId = crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem('ai-curator-session-id', newId);
+    setSessionId(newId);
     setMessages([GREETING]);
     setError(null);
   }, []);

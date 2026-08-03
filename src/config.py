@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     openai_model_max_tokens: int = 1024
     openai_embedding_model: str = "text-embedding-3-small"
 
+    # Fallback LLM provider (GigaChat)
+    gigachat_auth_key: str = ""
+    gigachat_base_url: str = "https://gigachat.devices.sberbank.ru/api/v1"
+    gigachat_token_url: str = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
+    gigachat_model: str = "GigaChat-Max"
+
     # Public URLs
     web_ui_url: str = "https://curator.example.com"
     admin_console_url: str = "https://curator-admin.example.com"

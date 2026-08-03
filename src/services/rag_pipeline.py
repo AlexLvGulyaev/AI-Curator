@@ -1,5 +1,6 @@
 """RAG pipeline: embeddings + Chroma vector search for AI Curator Knowledge Base."""
 
+import asyncio
 import hashlib
 import time
 from dataclasses import dataclass
@@ -155,6 +156,7 @@ class RagPipeline:
         module_id: Optional[int] = None,
         topic_id: Optional[int] = None,
         difficulty: str = "beginner",
+        embedding_timeout_ms: Optional[int] = None,
     ) -> int:
         """Embed and store chunks in Chroma. Returns number of indexed chunks."""
         if not chunks:
@@ -175,8 +177,22 @@ class RagPipeline:
             for chunk in chunks
         ]
 
-        # OpenAIEmbeddings.embed_documents is sync.
-        embeddings = self.embeddings.embed_documents(documents)
+        # OpenAIEmbeddings.embed_documents is sync — run in a thread with timeout.
+        try:
+            timeout_seconds = embedding_timeout_ms / 1000 if embedding_timeout_ms else None
+            if timeout_seconds:
+                embeddings = await asyncio.wait_for(
+                    asyncio.to_thread(self.embeddings.embed_documents, documents),
+                    timeout=timeout_seconds,
+                )
+            else:
+                embeddings = await asyncio.to_thread(self.embeddings.embed_documents, documents)
+        except asyncio.TimeoutError as exc:
+            raise RagPipelineError(
+                f"Embedding indexing timed out after {embedding_timeout_ms}ms"
+            ) from exc
+        except Exception as exc:
+            raise RagPipelineError(f"Embedding indexing failed: {exc}") from exc
 
         self.collection.upsert(
             ids=ids,
@@ -250,6 +266,8 @@ class RagPipeline:
         strict_course: bool = True,
         course_boost_enabled: bool = False,
         course_boost_factor: float = 0.15,
+        embedding_timeout_ms: Optional[int] = None,
+        retrieval_timeout_ms: Optional[int] = None,
     ) -> tuple[List[SearchResult], Dict[str, float]]:
         """Run semantic search and return ranked chunks.
 
@@ -261,6 +279,8 @@ class RagPipeline:
                 chunks whose course_id matches the requested course.
             course_boost_factor: Fraction of the raw distance used as a boost for
                 course-matching chunks. Smaller values make the boost weaker.
+            embedding_timeout_ms: Optional timeout for the embedding call.
+            retrieval_timeout_ms: Optional timeout for the Chroma vector search.
         """
         where_strict = self._build_where_filter(
             document_id=document_id,
@@ -277,10 +297,25 @@ class RagPipeline:
         cached = self._embedding_cache.get(query)
         if cached is not None:
             query_embedding = cached
+            embedding_ms = round((time.perf_counter() - t_embed_start) * 1000, 2)
         else:
-            query_embedding = self.embeddings.embed_query(query)
-            self._embedding_cache.set(query, query_embedding)
-        embedding_ms = round((time.perf_counter() - t_embed_start) * 1000, 2)
+            try:
+                timeout_seconds = embedding_timeout_ms / 1000 if embedding_timeout_ms else None
+                if timeout_seconds:
+                    query_embedding = await asyncio.wait_for(
+                        asyncio.to_thread(self.embeddings.embed_query, query),
+                        timeout=timeout_seconds,
+                    )
+                else:
+                    query_embedding = await asyncio.to_thread(self.embeddings.embed_query, query)
+                self._embedding_cache.set(query, query_embedding)
+                embedding_ms = round((time.perf_counter() - t_embed_start) * 1000, 2)
+            except asyncio.TimeoutError as exc:
+                raise RagPipelineError(
+                    f"Embedding request timed out after {embedding_timeout_ms}ms"
+                ) from exc
+            except Exception as exc:
+                raise RagPipelineError(f"Embedding request failed: {exc}") from exc
 
         results: List[SearchResult] = []
         seen_ids: set = set()
@@ -311,15 +346,33 @@ class RagPipeline:
                 )
 
         t_chroma_start = time.perf_counter()
-        # Phase 1: strict search with course filter (when requested).
-        if strict_course and where_strict is not None:
-            strict_results = self.collection.query(
+
+        def _query_chroma(where_filter, n_results):
+            return self.collection.query(
                 query_embeddings=[query_embedding],
-                n_results=k,
-                where=where_strict,
+                n_results=n_results,
+                where=where_filter,
                 include=["documents", "metadatas", "distances"],
             )
-            _add_results(strict_results)
+
+        # Phase 1: strict search with course filter (when requested).
+        if strict_course and where_strict is not None:
+            try:
+                timeout_seconds = retrieval_timeout_ms / 1000 if retrieval_timeout_ms else None
+                if timeout_seconds:
+                    strict_results = await asyncio.wait_for(
+                        asyncio.to_thread(_query_chroma, where_strict, k),
+                        timeout=timeout_seconds,
+                    )
+                else:
+                    strict_results = await asyncio.to_thread(_query_chroma, where_strict, k)
+                _add_results(strict_results)
+            except asyncio.TimeoutError as exc:
+                raise RagPipelineError(
+                    f"Chroma query timed out after {retrieval_timeout_ms}ms"
+                ) from exc
+            except Exception as exc:
+                raise RagPipelineError(f"Chroma query failed: {exc}") from exc
 
         # Phase 2: relaxed search without course filter to find relevant generic
         # materials that may not be tagged with the exact course_id.
@@ -334,34 +387,24 @@ class RagPipeline:
                 strict_course=False,
             )
             if where_relaxed is not None:
-                relaxed_results = self.collection.query(
-                    query_embeddings=[query_embedding],
-                    n_results=k * 2,
-                    where=where_relaxed,
-                    include=["documents", "metadatas", "distances"],
-                )
-                _add_results(relaxed_results)
+                try:
+                    timeout_seconds = retrieval_timeout_ms / 1000 if retrieval_timeout_ms else None
+                    if timeout_seconds:
+                        relaxed_results = await asyncio.wait_for(
+                            asyncio.to_thread(_query_chroma, where_relaxed, k * 2),
+                            timeout=timeout_seconds,
+                        )
+                    else:
+                        relaxed_results = await asyncio.to_thread(_query_chroma, where_relaxed, k * 2)
+                    _add_results(relaxed_results)
+                except asyncio.TimeoutError as exc:
+                    raise RagPipelineError(
+                        f"Chroma query timed out after {retrieval_timeout_ms}ms"
+                    ) from exc
+                except Exception as exc:
+                    raise RagPipelineError(f"Chroma query failed: {exc}") from exc
 
-        # Phase 3: when strict_course is True but we still want a fallback to
-        # generic materials, run a second query without the course filter.
-        if strict_course and course_id is not None and len(results) < k:
-            where_relaxed = self._build_where_filter(
-                document_id=document_id,
-                version_id=version_id,
-                course_id=None,
-                module_id=module_id,
-                topic_id=topic_id,
-                difficulty=difficulty,
-                strict_course=False,
-            )
-            if where_relaxed is not None:
-                relaxed_results = self.collection.query(
-                    query_embeddings=[query_embedding],
-                    n_results=k * 2,
-                    where=where_relaxed,
-                    include=["documents", "metadatas", "distances"],
-                )
-                _add_results(relaxed_results)
+        # strict_course means strict: do not fall back to generic cross-course materials.
 
         chroma_ms = round((time.perf_counter() - t_chroma_start) * 1000, 2)
 

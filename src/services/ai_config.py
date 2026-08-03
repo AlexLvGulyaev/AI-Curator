@@ -63,6 +63,9 @@ DEFAULT_REFUSAL_ANSWER_TEXT = (
     "Я не выставляю оценки и не изменяю учебный процесс. Обратитесь к преподавателю."
 )
 
+DEFAULT_ACTIVE_PROVIDER = "openai"
+DEFAULT_FALLBACK_PROVIDER = "gigachat"
+
 
 class AiConfigService:
     """Service for managing versioned AI configuration."""
@@ -93,6 +96,10 @@ class AiConfigService:
                 output_rules=DEFAULT_OUTPUT_RULES,
                 refusal_answer_text=DEFAULT_REFUSAL_ANSWER_TEXT,
                 max_history_messages=6,
+                active_provider=DEFAULT_ACTIVE_PROVIDER,
+                fallback_provider=DEFAULT_FALLBACK_PROVIDER,
+                openai_enabled=True,
+                gigachat_enabled=True,
                 is_active=True,
                 created_by="system",
             )
@@ -100,8 +107,12 @@ class AiConfigService:
             await self.db.commit()
             await self.db.refresh(config)
         else:
-            # Backfill missing optional instruction fields with sane defaults.
+            # Backfill missing critical fields with sane defaults. system_prompt is
+            # mandatory for chat to behave correctly; prompt_builder relies on it.
             updated = False
+            if not config.system_prompt or not config.system_prompt.strip():
+                config.system_prompt = DEFAULT_SYSTEM_PROMPT
+                updated = True
             if not config.beginner_instructions:
                 config.beginner_instructions = DEFAULT_BEGINNER_INSTRUCTIONS
                 updated = True
@@ -116,6 +127,12 @@ class AiConfigService:
                 updated = True
             if not config.refusal_answer_text:
                 config.refusal_answer_text = DEFAULT_REFUSAL_ANSWER_TEXT
+                updated = True
+            if not config.active_provider:
+                config.active_provider = DEFAULT_ACTIVE_PROVIDER
+                updated = True
+            if not config.fallback_provider:
+                config.fallback_provider = DEFAULT_FALLBACK_PROVIDER
                 updated = True
             if updated:
                 await self.db.commit()
@@ -146,6 +163,10 @@ class AiConfigService:
         output_rules: Optional[str] = None,
         refusal_answer_text: Optional[str] = None,
         max_history_messages: int = 6,
+        active_provider: Optional[str] = None,
+        fallback_provider: Optional[str] = None,
+        openai_enabled: Optional[bool] = None,
+        gigachat_enabled: Optional[bool] = None,
         created_by: Optional[str] = None,
     ) -> AiConfig:
         """Create a new configuration version as inactive."""
@@ -161,6 +182,10 @@ class AiConfigService:
             output_rules=output_rules or DEFAULT_OUTPUT_RULES,
             refusal_answer_text=refusal_answer_text or DEFAULT_REFUSAL_ANSWER_TEXT,
             max_history_messages=max_history_messages,
+            active_provider=active_provider or DEFAULT_ACTIVE_PROVIDER,
+            fallback_provider=fallback_provider or DEFAULT_FALLBACK_PROVIDER,
+            openai_enabled=openai_enabled if openai_enabled is not None else True,
+            gigachat_enabled=gigachat_enabled if gigachat_enabled is not None else True,
             is_active=False,
             created_by=created_by,
         )

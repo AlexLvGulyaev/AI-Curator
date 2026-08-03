@@ -42,6 +42,23 @@ class OrchestratorConfigService:
             await self.db.refresh(config)
         return config
 
+    @staticmethod
+    def _normalize_intent_rules(intent_rules: dict) -> dict:
+        """Normalize keywords to lowercase so intent matching is case-insensitive.
+
+        The UI may preserve the user's original capitalization, but downstream
+        keyword matching always compares against a lowercased message. Storing
+        lowercase keywords prevents subtle mismatches.
+        """
+        normalized: dict = {}
+        for intent, rule in intent_rules.items():
+            rule = dict(rule)
+            keywords = rule.get("keywords")
+            if isinstance(keywords, list):
+                rule["keywords"] = [kw.lower() for kw in keywords]
+            normalized[intent] = rule
+        return normalized
+
     async def update(
         self,
         intent_rules: Optional[dict] = None,
@@ -69,13 +86,13 @@ class OrchestratorConfigService:
             )
 
         if intent_rules is not None:
-            config.intent_rules = intent_rules
+            config.intent_rules = self._normalize_intent_rules(intent_rules)
         if default_intent is not None:
             config.default_intent = default_intent
         if intent_source_map is not None:
             config.intent_source_map = intent_source_map
         if non_course_starters is not None:
-            config.non_course_starters = non_course_starters
+            config.non_course_starters = [s.lower() for s in non_course_starters]
         if max_lms_contents is not None:
             config.max_lms_contents = max_lms_contents
         if max_lms_deadlines is not None:

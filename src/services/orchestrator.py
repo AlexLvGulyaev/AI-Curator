@@ -180,7 +180,10 @@ class Orchestrator:
         return set(getattr(self, "_ocfg", {}).get("non_course_starters", []))
 
     @staticmethod
-    def _extract_course_mentions(message: str) -> List[str]:
+    def _extract_course_mentions(
+        message: str,
+        non_course_starters: Optional[set] = None,
+    ) -> List[str]:
         """Extract potential course names from the user message.
 
         Conservative heuristics:
@@ -191,7 +194,12 @@ class Orchestrator:
         Assignment and module names quoted in questions like
         "Что повторить перед заданием \"Ролевые промпты\"" are intentionally
         excluded so they do not trigger a "course not found" refusal.
+
+        `non_course_starters` filters out course-like phrases whose first word
+        is a common question starter ("какой", "сколько", etc.) configured by
+        methodologists in the orchestrator console.
         """
+        starters = non_course_starters or set()
         mentions = []
 
         # Quoted strings are course names only if preceded by a course marker.
@@ -200,19 +208,30 @@ class Orchestrator:
             message,
             re.IGNORECASE,
         ):
-            mentions.append(match.group(1).strip())
+            candidate = match.group(1).strip()
+            first_word = candidate.split()[0].lower().rstrip("-нибудь-либо-то") if candidate else ""
+            if first_word in starters:
+                continue
+            mentions.append(candidate)
 
         # Capture "по курсу Name" / "курс Name" where Name is a short proper noun.
         # This is much more reliable than scanning the whole sentence.
+        # We search case-insensitively for the marker but require the captured
+        # name to start with an uppercase letter in the original text. A single
+        # lowercase conjunction/particle right after "курс" must not match.
         for match in re.finditer(
-            r'(?:по\s+)?курс[аеуом]?\s+([А-ЯA-Z][а-яa-zА-ЯA-Z0-9\-]*(?:\s+[а-яa-zА-ЯA-Z0-9\-]+){0,2})',
+            r'(?:по\s+)?курс[аеуом]?\s+([А-ЯЁA-Z][а-яёa-zА-ЯЁA-Z0-9\-]*(?:\s+[а-яёa-zА-ЯЁA-Z0-9\-]+){0,2})',
             message,
             re.IGNORECASE,
         ):
             candidate = match.group(1).strip()
             words = candidate.split()
-            if len(words) >= 1:
-                mentions.append(candidate)
+            if not words:
+                continue
+            first_word = words[0].lower().rstrip("-нибудь-либо-то")
+            if first_word in starters:
+                continue
+            mentions.append(candidate)
         return mentions
 
     @staticmethod
@@ -241,17 +260,29 @@ class Orchestrator:
         rules = self._ocfg.get("intent_rules", {})
         return list(rules.get(intent, {}).get("keywords", []))
 
-    def _eval_condition(self, condition: List[Any], message_lower: str) -> bool:
-        """Evaluate a simple condition list from intent_rules.
+    def _eval_condition(self, condition: Any, message_lower: str) -> bool:
+        """Evaluate a condition entry from intent_rules.
 
         Supported forms:
+        - "is_org" / "is_study" / "is_progress" (bare predicate string)
         - ["is_org"] / ["is_study"] / ["is_progress"]
         - ["has_keyword", ["word1", "word2"]]
         - {"and": [...conditions...]}
+
+        Bare strings inside "and" arrays are normalized to single-element lists
+        so the UI can save conditions compactly without breaking evaluation.
         """
         if isinstance(condition, dict) and "and" in condition:
             parts = condition["and"]
-            return all(self._eval_condition(part, message_lower) for part in parts)
+            # Normalize bare strings inside "and" to single-element lists.
+            normalized_parts = [
+                [part] if isinstance(part, str) else part for part in parts
+            ]
+            return all(self._eval_condition(part, message_lower) for part in normalized_parts)
+
+        # Bare predicate string outside of an "and" block.
+        if isinstance(condition, str):
+            condition = [condition]
 
         if not isinstance(condition, (list, tuple)) or not condition:
             return False
@@ -309,11 +340,12 @@ class Orchestrator:
     def _find_mentioned_course(
         message: str,
         available_courses: List[Dict[str, Any]],
+        non_course_starters: Optional[set] = None,
     ) -> Optional[int]:
         """Return course_id if the message clearly mentions one of available courses."""
         if not available_courses:
             return None
-        mentions = Orchestrator._extract_course_mentions(message)
+        mentions = Orchestrator._extract_course_mentions(message, non_course_starters)
         message_lower = message.lower()
         for course in available_courses:
             names = [
@@ -336,11 +368,12 @@ class Orchestrator:
     def _looks_like_other_course(
         message: str,
         available_courses: List[Dict[str, Any]],
+        non_course_starters: Optional[set] = None,
     ) -> Optional[str]:
         """Return the mentioned course name if it is not in available courses."""
         if not available_courses:
             return None
-        mentions = Orchestrator._extract_course_mentions(message)
+        mentions = Orchestrator._extract_course_mentions(message, non_course_starters)
         available_names = [
             (c.get("fullname") or "").lower()
             for c in available_courses
@@ -453,7 +486,13 @@ class Orchestrator:
 
         def _eval_condition(condition):
             if isinstance(condition, dict) and "and" in condition:
-                return all(_eval_condition(part) for part in condition["and"])
+                parts = condition["and"]
+                normalized_parts = [
+                    [part] if isinstance(part, str) else part for part in parts
+                ]
+                return all(_eval_condition(part) for part in normalized_parts)
+            if isinstance(condition, str):
+                condition = [condition]
             if not isinstance(condition, (list, tuple)) or not condition:
                 return False
             head = condition[0]
@@ -577,19 +616,173 @@ class Orchestrator:
         return modules
 
     @staticmethod
+    def _module_completion_status(
+        contents: List[Dict[str, Any]],
+        activity_completions: List[Dict[str, Any]],
+        grade_items: List[Dict[str, Any]],
+    ) -> Dict[str, str]:
+        """Return a status per course section (module).
+
+        A section is "completed" if Moodle reports all of its tracked activities
+        as completed. A section is "in_progress" if it is not completed but at
+        least one assignment in it has been graded (grade_raw is not None). This
+        covers the common case where a student has submitted assignments but has
+        not formally "viewed" every content page, so Moodle does not mark the whole
+        section as complete. Otherwise it is "not_started".
+        """
+        completion_by_cmid: Dict[int, bool] = {
+            ac.get("cmid"): ac.get("completed", False)
+            for ac in activity_completions
+            if ac.get("cmid") is not None
+        }
+
+        section_activities: Dict[str, set] = {}
+        section_graded: Dict[str, bool] = {}
+        for item in contents:
+            section = (item.get("section_name") or "").strip()
+            cmid = item.get("id")
+            if not section or cmid is None:
+                continue
+            section_activities.setdefault(section, set()).add(cmid)
+
+        # Determine which sections have at least one graded assignment.
+        graded_cmid_set = {
+            gi.get("cmid")
+            for gi in grade_items
+            if gi.get("cmid") is not None and gi.get("grade_raw") is not None
+        }
+        for item in contents:
+            section = (item.get("section_name") or "").strip()
+            cmid = item.get("id")
+            if section and cmid in graded_cmid_set:
+                section_graded[section] = True
+
+        result: Dict[str, str] = {}
+        for section, cmids in section_activities.items():
+            if not cmids:
+                result[section] = "not_started"
+                continue
+            statuses = [completion_by_cmid.get(cmid, False) for cmid in cmids]
+            if all(statuses):
+                result[section] = "completed"
+            elif section_graded.get(section):
+                result[section] = "in_progress"
+            elif any(statuses):
+                result[section] = "in_progress"
+            else:
+                result[section] = "not_started"
+        return result
+
+    @staticmethod
+    def _build_organizational_count_answer(
+        message: str,
+        lms_data: Dict[str, Any],
+        course_id: int,
+    ) -> tuple[str, List[Dict[str, Any]]]:
+        """Build a deterministic answer for count questions from LMS data.
+
+        Questions like "сколько заданий/модулей/уроков в курсе" do not need an
+        LLM: the answer is already present in lms_data. Returning a computed
+        count eliminates LLM arithmetic hallucinations and makes the setting
+        max_lms_contents irrelevant for this family of questions.
+        """
+        contents = lms_data.get("contents", []) or []
+        message_lower = message.lower()
+
+        # What is being counted? Use prefixes because Russian inflections differ.
+        asks_assignments = any(message_lower.startswith(kw) or kw in message_lower for kw in ("задание", "задания", "дз", "домашн"))
+        asks_modules = any(kw in message_lower for kw in ("модул", "модули"))
+        asks_lessons = any(kw in message_lower for kw in ("урок", "уроки"))
+        # Default to assignments if the question is generic.
+
+        section_names: List[str] = []
+        seen_sections: set = set()
+        for item in contents:
+            section = (item.get("section_name") or "").strip()
+            if section and section not in seen_sections:
+                seen_sections.add(section)
+                section_names.append(section)
+
+        if asks_modules:
+            count = len(section_names)
+            items = section_names
+        elif asks_lessons:
+            items = [
+                item.get("name", "Без названия")
+                for item in contents
+                if (item.get("modname") or "").lower() in ("page", "lesson", "resource", "url")
+            ]
+            count = len(items)
+        else:
+            # Count assignments (modname == assign) by default.
+            items = [
+                item.get("name", "Без названия")
+                for item in contents
+                if (item.get("modname") or "").lower() == "assign"
+            ]
+            count = len(items)
+
+        if count == 0:
+            body = "В курсе пока нет опубликованных элементов для подсчёта."
+            return body, []
+
+        def _plural_form(n: int, forms: tuple[str, str, str]) -> str:
+            if n % 10 == 1 and n % 100 != 11:
+                return forms[0]
+            if 2 <= n % 10 <= 4 and (n % 100 < 10 or n % 100 >= 20):
+                return forms[1]
+            return forms[2]
+
+        if asks_modules:
+            count_word = _plural_form(count, ("{n} модуль", "{n} модуля", "{n} модулей")).format(n=count)
+        elif asks_lessons:
+            count_word = _plural_form(count, ("{n} урок", "{n} урока", "{n} уроков")).format(n=count)
+        else:
+            count_word = _plural_form(count, ("{n} задание", "{n} задания", "{n} заданий")).format(n=count)
+
+        lines = [f"В курсе {count_word}:", ""]
+        for name in items[:50]:
+            lines.append(f"- {name}")
+
+        # Build sources from the listed items.
+        sources: List[Dict[str, Any]] = []
+        seen_source_titles: set = set()
+        for item in contents:
+            title = item.get("name")
+            if title in items[:50] and title not in seen_source_titles:
+                seen_source_titles.add(title)
+                sources.append({
+                    "type": "lms",
+                    "title": title,
+                    "url": item.get("url"),
+                    "module": item.get("section_name"),
+                })
+
+        return "\n".join(lines), sources
+
+    @staticmethod
     def _build_progress_answer(
         message: str,
         lms_data: Dict[str, Any],
         course_id: int,
+        max_lms_contents: int = 12,
+        fallback_messages: Optional[Dict[str, str]] = None,
     ) -> tuple[str, List[Dict[str, Any]]]:
         """Build a deterministic answer for progress-related questions."""
         progress = lms_data.get("progress", {}) or {}
         contents = lms_data.get("contents", []) or []
         completion_status = progress.get("completion_status", "in_progress")
-        modules = Orchestrator._deduplicate_sections(contents)
+        no_lms_data_template = (fallback_messages or {}).get("no_lms_data")
 
-        # Grade items for assignments.
+        # Grade items for assignments and module completion.
         grade_items = progress.get("grade_items", []) or []
+
+        modules = Orchestrator._deduplicate_sections(contents)
+        module_statuses = Orchestrator._module_completion_status(
+            contents, progress.get("activity_completions", []), grade_items
+        )
+
+        # Assignments among grade items.
         assignments = [gi for gi in grade_items if gi.get("item_module") == "assign"]
         graded = [gi for gi in assignments if gi.get("grade_raw") is not None]
 
@@ -598,7 +791,8 @@ class Orchestrator:
         grade_line = f" Общая оценка: {grade}." if grade and grade != "-" else ""
 
         lower_message = message.lower()
-        asks_modules = any(kw in lower_message for kw in ("модуль", "модули", "прошёл", "прошел", "завершил"))
+        asks_completed_modules = any(kw in lower_message for kw in ("прошёл", "прошел", "завершил", "сдал"))
+        asks_all_modules = any(kw in lower_message for kw in ("модуль", "модули", "из чего состоит", "структура"))
         asks_assignments = any(kw in lower_message for kw in ("задание", "задания", "сдал", "выполнил"))
 
         # Lead with concrete completed assignments when available,
@@ -614,9 +808,26 @@ class Orchestrator:
         else:
             body = f"Вы пока находитесь в процессе прохождения курса.{grade_line}"
 
-        # List modules when asked.
-        if asks_modules and modules:
-            body += "\n\nМодули курса:\n" + "\n".join(f"- {m}" for m in modules[:20])
+        # List completed modules when the user asks which modules they have passed.
+        if asks_completed_modules and modules:
+            completed_modules = [m for m in modules if module_statuses.get(m) == "completed"]
+            in_progress_modules = [m for m in modules if module_statuses.get(m) == "in_progress"]
+            lines: List[str] = []
+            if completed_modules:
+                lines.append("Пройденные модули:")
+                lines.extend(f"- {m}" for m in completed_modules)
+            if in_progress_modules:
+                lines.append("Модули в процессе:")
+                lines.extend(f"- {m}" for m in in_progress_modules)
+            if not completed_modules and not in_progress_modules:
+                if no_lms_data_template:
+                    lines.append(no_lms_data_template)
+                else:
+                    lines.append("Пока нет завершённых модулей.")
+            body += "\n\n" + "\n".join(lines)
+        # List all modules when the user asks about course structure.
+        elif asks_all_modules and modules:
+            body += "\n\nМодули курса:\n" + "\n".join(f"- {m}" for m in modules[:max_lms_contents])
 
         # List graded assignments explicitly when asked, if not already shown.
         if asks_assignments and not graded:
@@ -652,6 +863,7 @@ class Orchestrator:
         message: str,
         lms_data: Dict[str, Any],
         course_id: int,
+        max_lms_deadlines: int = 5,
     ) -> tuple[str, List[Dict[str, Any]]]:
         """Build a deterministic answer for deadline questions from LMS data."""
         deadlines = lms_data.get("deadlines", []) or []
@@ -690,7 +902,7 @@ class Orchestrator:
         lines: List[str] = []
         sources: List[Dict[str, Any]] = []
         seen_ids: set = set()
-        for d in matched[:5]:
+        for d in matched[:max_lms_deadlines]:
             due = d.get("due_date")
             due_str = due[:10] if due else "не установлен"
             lines.append(f"- «{d.get('name', 'Без названия')}»: {due_str}")
@@ -997,11 +1209,16 @@ class Orchestrator:
         # explicit UI selection, then default, but only if the mentioned course is
         # actually available to this role. Otherwise we refuse.
         available_courses = await self._get_available_courses(available_course_ids)
-        mentioned_course_id = self._find_mentioned_course(message, available_courses)
+        non_course_starters = self._non_course_starters()
+        mentioned_course_id = self._find_mentioned_course(
+            message, available_courses, non_course_starters
+        )
         explicit_course_id = course_id if course_id in available_course_ids else None
 
         # Check whether the user is asking about a course they are not enrolled in.
-        other_course = self._looks_like_other_course(message, available_courses)
+        other_course = self._looks_like_other_course(
+            message, available_courses, non_course_starters
+        )
         if other_course:
             out_of_scope_template = self._ocfg.get(
                 "fallback_messages", {}
@@ -1139,6 +1356,8 @@ class Orchestrator:
                     strict_course=strict_course,
                     course_boost_enabled=retrieval_tuning.course_boost_enabled,
                     course_boost_factor=retrieval_tuning.course_boost_factor,
+                    embedding_timeout_ms=retrieval_tuning.embedding_timeout_ms,
+                    retrieval_timeout_ms=retrieval_tuning.retrieval_timeout_ms,
                 )
                 t_post_start = time.perf_counter()
                 seen_hashes = set()
@@ -1263,7 +1482,8 @@ class Orchestrator:
             # Short-circuit for deadline questions: answer deterministically from LMS data.
             if intent == "deadline":
                 deadline_answer, deadline_sources = self._build_deadline_answer(
-                    message, lms_data, target_course_id
+                    message, lms_data, target_course_id,
+                    max_lms_deadlines=self._ocfg.get("max_lms_deadlines", 5),
                 )
                 total_lms_ms = round(
                     timings.get("lms_deadlines_ms", 0)
@@ -1337,7 +1557,9 @@ class Orchestrator:
             # Short-circuit for progress questions: answer deterministically from LMS data.
             if intent == "progress":
                 progress_answer, progress_sources = self._build_progress_answer(
-                    message, lms_data, target_course_id
+                    message, lms_data, target_course_id,
+                    max_lms_contents=self._ocfg.get("max_lms_contents", 12),
+                    fallback_messages=self._ocfg.get("fallback_messages", {}),
                 )
                 total_lms_ms = round(
                     timings.get("lms_deadlines_ms", 0)
@@ -1408,12 +1630,92 @@ class Orchestrator:
                     effective_cache_ttl,
                 )
 
+            # Short-circuit for count questions: answer deterministically from LMS data.
+            message_lower = message.lower()
+            is_count_question = any(kw in message_lower for kw in ("сколько", "количество", "всего"))
+            asks_assignments_or_modules = any(
+                kw in message_lower
+                for kw in ("задание", "задания", "дз", "модуль", "модули", "урок", "уроки", "курс")
+            )
+            if intent == "organizational" and is_count_question and asks_assignments_or_modules:
+                count_answer, count_sources = self._build_organizational_count_answer(
+                    message, lms_data, target_course_id
+                )
+                total_lms_ms = round(
+                    timings.get("lms_deadlines_ms", 0)
+                    + timings.get("lms_progress_ms", 0)
+                    + timings.get("lms_contents_ms", 0),
+                    2,
+                )
+                request = await self.logger.create_chat_request(
+                    session_id=session_id,
+                    chat_session_id=chat_session.id,
+                    role=role,
+                    course_id=target_course_id,
+                    difficulty=difficulty,
+                    message=message,
+                    intent=intent,
+                    lms_calls=lms_calls,
+                    rag_filters=rag_filters,
+                )
+                await self.logger.create_chat_log(
+                    request_id=request.id,
+                    answer=count_answer,
+                    sources=count_sources,
+                    llm_model=None,
+                    prompt_tokens=0,
+                    completion_tokens=0,
+                    total_tokens=0,
+                    latency_ms=total_lms_ms,
+                    error=None,
+                )
+                await self.logger.log_analytics_event(
+                    event_type="chat_answer",
+                    session_id=session_id,
+                    course_id=target_course_id,
+                    difficulty=difficulty,
+                    intent=intent,
+                    payload={
+                        "has_lms_data": True,
+                        "rag_chunks": 0,
+                        "llm_status": "short_circuit",
+                        "validated": True,
+                        "timings_ms": timings,
+                    },
+                )
+                execution_steps.extend([
+                    {"stage_name": "context_build", "step_order": 4, "duration_ms": 0},
+                    {"stage_name": "response_save", "step_order": 8, "duration_ms": 0},
+                ])
+                await self._finish_execution(
+                    exec_session.id,
+                    request,
+                    execution_steps,
+                    execution_session_status,
+                    total_lms_ms,
+                    execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "lms"},
+                )
+                return self._save_cache_result(
+                    message,
+                    {
+                        "answer": count_answer,
+                        "sources": count_sources,
+                        "intent": intent,
+                        "model": None,
+                        "latency_ms": total_lms_ms,
+                        "session_id": session_id,
+                        "error": None,
+                    },
+                    cache_key,
+                    effective_cache_ttl,
+                )
+
             # Short-circuit: if the user asks about deadlines/assignments and there are none.
             deadlines = lms_data.get("deadlines", [])
             if (
-                ("дедлайн" in message.lower()
-                 or "задание" in message.lower()
-                 or "срок" in message.lower())
+                ("дедлайн" in message_lower
+                 or "задание" in message_lower
+                 or "срок" in message_lower)
                 and not deadlines
             ):
                 no_lms_data_template = self._ocfg.get(
@@ -1490,6 +1792,88 @@ class Orchestrator:
                     cache_key,
                     effective_cache_ttl,
                 )
+
+        # Short-circuit: deadline questions with disabled LMS must not fall back
+        # to a generic LLM call because the model would hallucinate deadlines
+        # from chat history or from generic KB chunks. Use the configured
+        # fallback message instead. RAG context is intentionally ignored here:
+        # deadlines are authoritative LMS data.
+        if intent == "deadline" and not need_lms:
+            no_lms_template = self._ocfg.get(
+                "fallback_messages", {}
+            ).get(
+                "no_lms_data",
+                "В курсе пока нет опубликованных заданий с дедлайнами. Обратитесь к преподавателю."
+            )
+            short_latency = round(
+                timings.get("lms_deadlines_ms", 0)
+                + timings.get("lms_progress_ms", 0)
+                + timings.get("lms_contents_ms", 0)
+                + timings.get("rag_search_ms", 0),
+                2,
+            )
+            request = await self.logger.create_chat_request(
+                session_id=session_id,
+                chat_session_id=chat_session.id,
+                role=role,
+                course_id=target_course_id,
+                difficulty=difficulty,
+                message=message,
+                intent=intent,
+                lms_calls=lms_calls,
+                rag_filters=rag_filters,
+            )
+            await self.logger.create_chat_log(
+                request_id=request.id,
+                answer=no_lms_template,
+                sources=[],
+                llm_model=None,
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                latency_ms=short_latency,
+                error=None,
+            )
+            await self.logger.log_analytics_event(
+                event_type="chat_answer",
+                session_id=session_id,
+                course_id=target_course_id,
+                difficulty=difficulty,
+                intent=intent,
+                payload={
+                    "has_lms_data": False,
+                    "rag_chunks": 0,
+                    "llm_status": "short_circuit",
+                    "validated": True,
+                    "timings_ms": timings,
+                },
+            )
+            execution_steps.extend([
+                {"stage_name": "context_build", "step_order": 4, "duration_ms": 0},
+                {"stage_name": "response_save", "step_order": 8, "duration_ms": 0},
+            ])
+            await self._finish_execution(
+                exec_session.id,
+                request,
+                execution_steps,
+                execution_session_status,
+                short_latency,
+                execution_metadata={"timings_ms": timings, "short_circuit": True, "route": "fallback_no_lms"},
+            )
+            return self._save_cache_result(
+                message,
+                {
+                    "answer": no_lms_template,
+                    "sources": [],
+                    "intent": intent,
+                    "model": None,
+                    "latency_ms": short_latency,
+                    "session_id": session_id,
+                    "error": None,
+                },
+                cache_key,
+                effective_cache_ttl,
+            )
 
         # Short-circuit: if this is a pure study question and no relevant context
         # was found, refuse immediately without calling the LLM.

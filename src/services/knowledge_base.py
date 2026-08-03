@@ -435,6 +435,7 @@ class KnowledgeBaseService:
             module_id=document.module_id,
             topic_id=document.topic_id,
             difficulty=document.difficulty.value,
+            embedding_timeout_ms=tuning.embedding_timeout_ms,
         )
 
         for chunk in chunks:
@@ -490,7 +491,11 @@ class KnowledgeBaseService:
 
         try:
             file_path = self.root_path / active_version.storage_path
-            processor = DocumentProcessor()
+            tuning = await RetrievalTuningService(self.db).get_or_create_default()
+            processor = DocumentProcessor(
+                chunk_size=tuning.chunk_size,
+                chunk_overlap=tuning.chunk_overlap,
+            )
 
             # Load cleaned text. Persist the cleaned copy so the console
             # can show both RAW and cleaned previews without re-processing.

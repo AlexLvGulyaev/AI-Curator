@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
@@ -44,7 +44,7 @@ class AiConfigIn(BaseModel):
     """Payload for creating an AI config version."""
 
     name: str = Field(..., max_length=255)
-    system_prompt: str
+    system_prompt: str = Field(..., min_length=1)
     model: str = Field("gpt-4o-mini", max_length=100)
     temperature: float = Field(0.3, ge=0.0, le=2.0)
     max_tokens: int = Field(1024, ge=1, le=4096)
@@ -54,6 +54,17 @@ class AiConfigIn(BaseModel):
     output_rules: Optional[str] = None
     refusal_answer_text: Optional[str] = None
     max_history_messages: int = Field(6, ge=0, le=50)
+    active_provider: Optional[str] = Field("openai", pattern="^(openai|gigachat)$")
+    fallback_provider: Optional[str] = Field("gigachat", pattern="^(openai|gigachat)$")
+    openai_enabled: Optional[bool] = True
+    gigachat_enabled: Optional[bool] = True
+
+    @field_validator("system_prompt")
+    @classmethod
+    def _system_prompt_not_empty(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("system_prompt cannot be empty")
+        return value
 
 
 class AiConfigOut(BaseModel):
@@ -63,6 +74,7 @@ class AiConfigOut(BaseModel):
 
     id: int
     name: str
+    system_prompt: str
     model: str
     temperature: float
     max_tokens: int
@@ -72,6 +84,10 @@ class AiConfigOut(BaseModel):
     output_rules: Optional[str]
     refusal_answer_text: Optional[str]
     max_history_messages: int
+    active_provider: str
+    fallback_provider: str
+    openai_enabled: bool
+    gigachat_enabled: bool
     is_active: bool
     created_by: Optional[str]
     created_at: datetime
@@ -110,6 +126,10 @@ async def create_config(
         output_rules=payload.output_rules,
         refusal_answer_text=payload.refusal_answer_text,
         max_history_messages=payload.max_history_messages,
+        active_provider=payload.active_provider,
+        fallback_provider=payload.fallback_provider,
+        openai_enabled=payload.openai_enabled,
+        gigachat_enabled=payload.gigachat_enabled,
         created_by="admin",
     )
     await _log_audit("create", config.id, service.db)

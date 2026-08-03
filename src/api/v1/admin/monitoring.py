@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from adapters.lms_adapter import lms_adapter
 from config import settings
 from db import get_db
+from models.ai_config import AiConfig
 from models.chat import (
     ChatLog,
     ChatRequest,
@@ -19,31 +20,53 @@ from models.chat import (
     ExecutionStep,
     LlmCall,
 )
+from services.ai_config import AiConfigService
 from services.chroma_client import get_chroma_client
 from services.knowledge_base import KnowledgeBaseService
 
 router = APIRouter(prefix="/monitoring", tags=["admin-monitoring"])
 
 
-def _llm_providers():
-    """Return configured LLM providers summary."""
+def _llm_providers(config: Optional[AiConfig] = None):
+    """Return configured LLM providers summary based on active AI config and env."""
+    openai_configured = bool(settings.openai_api_key and not settings.openai_api_key.startswith("YOUR"))
+    gigachat_configured = bool(settings.gigachat_auth_key and not settings.gigachat_auth_key.startswith("YOUR"))
+
+    active_provider = config.active_provider if config else "openai"
+    fallback_provider = config.fallback_provider if config else "gigachat"
+    openai_enabled = config.openai_enabled if config else True
+    gigachat_enabled = config.gigachat_enabled if config else True
+
     providers = []
-    openai_ok = bool(settings.openai_api_key and not settings.openai_api_key.startswith("YOUR"))
     providers.append({
+        "key": "openai",
         "name": "OpenAI",
-        "active": True,
-        "status": "ok" if openai_ok else "error",
-        "detail": "Active provider" if openai_ok else "API key missing or placeholder",
+        "is_active": active_provider == "openai",
+        "is_fallback": fallback_provider == "openai",
+        "is_enabled": openai_enabled and openai_configured,
+        "implementation_status": "implemented" if openai_configured else "not_implemented",
+        "readiness_reason": None if openai_configured else "OpenAI API key not configured",
+        "status": "ok" if (openai_enabled and openai_configured) else ("disabled" if not openai_enabled else "error"),
+        "detail": "Active provider" if active_provider == "openai" else ("Fallback provider" if fallback_provider == "openai" else "Available"),
         "model": settings.openai_model or "gpt-4o-mini",
+        "base_url": "https://api.openai.com/v1",
+        "temperature": config.temperature if config else 0.3,
+        "max_tokens": config.max_tokens if config else 1024,
     })
-    # GigaChat is reserved as fallback for future sprints.
-    gigachat_token = getattr(settings, "gigachat_token", None)
     providers.append({
+        "key": "gigachat",
         "name": "GigaChat",
-        "active": False,
-        "status": "ok" if gigachat_token else "disabled",
-        "detail": "Fallback provider (not configured)" if not gigachat_token else "Fallback configured",
-        "model": "GigaChat-Max",
+        "is_active": active_provider == "gigachat",
+        "is_fallback": fallback_provider == "gigachat",
+        "is_enabled": gigachat_enabled and gigachat_configured,
+        "implementation_status": "implemented" if gigachat_configured else "not_implemented",
+        "readiness_reason": None if gigachat_configured else "GIGACHAT_AUTH_KEY not configured",
+        "status": "ok" if (gigachat_enabled and gigachat_configured) else ("disabled" if not gigachat_enabled else "error"),
+        "detail": "Active provider" if active_provider == "gigachat" else ("Fallback provider" if fallback_provider == "gigachat" else "Available"),
+        "model": settings.gigachat_model or "GigaChat-Max",
+        "base_url": settings.gigachat_base_url or "https://gigachat.devices.sberbank.ru/api/v1",
+        "temperature": 0.1,
+        "max_tokens": 500,
     })
     return providers
 
@@ -278,7 +301,9 @@ async def monitoring_status(db: AsyncSession = Depends(get_db)):
 
     ai_activity = await _ai_activity(db)
     kb_status = await _kb_status(db)
-    providers = _llm_providers()
+    ai_config_service = AiConfigService(db)
+    active_config = await ai_config_service.get_active()
+    providers = _llm_providers(active_config)
     errors = await _recent_errors(db)
 
     return {

@@ -74,6 +74,17 @@ class GradeItem(BaseModel):
     raw: Optional[Dict[str, Any]] = Field(None, exclude=True)
 
 
+class ActivityCompletion(BaseModel):
+    """Completion status of a single course module activity."""
+
+    cmid: int
+    modname: str
+    instance_id: Optional[int] = None
+    name: Optional[str] = None
+    completed: bool = False
+    raw: Optional[Dict[str, Any]] = Field(None, exclude=True)
+
+
 class UserCourseProgress(BaseModel):
     """Aggregated progress for a user in a course."""
 
@@ -82,6 +93,7 @@ class UserCourseProgress(BaseModel):
     user_fullname: Optional[str] = None
     completion_status: Optional[str] = None
     grade_items: List[GradeItem] = Field(default_factory=list)
+    activity_completions: List[ActivityCompletion] = Field(default_factory=list)
     overall_grade: Optional[float] = None
     overall_grade_max: Optional[float] = None
     overall_grade_formatted: Optional[str] = None
