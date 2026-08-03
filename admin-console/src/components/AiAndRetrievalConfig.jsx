@@ -621,7 +621,7 @@ function AiAndRetrievalConfig() {
               />
             </InputRow>
 
-            <InputRow label="Курсовый буст" inline>
+            <InputRow label="Course boost" inline>
               <div className="ai-checkbox-cell">
                 <input
                   type="checkbox"
@@ -631,7 +631,7 @@ function AiAndRetrievalConfig() {
               </div>
             </InputRow>
 
-            <InputRow label="Сила буста course_id" error={tuningErrors.course_boost_factor}>
+            <InputRow label="Course boost factor" error={tuningErrors.course_boost_factor}>
               <input
                 type="number"
                 className={`ai-input ${tuningErrors.course_boost_factor ? 'ai-input--error' : ''}`}
