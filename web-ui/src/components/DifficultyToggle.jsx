@@ -1,6 +1,5 @@
 const LEVELS = [
   { id: 'beginner', label: 'Базовый' },
-  { id: 'intermediate', label: 'Средний' },
   { id: 'advanced', label: 'Углублённый' },
 ];
 
