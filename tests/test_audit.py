@@ -15,6 +15,7 @@ async def test_audit_log_after_kb_create(client, tmp_path):
             "/api/v1/admin/kb/documents",
             data={"title": "Audit Doc", "document_type": "lecture"},
             files={"file": ("audit.md", file_path.read_bytes(), "text/markdown")},
+            headers={"X-Forwarded-For": "192.0.2.1"},
         )
         assert create_response.status_code == 201
         doc_id = create_response.json()["id"]
@@ -23,10 +24,21 @@ async def test_audit_log_after_kb_create(client, tmp_path):
         assert audit_response.status_code == 200
         data = audit_response.json()
         entries = data.get("items", data)
-        assert any(
-            e["resource_type"] == "kb_document" and str(doc_id) == e["resource_id"]
-            for e in entries
+        entry = next(
+            (
+                e
+                for e in entries
+                if e["resource_type"] == "kb_document" and str(doc_id) == e["resource_id"]
+            ),
+            None,
         )
+        assert entry is not None
+        assert entry["user_id"] == "admin"
+        assert entry["user_name"] == "admin"
+        assert entry["user_role"] == "admin"
+        assert entry["ip_address"] == "192.0.2.1"
+        assert entry["details"]["title"] == "Audit Doc"
+        assert entry["details"]["document_type"] == "lecture"
 
 
 @pytest.mark.anyio
@@ -39,6 +51,7 @@ async def test_audit_log_date_filters_and_detail(client, tmp_path):
             "/api/v1/admin/kb/documents",
             data={"title": "Audit Filter Doc", "document_type": "lecture"},
             files={"file": ("audit_filter.md", file_path.read_bytes(), "text/markdown")},
+            headers={"X-Forwarded-For": "198.51.100.7, 203.0.113.42"},
         )
 
         list_response = await client.get("/api/v1/admin/audit?limit=1")
@@ -52,9 +65,12 @@ async def test_audit_log_date_filters_and_detail(client, tmp_path):
         assert detail_response.status_code == 200
         detail = detail_response.json()
         assert detail["id"] == entry_id
-        assert "user_name" in detail
-        assert "ip_address" in detail
-        assert "details" in detail
+        assert detail["user_id"] == "admin"
+        assert detail["user_name"] == "admin"
+        assert detail["user_role"] == "admin"
+        # The first address in the X-Forwarded-For chain is the original client.
+        assert detail["ip_address"] == "198.51.100.7"
+        assert detail["details"]["title"] == "Audit Filter Doc"
 
         today = __import__("datetime").date.today().isoformat()
         filtered_response = await client.get(

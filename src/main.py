@@ -31,7 +31,9 @@ async def _retention_cleanup_loop():
                     action="retention_cleanup",
                     resource_type="system",
                     user_id="system",
+                    user_name="system",
                     user_role="system",
+                    ip_address=None,
                     details=deleted,
                 )
         except Exception:

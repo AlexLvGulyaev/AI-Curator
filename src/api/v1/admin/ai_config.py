@@ -2,13 +2,14 @@
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Any, Dict
 
+from api.v1.admin.auth import AdminIdentity, admin_auth
 from db import get_db
 from models.ai_config import AiConfig, DEFAULT_PROVIDER_SETTINGS
 from services.ai_config import AiConfigService
@@ -36,14 +37,34 @@ def get_service(db: AsyncSession = Depends(get_db)) -> AiConfigService:
     return AiConfigService(db)
 
 
-async def _log_audit(action: str, resource_id, db: AsyncSession):
+def _get_client_ip(request: Request) -> Optional[str]:
+    """Return the client IP from X-Forwarded-For or the direct connection."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip() or None
+    if request.client:
+        return request.client.host
+    return None
+
+
+async def _log_audit(
+    action: str,
+    resource_id,
+    db: AsyncSession,
+    admin: AdminIdentity,
+    request: Request,
+    details: Optional[Dict[str, Any]] = None,
+):
     logger = LoggerService(db)
     await logger.log_audit(
         action=action,
         resource_type="ai_config",
         resource_id=str(resource_id) if resource_id is not None else None,
-        user_id="admin",
-        user_role="admin",
+        user_id=admin.user_id,
+        user_name=admin.user_name,
+        user_role=admin.user_role,
+        ip_address=_get_client_ip(request),
+        details=details or {},
     )
 
 
@@ -132,8 +153,10 @@ async def list_configs(service: AiConfigService = Depends(get_service)):
 
 @router.post("", response_model=AiConfigOut, status_code=status.HTTP_201_CREATED)
 async def create_config(
+    request: Request,
     payload: AiConfigIn,
     service: AiConfigService = Depends(get_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Create a new AI configuration version (inactive by default)."""
     config = await service.create_config(
@@ -153,22 +176,38 @@ async def create_config(
         openai_enabled=payload.openai_enabled,
         gigachat_enabled=payload.gigachat_enabled,
         provider_settings=payload.provider_settings,
-        created_by="admin",
+        created_by=admin.user_name,
     )
-    await _log_audit("create", config.id, service.db)
+    await _log_audit(
+        "create",
+        config.id,
+        service.db,
+        admin,
+        request,
+        details={"name": config.name, "model": config.model},
+    )
     _invalidate_response_cache()
     return AiConfigOut.model_validate(config)
 
 
 @router.post("/{config_id}/activate", response_model=AiConfigOut)
 async def activate_config(
+    request: Request,
     config_id: int,
     service: AiConfigService = Depends(get_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Activate the specified configuration version."""
     try:
         config = await service.activate(config_id)
-        await _log_audit("activate", config.id, service.db)
+        await _log_audit(
+            "activate",
+            config.id,
+            service.db,
+            admin,
+            request,
+            details={"name": config.name, "model": config.model},
+        )
         _invalidate_response_cache()
         return AiConfigOut.model_validate(config)
     except ValueError as exc:

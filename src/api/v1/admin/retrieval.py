@@ -1,11 +1,12 @@
 """Admin endpoints for retrieval tuning and reindexing."""
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.v1.admin.auth import AdminIdentity, admin_auth
 from db import get_db
 from services.cache import response_cache
 from services.knowledge_base import KnowledgeBaseService
@@ -19,14 +20,34 @@ def get_service(db: AsyncSession = Depends(get_db)) -> RetrievalTuningService:
     return RetrievalTuningService(db)
 
 
-async def _log_audit(action: str, resource_id, db: AsyncSession):
+def _get_client_ip(request: Request) -> Optional[str]:
+    """Return the client IP from X-Forwarded-For or the direct connection."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip() or None
+    if request.client:
+        return request.client.host
+    return None
+
+
+async def _log_audit(
+    action: str,
+    resource_id,
+    db: AsyncSession,
+    admin: AdminIdentity,
+    request: Request,
+    details: Optional[Dict[str, Any]] = None,
+):
     logger = LoggerService(db)
     await logger.log_audit(
         action=action,
         resource_type="retrieval_tuning",
         resource_id=str(resource_id) if resource_id is not None else None,
-        user_id="admin",
-        user_role="admin",
+        user_id=admin.user_id,
+        user_name=admin.user_name,
+        user_role=admin.user_role,
+        ip_address=_get_client_ip(request),
+        details=details or {},
     )
 
 
@@ -94,18 +115,28 @@ async def get_tuning(service: RetrievalTuningService = Depends(get_service)):
 
 @router.put("/tuning", response_model=RetrievalTuningOut)
 async def update_tuning(
+    request: Request,
     payload: RetrievalTuningIn,
     service: RetrievalTuningService = Depends(get_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Update the effective retrieval tuning settings."""
+    changed_fields = payload.model_dump(exclude_unset=True)
     try:
-        tuning = await service.update(**payload.model_dump(exclude_unset=True))
+        tuning = await service.update(**changed_fields)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
-    await _log_audit("update", tuning.id, service.db)
+    await _log_audit(
+        "update",
+        tuning.id,
+        service.db,
+        admin,
+        request,
+        details={"changed_fields": list(changed_fields.keys())},
+    )
     _invalidate_response_cache()
     return RetrievalTuningOut.model_validate(tuning)
 
@@ -125,17 +156,26 @@ async def list_backends():
 
 @router.post("/reindex")
 async def reindex_all(
+    request: Request,
     db: AsyncSession = Depends(get_db),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Reindex all published Knowledge Base documents."""
     kb_service = KnowledgeBaseService(db)
     try:
-        await kb_service.reindex_all_published()
+        result = await kb_service.reindex_all_published()
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Reindex failed: {exc}",
         ) from exc
-    await _log_audit("reindex", None, db)
+    await _log_audit(
+        "reindex",
+        None,
+        db,
+        admin,
+        request,
+        details={"affected_documents": result.get("affected_documents")},
+    )
     _invalidate_response_cache()
     return {"status": "ok", "message": "Reindex started"}

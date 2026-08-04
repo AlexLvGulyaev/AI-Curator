@@ -2,9 +2,12 @@
 
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.v1.admin.auth import AdminIdentity, admin_auth
 from db import get_db
 from models.knowledge_base import KbDocument, KbDocumentVersion
 from schemas.knowledge_base import (
@@ -38,15 +41,37 @@ def get_kb_service(db: AsyncSession = Depends(get_db)) -> KnowledgeBaseService:
     return KnowledgeBaseService(db)
 
 
-async def _log_audit(action: str, resource_type: str, resource_id, db: AsyncSession):
+def _get_client_ip(request: Request) -> Optional[str]:
+    """Return the client IP from X-Forwarded-For or the direct connection."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        # The first address in the chain is the original client.
+        return forwarded.split(",")[0].strip() or None
+    if request.client:
+        return request.client.host
+    return None
+
+
+async def _log_audit(
+    action: str,
+    resource_type: str,
+    resource_id,
+    db: AsyncSession,
+    admin: AdminIdentity,
+    request: Request,
+    details: Optional[Dict[str, Any]] = None,
+):
     """Helper to persist an audit event for KB admin actions."""
     logger = LoggerService(db)
     await logger.log_audit(
         action=action,
         resource_type=resource_type,
         resource_id=str(resource_id) if resource_id is not None else None,
-        user_id="admin",
-        user_role="admin",
+        user_id=admin.user_id,
+        user_name=admin.user_name,
+        user_role=admin.user_role,
+        ip_address=_get_client_ip(request),
+        details=details or {},
     )
 
 
@@ -93,6 +118,7 @@ def _invalidate_response_cache() -> None:
 
 @router.post("/documents", response_model=KbDocumentOut, status_code=status.HTTP_201_CREATED)
 async def create_document(
+    request: Request,
     title: str = Form(...),
     document_type: str = Form("lecture"),
     course_id: int = Form(None),
@@ -104,6 +130,7 @@ async def create_document(
     source_url: str = Form(None),
     file: UploadFile = File(...),
     service: KnowledgeBaseService = Depends(get_kb_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Upload a new document to the Knowledge Base."""
     try:
@@ -119,7 +146,21 @@ async def create_document(
             source_url=source_url,
         )
         document = await service.create_document(data, file)
-        await _log_audit("create", "kb_document", document.id, service.db)
+        version = document.versions[0] if document.versions else None
+        await _log_audit(
+            "create",
+            "kb_document",
+            document.id,
+            service.db,
+            admin,
+            request,
+            details={
+                "title": document.title,
+                "document_type": document.document_type.value,
+                "version_id": version.id if version else None,
+                "version_number": version.version_number if version else None,
+            },
+        )
         _invalidate_response_cache()
         return _document_out(document)
     except UnsupportedFileError as exc:
@@ -172,14 +213,30 @@ async def get_document(
 
 @router.put("/documents/{document_id}", response_model=KbDocumentOut)
 async def update_document(
+    request: Request,
     document_id: int,
     data: KbDocumentUpdate,
     service: KnowledgeBaseService = Depends(get_kb_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Update document metadata."""
     try:
         document = await service.update_document(document_id, data)
-        await _log_audit("update", "kb_document", document.id, service.db)
+        await _log_audit(
+            "update",
+            "kb_document",
+            document.id,
+            service.db,
+            admin,
+            request,
+            details={
+                "title": document.title,
+                "updated_fields": [
+                    field for field, value in data.model_dump(exclude_unset=True).items()
+                    if value is not None
+                ],
+            },
+        )
         _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
@@ -191,13 +248,23 @@ async def update_document(
 
 @router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(
+    request: Request,
     document_id: int,
     service: KnowledgeBaseService = Depends(get_kb_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Archive a Knowledge Base document."""
     try:
         await service.delete_document(document_id)
-        await _log_audit("delete", "kb_document", document_id, service.db)
+        await _log_audit(
+            "delete",
+            "kb_document",
+            document_id,
+            service.db,
+            admin,
+            request,
+            details={"document_id": document_id},
+        )
         _invalidate_response_cache()
     except DocumentNotFoundError as exc:
         raise HTTPException(
@@ -208,15 +275,29 @@ async def delete_document(
 
 @router.post("/documents/{document_id}/versions", response_model=KbDocumentOut)
 async def add_version(
+    request: Request,
     document_id: int,
     file: UploadFile = File(...),
     service: KnowledgeBaseService = Depends(get_kb_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Upload a new version of an existing document."""
     try:
         version = await service.add_version(document_id, file)
         document = await service.get_document(document_id)
-        await _log_audit("add_version", "kb_document_version", version.id, service.db)
+        await _log_audit(
+            "add_version",
+            "kb_document_version",
+            version.id,
+            service.db,
+            admin,
+            request,
+            details={
+                "document_id": document_id,
+                "version_id": version.id,
+                "version_number": version.version_number,
+            },
+        )
         _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
@@ -233,14 +314,24 @@ async def add_version(
 
 @router.post("/documents/{document_id}/publish", response_model=KbDocumentOut)
 async def publish_document(
+    request: Request,
     document_id: int,
     publish: bool = Query(True),
     service: KnowledgeBaseService = Depends(get_kb_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Publish or unpublish a document."""
     try:
         document = await service.toggle_publish(document_id, publish)
-        await _log_audit("publish" if publish else "unpublish", "kb_document", document.id, service.db)
+        await _log_audit(
+            "publish" if publish else "unpublish",
+            "kb_document",
+            document.id,
+            service.db,
+            admin,
+            request,
+            details={"document_id": document_id, "published": publish},
+        )
         _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
@@ -257,13 +348,23 @@ async def publish_document(
 
 @router.post("/documents/{document_id}/process", response_model=KbDocumentOut)
 async def process_document(
+    request: Request,
     document_id: int,
     service: KnowledgeBaseService = Depends(get_kb_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Process the active version of a document: extract text, chunk, embed, index."""
     try:
         document = await service.process_document(document_id)
-        await _log_audit("process", "kb_document", document.id, service.db)
+        await _log_audit(
+            "process",
+            "kb_document",
+            document.id,
+            service.db,
+            admin,
+            request,
+            details={"document_id": document_id},
+        )
         _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
@@ -347,12 +448,14 @@ async def get_version_text(
     response_model=KbDocumentOut,
 )
 async def save_version_text(
+    request: Request,
     document_id: int,
     version_id: int,
     payload: KbVersionTextSaveIn,
     stage: str = Query("cleaned"),
     reindex: bool = Query(True),
     service: KnowledgeBaseService = Depends(get_kb_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Save edited cleaned text for a document version and optionally reindex it."""
     if stage != "cleaned":
@@ -364,7 +467,19 @@ async def save_version_text(
         document = await service.save_version_text(
             document_id, version_id, payload.text, reindex=reindex
         )
-        await _log_audit("save_cleaned_text", "kb_document_version", version_id, service.db)
+        await _log_audit(
+            "save_cleaned_text",
+            "kb_document_version",
+            version_id,
+            service.db,
+            admin,
+            request,
+            details={
+                "document_id": document_id,
+                "version_id": version_id,
+                "reindex": reindex,
+            },
+        )
         _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
@@ -422,14 +537,24 @@ async def get_document_timeline(
     response_model=KbDocumentOut,
 )
 async def activate_version(
+    request: Request,
     document_id: int,
     version_id: int,
     service: KnowledgeBaseService = Depends(get_kb_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Activate a specific document version without reindexing."""
     try:
         document = await service.activate_version(document_id, version_id)
-        await _log_audit("activate_version", "kb_document", document.id, service.db)
+        await _log_audit(
+            "activate_version",
+            "kb_document",
+            document.id,
+            service.db,
+            admin,
+            request,
+            details={"document_id": document_id, "version_id": version_id},
+        )
         _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
@@ -449,14 +574,24 @@ async def activate_version(
     response_model=KbDocumentOut,
 )
 async def reindex_version(
+    request: Request,
     document_id: int,
     version_id: int,
     service: KnowledgeBaseService = Depends(get_kb_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Activate and reindex a specific document version."""
     try:
         document = await service.reindex_version(document_id, version_id)
-        await _log_audit("reindex_version", "kb_document", document.id, service.db)
+        await _log_audit(
+            "reindex_version",
+            "kb_document",
+            document.id,
+            service.db,
+            admin,
+            request,
+            details={"document_id": document_id, "version_id": version_id},
+        )
         _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
@@ -473,8 +608,10 @@ async def reindex_version(
 
 @router.post("/documents/{document_id}/reindex", response_model=KbDocumentOut)
 async def reindex_document(
+    request: Request,
     document_id: int,
     service: KnowledgeBaseService = Depends(get_kb_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Reindex the currently active version of a document."""
     try:
@@ -485,7 +622,15 @@ async def reindex_document(
                 f"Document {document_id} has no active version to reindex."
             )
         document = await service.reindex_version(document_id, active_version.id)
-        await _log_audit("reindex", "kb_document", document.id, service.db)
+        await _log_audit(
+            "reindex",
+            "kb_document",
+            document.id,
+            service.db,
+            admin,
+            request,
+            details={"document_id": document_id, "version_id": active_version.id},
+        )
         _invalidate_response_cache()
         return _document_out(document)
     except DocumentNotFoundError as exc:
@@ -502,11 +647,21 @@ async def reindex_document(
 
 @router.post("/reindex-all", response_model=KbReindexAllOut)
 async def reindex_all(
+    request: Request,
     service: KnowledgeBaseService = Depends(get_kb_service),
+    admin: AdminIdentity = Depends(admin_auth),
 ):
     """Reindex all currently published documents."""
     result = await service.reindex_all_published()
-    await _log_audit("reindex_all", "kb_document", None, service.db)
+    await _log_audit(
+        "reindex_all",
+        "kb_document",
+        None,
+        service.db,
+        admin,
+        request,
+        details={"affected_documents": result.get("affected_documents")},
+    )
     _invalidate_response_cache()
     return KbReindexAllOut(**result)
 
