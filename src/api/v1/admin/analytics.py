@@ -17,6 +17,26 @@ router = APIRouter(prefix="/analytics", tags=["admin-analytics"])
 _DATE_FORMAT = "%Y-%m-%d"
 
 
+def _sources_have_rag(sources):
+    """Return True if sources contain RAG/KB chunks (not only LMS references)."""
+    if not sources:
+        return False
+    for item in sources:
+        if not isinstance(item, dict):
+            continue
+        # LMS references have type == "lms" and no document_id/chunk_index.
+        if item.get("type") == "lms":
+            continue
+        # KB/RAG chunks expose document_id and chunk_index at top level or in metadata.
+        if item.get("document_id") is not None or item.get("chunk_index") is not None:
+            return True
+        if item.get("metadata", {}).get("document_id") is not None or item.get("metadata", {}).get("chunk_index") is not None:
+            return True
+        if "distance" in item and "metadata" in item:
+            return True
+    return False
+
+
 def _parse_date(value: Optional[str]) -> Optional[datetime]:
     """Parse an ISO date string into a timezone-aware datetime."""
     if not value:
@@ -70,15 +90,17 @@ async def dashboard(
         request_stmt = request_stmt.where(ChatRequest.course_id == course_id)
     total_requests = await db.scalar(select(func.count()).select_from(request_stmt.subquery()))
 
-    log_count_stmt = (
-        select(func.count(ChatLog.id))
-        .select_from(ChatLog)
-        .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
+    # Count unique ChatRequests that have a ChatLog with a non-null answer.
+    answered_stmt = (
+        select(func.count(ChatRequest.id))
+        .select_from(ChatRequest)
+        .join(ChatLog, ChatLog.request_id == ChatRequest.id)
+        .where(ChatLog.answer != None)
     )
-    log_count_stmt = _filter_by_date(log_count_stmt, ChatRequest, date_from, date_to)
+    answered_stmt = _filter_by_date(answered_stmt, ChatRequest, date_from, date_to)
     if course_id is not None:
-        log_count_stmt = log_count_stmt.where(ChatRequest.course_id == course_id)
-    total_logs = await db.scalar(log_count_stmt)
+        answered_stmt = answered_stmt.where(ChatRequest.course_id == course_id)
+    answered_requests = await db.scalar(answered_stmt) or 0
 
     avg_latency = await db.scalar(
         select(func.avg(ChatLog.latency_ms))
@@ -93,20 +115,7 @@ async def dashboard(
         .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
     )
 
-    unanswered_stmt = (
-        select(func.count(ChatLog.id))
-        .select_from(ChatLog)
-        .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
-        .where(
-            (ChatLog.answer == None)
-            | (ChatLog.sources == None)
-            | (func.json_array_length(ChatLog.sources) == 0)
-        )
-    )
-    unanswered_stmt = _filter_by_date(unanswered_stmt, ChatRequest, date_from, date_to)
-    if course_id is not None:
-        unanswered_stmt = unanswered_stmt.where(ChatRequest.course_id == course_id)
-    unanswered = await db.scalar(unanswered_stmt)
+    unanswered = max((total_requests or 0) - answered_requests, 0)
 
     intent_distribution_stmt = (
         select(ChatRequest.intent, func.count(ChatRequest.id))
@@ -124,10 +133,10 @@ async def dashboard(
 
     return {
         "total_requests": total_requests or 0,
-        "total_answers": total_logs or 0,
+        "total_answers": answered_requests,
         "average_latency_ms": round(avg_latency, 2) if avg_latency else 0,
         "average_feedback_score": round(feedback_avg, 2) if feedback_avg else None,
-        "unanswered_count": unanswered or 0,
+        "unanswered_count": unanswered,
         "intent_distribution": [
             {"intent": intent or "unknown", "count": count}
             for intent, count in intent_distribution.all()
@@ -171,10 +180,16 @@ async def unanswered(
     date_to = filters["date_to"]
     course_id = filters["course_id"]
 
+    # Return requests that do not have any associated ChatLog with a non-null answer.
+    answered_subq = (
+        select(ChatLog.request_id)
+        .where(ChatLog.answer != None)
+        .distinct()
+        .subquery()
+    )
     stmt = (
-        select(ChatRequest, ChatLog)
-        .join(ChatLog, ChatLog.request_id == ChatRequest.id, isouter=True)
-        .where((ChatLog.answer == None) | (ChatLog.sources == None) | (func.json_array_length(ChatLog.sources) == 0))
+        select(ChatRequest)
+        .where(ChatRequest.id.notin_(select(answered_subq.c.request_id)))
         .order_by(ChatRequest.created_at.desc())
         .limit(limit)
     )
@@ -184,14 +199,14 @@ async def unanswered(
 
     result = await db.execute(stmt)
     output = []
-    for request, log in result.all():
+    for request in result.scalars().unique():
         output.append({
             "request_id": request.id,
             "message": request.message,
             "intent": request.intent,
             "course_id": request.course_id,
             "created_at": request.created_at.isoformat() if request.created_at else None,
-            "answer": log.answer if log else None,
+            "answer": None,
         })
     return output
 
@@ -279,7 +294,7 @@ async def sources(
     filters: Dict[str, Any] = Depends(_filters),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return source usage breakdown (LMS, RAG, none)."""
+    """Return source usage breakdown (LMS, RAG, cache, model)."""
     date_from = filters["date_from"]
     date_to = filters["date_to"]
     course_id = filters["course_id"]
@@ -290,6 +305,7 @@ async def sources(
             ChatRequest.id,
             ChatRequest.lms_calls,
             request_log.sources,
+            request_log.cache_hit,
         )
         .join(request_log, request_log.request_id == ChatRequest.id, isouter=True)
     )
@@ -298,18 +314,25 @@ async def sources(
         stmt = stmt.where(ChatRequest.course_id == course_id)
 
     result = await db.execute(stmt)
-    counts = {"lms": 0, "rag": 0, "both": 0, "none": 0}
-    for request_id, lms_calls, sources in result.all():
+    counts = {"lms": 0, "rag": 0, "both": 0, "cache": 0, "model": 0}
+    seen_requests = set()
+    for request_id, lms_calls, sources, cache_hit in result.all():
+        if request_id in seen_requests:
+            continue
+        seen_requests.add(request_id)
         has_lms = bool(lms_calls)
-        has_rag = bool(sources)
-        if has_lms and has_rag:
+        has_rag = _sources_have_rag(sources)
+        is_cache = bool(cache_hit)
+        if is_cache:
+            counts["cache"] += 1
+        elif has_lms and has_rag:
             counts["both"] += 1
         elif has_lms:
             counts["lms"] += 1
         elif has_rag:
             counts["rag"] += 1
         else:
-            counts["none"] += 1
+            counts["model"] += 1
 
     return {
         "total": sum(counts.values()),
@@ -414,3 +437,118 @@ async def events(
         }
         for e in result.scalars().unique()
     ]
+
+
+@router.get("/export")
+async def export(
+    filters: Dict[str, Any] = Depends(_filters),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export detailed analytics report as CSV for the selected filters."""
+    from fastapi.responses import StreamingResponse
+    import csv
+    import io
+
+    date_from = filters["date_from"]
+    date_to = filters["date_to"]
+    course_id = filters["course_id"]
+
+    request_log = aliased(ChatLog)
+    stmt = (
+        select(
+            ChatRequest.id,
+            ChatRequest.session_id,
+            ChatRequest.created_at,
+            ChatRequest.role,
+            ChatRequest.course_id,
+            ChatRequest.intent,
+            ChatRequest.message,
+            ChatRequest.lms_calls,
+            request_log.answer,
+            request_log.sources,
+            request_log.latency_ms,
+            request_log.error,
+            request_log.cache_hit,
+        )
+        .join(request_log, request_log.request_id == ChatRequest.id, isouter=True)
+        .order_by(ChatRequest.created_at.desc())
+    )
+    stmt = _filter_by_date(stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        stmt = stmt.where(ChatRequest.course_id == course_id)
+
+    result = await db.execute(stmt)
+
+    def classify_source(lms_calls, sources, cache_hit):
+        if cache_hit:
+            return "cache"
+        has_lms = bool(lms_calls)
+        has_rag = _sources_have_rag(sources)
+        if has_lms and has_rag:
+            return "both"
+        if has_lms:
+            return "lms"
+        if has_rag:
+            return "rag"
+        return "model"
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "request_id",
+        "session_id",
+        "created_at",
+        "role",
+        "course_id",
+        "intent",
+        "message",
+        "source_type",
+        "lms_used",
+        "rag_used",
+        "cache_hit",
+        "has_answer",
+        "latency_ms",
+        "error",
+    ])
+
+    for row in result.all():
+        (
+            request_id,
+            session_id,
+            created_at,
+            role,
+            course_id_val,
+            intent,
+            message,
+            lms_calls,
+            answer,
+            sources,
+            latency_ms,
+            error,
+            cache_hit,
+        ) = row
+        source_type = classify_source(lms_calls, sources, cache_hit)
+        writer.writerow([
+            request_id,
+            session_id,
+            created_at.isoformat() if created_at else "",
+            role or "",
+            course_id_val or "",
+            intent or "",
+            (message or "").replace("\n", " "),
+            source_type,
+            "yes" if lms_calls else "no",
+            "yes" if sources else "no",
+            "yes" if cache_hit else "no",
+            "yes" if answer else "no",
+            round(latency_ms) if latency_ms is not None else "",
+            (error or "").replace("\n", " ")[:500],
+        ])
+
+    output.seek(0)
+    filename = f"ai_curator_analytics_{date_from.date() if date_from else 'all'}_{date_to.date() if date_to else 'all'}.csv"
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

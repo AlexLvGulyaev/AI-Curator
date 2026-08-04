@@ -296,6 +296,24 @@ export async function getAnalyticsEvents(params = {}) {
   return apiRequest(`/api/v1/admin/analytics/events?${qs}`);
 }
 
+export async function exportAnalyticsReport(params = {}) {
+  const qs = buildQueryString(params);
+  const token = getToken();
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const response = await fetch(`${API_BASE_URL}/api/v1/admin/analytics/export?${qs}`, {
+    method: 'GET',
+    headers,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Ошибка ${response.status}: ${text}`);
+  }
+  return response.blob();
+}
+
 function buildQueryString(params) {
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -314,6 +332,7 @@ export async function getOperationalLogs(params = {}) {
   if (params.course_id !== undefined) qs.set('course_id', params.course_id);
   if (params.intent) qs.set('intent', params.intent);
   if (params.status) qs.set('status', params.status);
+  if (params.source_type) qs.set('source_type', params.source_type);
   if (params.has_error !== undefined) qs.set('has_error', params.has_error);
   if (params.date_from) qs.set('date_from', params.date_from);
   if (params.date_to) qs.set('date_to', params.date_to);

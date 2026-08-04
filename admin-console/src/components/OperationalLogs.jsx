@@ -36,6 +36,15 @@ const INTENT_OPTIONS = [
   { value: 'deadline', label: 'дедлайн' },
 ];
 
+const SOURCE_OPTIONS = [
+  { value: 'all', label: 'все источники' },
+  { value: 'lms', label: 'LMS' },
+  { value: 'rag', label: 'База знаний' },
+  { value: 'both', label: 'LMS + База знаний' },
+  { value: 'cache', label: 'Кэш' },
+  { value: 'model', label: 'Модель' },
+];
+
 function isoDate(offsetDays) {
   if (offsetDays == null) return '';
   const d = new Date();
@@ -252,6 +261,7 @@ export default function OperationalLogs() {
   const [windowDays, setWindowDays] = useState(7);
   const [statusFilter, setStatusFilter] = useState('all');
   const [intentFilter, setIntentFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
 
@@ -263,12 +273,13 @@ export default function OperationalLogs() {
     () => ({
       status: statusFilter === 'all' ? undefined : statusFilter,
       intent: intentFilter === 'all' ? undefined : intentFilter,
+      source_type: sourceFilter === 'all' ? undefined : sourceFilter,
       session_id: search.trim() || undefined,
       date_from: isoDate(windowDays),
       limit: PAGE_SIZE,
       offset: page * PAGE_SIZE,
     }),
-    [statusFilter, intentFilter, search, windowDays, page, refreshNonce]
+    [statusFilter, intentFilter, sourceFilter, search, windowDays, page, refreshNonce]
   );
 
   useEffect(() => {
@@ -332,7 +343,7 @@ export default function OperationalLogs() {
 
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, intentFilter, windowDays, search]);
+  }, [statusFilter, intentFilter, sourceFilter, windowDays, search]);
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -408,6 +419,7 @@ export default function OperationalLogs() {
     setWindowDays(7);
     setStatusFilter('all');
     setIntentFilter('all');
+    setSourceFilter('all');
     setSearch('');
     setPage(0);
   }
@@ -687,9 +699,9 @@ export default function OperationalLogs() {
 
       <div className="flex flex-1 overflow-hidden">
         <div className="ai-card flex h-full w-[420px] flex-col overflow-hidden p-3 pb-2">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
+          <div className="grid grid-cols-2 gap-2 mb-2">
             <select
-              className="ai-select w-auto min-w-[120px] flex-1 text-sm"
+              className="ai-select w-full px-2 py-1 text-xs"
               value={windowDays}
               onChange={(e) => setWindowDays(e.target.value === '' ? null : Number(e.target.value))}
             >
@@ -700,7 +712,7 @@ export default function OperationalLogs() {
               ))}
             </select>
             <select
-              className="ai-select w-auto min-w-[120px] flex-1 text-sm"
+              className="ai-select w-full px-2 py-1 text-xs"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -711,13 +723,24 @@ export default function OperationalLogs() {
               ))}
             </select>
             <select
-              className="ai-select w-auto min-w-[120px] flex-1 text-sm"
+              className="ai-select w-full px-2 py-1 text-xs"
               value={intentFilter}
               onChange={(e) => setIntentFilter(e.target.value)}
             >
               {INTENT_OPTIONS.map((i) => (
                 <option key={i.value} value={i.value}>
                   {i.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="ai-select w-full px-2 py-1 text-xs"
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+            >
+              {SOURCE_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
                 </option>
               ))}
             </select>

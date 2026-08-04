@@ -11,6 +11,38 @@ from sqlalchemy.orm import joinedload
 from db import get_db
 from models.chat import AnalyticsEvent, ChatLog, ChatRequest, ExecutionSession, ExecutionStep, LlmCall, LlmCallTrace
 
+
+def _sources_have_rag(sources):
+    """Return True if sources contain RAG/KB chunks (not only LMS references)."""
+    if not sources:
+        return False
+    for item in sources:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") == "lms":
+            continue
+        if item.get("document_id") is not None or item.get("chunk_index") is not None:
+            return True
+        if item.get("metadata", {}).get("document_id") is not None or item.get("metadata", {}).get("chunk_index") is not None:
+            return True
+        if "distance" in item and "metadata" in item:
+            return True
+    return False
+
+
+def _classify_source(lms_calls, sources, cache_hit):
+    if cache_hit:
+        return "cache"
+    has_lms = bool(lms_calls)
+    has_rag = _sources_have_rag(sources)
+    if has_lms and has_rag:
+        return "both"
+    if has_lms:
+        return "lms"
+    if has_rag:
+        return "rag"
+    return "model"
+
 router = APIRouter(prefix="/operational-logs", tags=["admin-operational-logs"])
 
 
@@ -49,6 +81,7 @@ async def list_operational_logs(
     course_id: Optional[int] = None,
     intent: Optional[str] = None,
     status: Optional[str] = None,
+    source_type: Optional[str] = Query(None, description="lms, rag, both, cache, model"),
     has_error: Optional[bool] = None,
     date_from: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
     date_to: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
@@ -80,6 +113,36 @@ async def list_operational_logs(
             stmt = stmt.where(ChatLog.error != None)
         elif status == "pending":
             stmt = stmt.where(ChatLog.id == None)
+    if source_type:
+        if source_type == "cache":
+            stmt = stmt.where(ChatLog.cache_hit == True)
+        elif source_type == "model":
+            stmt = stmt.where(
+                ((ChatLog.cache_hit == False) | (ChatLog.cache_hit == None))
+                & ((ChatLog.sources == None) | (func.json_array_length(ChatLog.sources) == 0))
+                & ((ChatRequest.lms_calls == None) | (func.json_array_length(ChatRequest.lms_calls) == 0))
+            )
+        elif source_type == "lms":
+            stmt = stmt.where(
+                ((ChatLog.cache_hit == False) | (ChatLog.cache_hit == None))
+                & (ChatRequest.lms_calls != None)
+                & (func.json_array_length(ChatRequest.lms_calls) > 0)
+            )
+        elif source_type == "rag":
+            stmt = stmt.where(
+                ((ChatLog.cache_hit == False) | (ChatLog.cache_hit == None))
+                & (ChatLog.sources != None)
+                & (func.json_array_length(ChatLog.sources) > 0)
+                & ((ChatRequest.lms_calls == None) | (func.json_array_length(ChatRequest.lms_calls) == 0))
+            )
+        elif source_type == "both":
+            stmt = stmt.where(
+                ((ChatLog.cache_hit == False) | (ChatLog.cache_hit == None))
+                & (ChatRequest.lms_calls != None)
+                & (func.json_array_length(ChatRequest.lms_calls) > 0)
+                & (ChatLog.sources != None)
+                & (func.json_array_length(ChatLog.sources) > 0)
+            )
     if has_error is True:
         stmt = stmt.where(ChatLog.error != None).where(ChatLog.error != "")
     elif has_error is False:
