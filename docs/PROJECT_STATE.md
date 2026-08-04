@@ -40,7 +40,8 @@ AI Curator не заменяет преподавателя, не выставл
 - Execution tracing: `chat_sessions`, `execution_sessions`, `execution_steps`; timeline в консоли Dialog Sessions.
 - ResponseCache: кэширование запросов, инвалидация при мутациях KB/AI/retrieval/orchestrator, `cache_hit` в API и UI.
 - Logging & Analytics: `chat_requests`, `chat_logs`, `llm_calls`, `analytics_events`, `audit_logs`.
-- Audit backend: фильтры по дате, действию, типу ресурса, пользователю; детальная карточка.
+- Audit backend: фильтры по дате, действию, типу ресурса, пользователю; детальная карточка с `user_id`, `user_name`, `ip_address`, `details`.
+- E2E testing strategy: `docs/E2E_TEST_PLAN.md` + `docs/PRODUCT_E2E_CHECKLIST.md` для ручных сквозных прогонов.
 - Auth: Admin Console защищён Bearer-токеном `ADMIN_CONSOLE_TOKEN`.
 - Testing infrastructure: тестовая БД `ai_curator_test`, Alembic-миграции в тестах, маркеры pytest, `docs/TESTING_CONTRACT.md`.
 - `pytest` стабильно проходит (53+ тестов).
@@ -51,8 +52,9 @@ AI Curator не заменяет преподавателя, не выставл
 2. **Спринт E2 — Business Reports / Quality Reports:** управленческая сводка — вопросы без ответа, гэпы Knowledge Base, популярные темы, кандидаты на расширение KB.
 3. **Спринт A2/A3 — Read-only demo admin + RBAC:** безопасный демо-доступ в Admin Console только на просмотр, запрет изменений для demo-роли.
 4. **Web UI safe demo mode:** ограниченный по запросам/расходу API режим для потенциальных клиентов на публичном Web UI с защитой API-лимитов.
-5. **Завершение ручного E2E Admin Console:** прогон оставшихся консолей и документирование дефектов.
-6. **Актуализация DEPLOYMENT_GUIDE.md и README.md:** подготовка материалов для портфолио.
+5. **Продуктовое E2E-тестирование и документирование (Phase 1):** созданы `docs/E2E_TEST_PLAN.md` и `docs/PRODUCT_E2E_CHECKLIST.md`, охватывающие Web UI студента, Admin Console, Observability и Deployment Validation. Требуется выполнить первый полный ручной прогон и зафиксировать дефекты.
+6. **Phase 2 E2E:** дополнить чек-лист сценариями Analytics, Business Reports, read-only demo admin / RBAC и safe Web UI demo mode по мере реализации фич.
+7. **Актуализация DEPLOYMENT_GUIDE.md и README.md:** подготовка материалов для портфолио.
 
 ## Market Validation
 
@@ -122,8 +124,9 @@ AI Curator не заменяет преподавателя, не выставл
 8. ✅ Sprint C (ResponseCache) завершён.
 9. ✅ Sprint A1 (read-only audit cleanup) выполнен.
 10. ✅ Sprint B (test DB, testing contract, prod cleanup) выполнен.
-11. 🔄 Завершить ручной E2E Admin Console (Sprint D).
-12. ⏳ Реализовать Analytics Dashboard (Sprint E1).
+11. ✅ Завершить ручной E2E Admin Console (Sprint D).
+12. 🔄 Выполнить первый прогон `docs/PRODUCT_E2E_CHECKLIST.md` (Phase 1).
+13. ⏳ Реализовать Analytics Dashboard (Sprint E1).
 13. ⏳ Реализовать Business Reports / Quality Reports (Sprint E2).
 14. ⏳ Реализовать read-only demo login и RBAC в Admin Console (Sprint A2/A3).
 15. ⏳ Реализовать безопасный API-лимитированный demo режим на Web UI.
