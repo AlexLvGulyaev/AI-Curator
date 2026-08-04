@@ -1299,6 +1299,7 @@ class Orchestrator:
         lms_data: Optional[Dict[str, Any]] = None
         lms_calls: List[Dict[str, Any]] = []
         rag_context: List[Dict[str, Any]] = []
+        raw_rag_context: Optional[List[Dict[str, Any]]] = None
         rag_filters: Dict[str, Any] = {}
 
         async def _fetch_lms_data(course_id: int, student_user_id: int) -> Dict[str, Any]:

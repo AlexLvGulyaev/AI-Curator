@@ -12,6 +12,7 @@ import {
   Cell,
   LineChart,
   Line,
+  Legend,
 } from 'recharts';
 import {
   getAnalyticsDashboard,
@@ -309,9 +310,12 @@ function Analytics() {
                     dataKey="count"
                     nameKey="label"
                     cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label
+                    cy="45%"
+                    outerRadius={70}
+                    label={({ name, percent }) =>
+                      `${(percent * 100).toFixed(0)}%`
+                    }
+                    labelLine={false}
                   >
                     {sources.map((entry) => (
                       <Cell key={entry.source} fill={SOURCE_COLORS[entry.source] || '#64748b'} />
@@ -323,7 +327,9 @@ function Analytics() {
                       borderColor: '#334155',
                       color: '#f8fafc',
                     }}
+                    formatter={(value, name) => [value, name]}
                   />
+                  <Legend verticalAlign="bottom" height={36} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -341,7 +347,7 @@ function Analytics() {
                 <BarChart data={latency.histogram}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="bucket" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
+                  <YAxis stroke="#94a3b8" allowDecimals={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#1e293b',
