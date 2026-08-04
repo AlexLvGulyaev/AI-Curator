@@ -19,63 +19,74 @@ function isoDate(offsetHours) {
   return d.toISOString().slice(0, 10);
 }
 
-function OpsRow({ label, value }) {
+function SectionBox({ title, children, className = '' }) {
   return (
-    <>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </>
+    <div className={`ai-card p-2 flex flex-col ${className}`}>
+      {title && (
+        <h4 className="text-[0.75rem] font-semibold uppercase tracking-wide text-ai-text-muted mb-1.5">
+          {title}
+        </h4>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function CompactRow({ label, value, mono = false }) {
+  return (
+    <div className="grid grid-cols-[7rem_1fr] items-baseline gap-2 text-xs leading-tight min-w-0">
+      <span className="text-ai-text-muted truncate">{label}:</span>
+      <span
+        className={`text-ai-text truncate ${mono ? 'font-mono' : ''}`}
+        title={value}
+      >
+        {value || '—'}
+      </span>
+    </div>
   );
 }
 
 function AuditDetail({ entry }) {
   return (
-    <div className="logs-detail">
-      <div className="logs-detail__head">
-        <div>
-          <h2 className="logs-detail__title">Audit-запись</h2>
-          <p className="logs-detail__sub muted">{shortId(String(entry.id), 16)}</p>
-        </div>
-        <span className="ai-status ai-status--ok">OK</span>
+    <div className="ai-card flex h-full flex-col overflow-hidden p-2">
+      <div className="mb-2 flex items-center justify-between border-b border-ai-border pb-2">
+        <h3 className="ai-section__title">ДЕТАЛИЗАЦИЯ СОБЫТИЯ</h3>
+        <span className="ai-status ai-status--ok">{entry.action}</span>
       </div>
 
-      <div className="logs-summary-grid">
-        <div className="logs-summary-col">
-          <dl className="kv logs-detail-kv">
-            <OpsRow label="action" value={<span className="mono">{entry.action}</span>} />
-            <OpsRow label="resource_type" value={<span className="mono">{entry.resource_type}</span>} />
-            <OpsRow label="resource_id" value={<span className="mono break-all">{entry.resource_id || '—'}</span>} />
-            <OpsRow label="user_id" value={<span className="mono">{entry.user_id || '—'}</span>} />
-          </dl>
-        </div>
-        <div className="logs-summary-col">
-          <dl className="kv logs-detail-kv">
-            <OpsRow label="user_name" value={<span className="mono">{entry.user_name || '—'}</span>} />
-            <OpsRow label="ip_address" value={<span className="mono">{entry.ip_address || '—'}</span>} />
-            <OpsRow
-              label="Создано"
-              value={
-                entry.created_at ? (
-                  <span className="mono">{formatTimestampMsk(entry.created_at)}</span>
-                ) : (
-                  '—'
-                )
-              }
-            />
-          </dl>
-        </div>
-      </div>
+      <div className="flex h-full min-h-0 flex-col gap-2 pr-1">
+        <div className="grid grid-cols-2 gap-2 shrink-0">
+          <SectionBox title="Параметры акции">
+            <div className="space-y-1">
+              <CompactRow label="ID акции" value={String(entry.id)} mono />
+              <CompactRow label="Тип акции" value={entry.action} />
+              <CompactRow label="ID ресурса" value={entry.resource_id} mono />
+              <CompactRow label="Тип ресурса" value={entry.resource_type} />
+            </div>
+          </SectionBox>
 
-      <div className="logs-detail-block page__mt">
-        <h3 className="logs-detail-block__title">Metadata / details</h3>
-        <pre className="logs-pre mono">{formatDetailsJson(entry.details)}</pre>
-      </div>
+          <SectionBox title="Параметры пользователя">
+            <div className="space-y-1">
+              <CompactRow label="ID пользователя" value={entry.user_id} mono />
+              <CompactRow label="Имя пользователя" value={entry.user_name} />
+              <CompactRow label="IP-адрес" value={entry.ip_address} mono />
+              <CompactRow label="Дата события" value={formatTimestampMsk(entry.created_at)} />
+            </div>
+          </SectionBox>
+        </div>
 
-      <SessionJsonSnapshot
-        className="page__mt"
-        body={entry}
-        summaryLabel="Технический снимок audit-записи (JSON)"
-      />
+        <SectionBox title="Детали / metadata" className="min-h-0">
+          <pre className="max-h-[200px] overflow-auto whitespace-pre-wrap break-words rounded-ai bg-black/20 p-2 text-xs text-ai-text">
+            {formatDetailsJson(entry.details)}
+          </pre>
+        </SectionBox>
+
+        <SessionJsonSnapshot
+          className="shrink-0"
+          body={entry}
+          summaryLabel="Технический снимок события (JSON)"
+        />
+      </div>
     </div>
   );
 }
@@ -267,21 +278,7 @@ export default function AuditLog() {
     if (pageIndex !== safePageIdx) setPageIndex(safePageIdx);
   }, [pageIndex, safePageIdx]);
 
-  const pageEntries = entries;
-
-  const goPrevPage = () => {
-    pendingListFocusRef.current = true;
-    const np = Math.max(0, safePageIdx - 1);
-    setPageIndex(np);
-  };
-
-  const goNextPage = () => {
-    pendingListFocusRef.current = true;
-    const np = Math.min(totalPages - 1, safePageIdx + 1);
-    setPageIndex(np);
-  };
-
-  const resetPagination = () => {
+  const resetFilters = () => {
     pendingListFocusRef.current = true;
     setPageIndex(0);
     setActionFilter('');
@@ -292,10 +289,102 @@ export default function AuditLog() {
     if (first) setSelectedId(first);
   };
 
-  const listMetaLine = `Страница ${safePageIdx + 1} из ${totalPages} · записей: ${total} · показано: ${pageEntries.length}`;
+  const pageEntries = entries;
+
+  function renderList() {
+    if (loading && entries.length === 0) {
+      return (
+        <div className="flex h-48 items-center justify-center text-ai-text-muted">
+          <span className="mr-2 inline-block animate-pulse">●</span>
+          Загрузка журнала аудита…
+        </div>
+      );
+    }
+    if (error) {
+      return (
+        <div className="m-4 rounded-ai border border-ai-error/20 bg-red-500/10 p-4 text-sm text-ai-error">
+          {error}
+        </div>
+      );
+    }
+    if (entries.length === 0) {
+      return (
+        <div className="flex h-48 items-center justify-center text-ai-text-muted text-sm">
+          За выбранный период записей не найдены.
+        </div>
+      );
+    }
+    return (
+      <div className="flex-1 overflow-y-auto pr-1 min-h-0" ref={listRef}>
+        <div className="flex flex-col gap-2">
+          {pageEntries.map((entry) => {
+            const eid = String(entry.id);
+            const isSelected = selectedId === entry.id;
+            return (
+              <button
+                key={eid}
+                type="button"
+                data-audit-id={eid}
+                onClick={() => {
+                  pendingListFocusRef.current = true;
+                  setSelectedId(entry.id);
+                }}
+                className={`text-left rounded-ai border p-2 transition-colors ${
+                  isSelected
+                    ? 'border-ai-primary bg-ai-primary-light'
+                    : 'border-ai-border bg-ai-surface hover:border-ai-primary'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-xs text-ai-text-muted">
+                    {entry.created_at ? formatTimestampMsk(entry.created_at) : '—'}
+                  </span>
+                  <span className="ai-status ai-status--ok text-[0.65rem]">{entry.action}</span>
+                </div>
+                <div className="text-sm font-medium text-ai-text line-clamp-2 mb-1">
+                  {entry.resource_type || '—'}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ai-text-secondary">
+                  <span className="mono">#{entry.id}</span>
+                  <span>{entry.user_name || entry.user_id || '—'}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  function renderDetail() {
+    if (!selectedId) {
+      return (
+        <div className="ai-card flex h-full items-center justify-center p-4">
+          <div className="ai-empty">Выберите audit-запись для просмотра.</div>
+        </div>
+      );
+    }
+    if (detailLoading && !detail) {
+      return (
+        <div className="ai-card flex h-full items-center justify-center p-4">
+          <span className="mr-2 inline-block animate-pulse">●</span>
+          Загрузка деталей…
+        </div>
+      );
+    }
+    if (detailError) {
+      return (
+        <div className="ai-card h-full p-4">
+          <div className="ai-error text-sm">{detailError}</div>
+        </div>
+      );
+    }
+    if (!detail) return null;
+    return <AuditDetail entry={detail} />;
+  }
 
   return (
-    <div className="page logs-page">
+    <div className="ai-config-page flex h-full flex-col">
       <div className="ai-page__header border-b border-ai-border">
         <div>
           <h1 className="ai-page__title">Журнал аудита</h1>
@@ -311,152 +400,91 @@ export default function AuditLog() {
         </button>
       </div>
 
-      {error ? (
-        <div className="panel panel--error page__mt ai-error text-sm" role="alert">{error}</div>
-      ) : (
-        <div className="logs-console">
-          <section className="logs-left card">
-            <div className="logs-filters">
-              <div className="logs-filter-row">
-                <select
-                  className="logs-select"
-                  value={windowLabel}
-                  onChange={(e) => setWindowLabel(e.target.value)}
-                  aria-label="Окно времени"
-                >
-                  {WINDOW_OPTIONS.map((w) => (
-                    <option key={w.label} value={w.label}>{w.label}</option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  className="logs-select"
-                  value={actionFilter}
-                  onChange={(e) => setActionFilter(e.target.value)}
-                  placeholder="action"
-                  aria-label="Фильтр действия"
-                />
-                <input
-                  type="text"
-                  className="logs-select"
-                  value={resourceTypeFilter}
-                  onChange={(e) => setResourceTypeFilter(e.target.value)}
-                  placeholder="resource_type"
-                  aria-label="Фильтр типа ресурса"
-                />
-              </div>
-              <input
-                type="text"
-                className="logs-search"
-                value={userFilter}
-                onChange={(e) => setUserFilter(e.target.value)}
-                placeholder="Поиск по user_id или user_name"
-                aria-label="Поиск по пользователю"
-              />
-              <div className="logs-filter-meta logs-filter-meta--with-refresh muted">
-                <span>{listMetaLine}</span>
-              </div>
-              <div className="logs-page-controls">
-                <button
-                  type="button"
-                  className="logs-page-btn"
-                  onClick={goPrevPage}
-                  disabled={safePageIdx <= 0 || total === 0}
-                >
-                  ← Предыдущая
-                </button>
-                <button
-                  type="button"
-                  className="logs-page-btn"
-                  onClick={goNextPage}
-                  disabled={safePageIdx >= totalPages - 1 || total === 0}
-                >
-                  Следующая →
-                </button>
-                <button
-                  type="button"
-                  className="logs-page-btn logs-page-btn--muted"
-                  onClick={resetPagination}
-                  disabled={
-                    safePageIdx === 0 &&
-                    !actionFilter.trim() &&
-                    !resourceTypeFilter.trim() &&
-                    !userFilter.trim() &&
-                    windowLabel === '24h'
-                  }
-                >
-                  Сброс
-                </button>
-              </div>
-            </div>
+      <div className="flex flex-1 overflow-hidden">
+        <div className="ai-card flex h-full w-[420px] flex-col overflow-hidden p-3 pb-2">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <select
+              className="ai-select w-auto min-w-[120px] flex-1 text-sm"
+              value={windowLabel}
+              onChange={(e) => setWindowLabel(e.target.value)}
+              aria-label="Окно времени"
+            >
+              {WINDOW_OPTIONS.map((w) => (
+                <option key={w.label} value={w.label}>{w.label}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              className="ai-input w-auto min-w-[120px] flex-1 text-sm"
+              value={actionFilter}
+              onChange={(e) => setActionFilter(e.target.value)}
+              placeholder="action"
+              aria-label="Фильтр действия"
+            />
+            <input
+              type="text"
+              className="ai-input w-auto min-w-[120px] flex-1 text-sm"
+              value={resourceTypeFilter}
+              onChange={(e) => setResourceTypeFilter(e.target.value)}
+              placeholder="resource_type"
+              aria-label="Фильтр типа ресурса"
+            />
+          </div>
 
-            <div className="logs-list" ref={listRef}>
-              {loading && entries.length === 0 ? (
-                <div className="flex h-48 items-center justify-center text-ai-text-muted">
-                  <span className="mr-2 inline-block animate-pulse">●</span>
-                  Загрузка журнала аудита…
-                </div>
-              ) : entries.length === 0 ? (
-                <div className="flex h-48 items-center justify-center text-ai-text-muted text-sm">
-                  За выбранный период записей не найдены.
-                </div>
-              ) : (
-                pageEntries.map((entry) => {
-                  const eid = String(entry.id);
-                  const preview = entry.details
-                    ? formatDetailsJson(entry.details).slice(0, 60)
-                    : '—';
-                  return (
-                    <button
-                      key={eid}
-                      type="button"
-                      data-audit-id={eid}
-                      className={`logs-item ${selectedId === entry.id ? 'logs-item--selected' : ''}`}
-                      onClick={() => {
-                        pendingListFocusRef.current = true;
-                        setSelectedId(entry.id);
-                      }}
-                    >
-                      <div className="logs-item__row logs-item__row--tight">
-                        <span className="mono logs-item__ts">
-                          {entry.created_at ? formatTimestampMsk(entry.created_at) : '—'}
-                        </span>
-                        <span className="ai-status ai-status--ok text-[0.65rem]">{entry.action}</span>
-                      </div>
-                      <div className="logs-item__preview">
-                        {entry.resource_type}
-                        {entry.resource_id ? ` · ${shortId(entry.resource_id, 24)}` : ''}
-                      </div>
-                      <div className="logs-item__row logs-item__meta muted">
-                        <span className="mono">#{entry.id}</span>
-                        <span>{entry.user_name || entry.user_id || '—'}</span>
-                        <span className="truncate max-w-[180px]" title={preview}>{preview}</span>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </section>
+          <input
+            type="text"
+            className="ai-input w-full mb-2 text-sm"
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            placeholder="Поиск по user_id или user_name"
+            aria-label="Поиск по пользователю"
+          />
 
-          <section className="logs-right card">
-            {entries.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-ai-text-muted text-sm">
-                Выберите audit-запись для просмотра.
-              </div>
-            ) : detailLoading && !detail ? (
-              <div className="flex h-full items-center justify-center text-ai-text-muted">
-                <span className="mr-2 inline-block animate-pulse">●</span>
-                Загрузка деталей…
-              </div>
-            ) : detailError ? (
-              <div className="panel panel--error ai-error text-sm" role="alert">{detailError}</div>
-            ) : detail && selectedId ? (
-              <AuditDetail entry={detail} />
-            ) : null}
-          </section>
+          <div className="mb-2 flex items-center justify-between border-b border-ai-border pb-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+              disabled={safePageIdx <= 0 || total === 0}
+              className="ai-btn-outline rounded-ai px-2 py-1"
+            >
+              ← Назад
+            </button>
+            <span className="text-ai-text-secondary">
+              Страница {safePageIdx + 1} из {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPageIndex((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={safePageIdx >= totalPages - 1 || total === 0}
+              className="ai-btn-outline rounded-ai px-2 py-1"
+            >
+              Вперёд →
+            </button>
+          </div>
+
+          <div className="mb-2 flex items-center justify-between text-xs text-ai-text-secondary">
+            <span>Всего {total}</span>
+            <button
+              type="button"
+              onClick={resetFilters}
+              disabled={
+                safePageIdx === 0 &&
+                !actionFilter.trim() &&
+                !resourceTypeFilter.trim() &&
+                !userFilter.trim() &&
+                windowLabel === '24h'
+              }
+              className="ai-btn-outline rounded-ai px-2 py-1 text-ai-accent hover:underline"
+            >
+              Сброс
+            </button>
+          </div>
+
+          {renderList()}
         </div>
-      )}
+
+        <div className="flex-1 overflow-hidden bg-ai-bg p-2 pt-0 pb-2">{renderDetail()}</div>
+      </div>
     </div>
   );
 }

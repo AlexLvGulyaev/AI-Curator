@@ -1,8 +1,8 @@
 # IMPLEMENTATION_PLAN.md — AI Curator
 
 **Проект:** ai-curator
-**Версия:** 2.5
-**Дата:** 2026-08-02
+**Версия:** 2.6
+**Дата:** 2026-08-04
 **Статус:** Approved
 **Срок реализации:** 7+ календарных дней основного цикла + 9–15 календарных дней спринтов стабилизации и аналитики
 
@@ -368,7 +368,7 @@ Sprint 5.1 (Dashboard) → Sprint 5.3+5.4 (AI & Retrieval) → Sprint 5.2 (KB Do
 | 5.5 | Operational Logs | Консоль operational-запросов студентов | ✅ Завершён |
 | 5.6 | Dialog Sessions | Консоль диалогов студентов (structural redesign) | ✅ Завершён |
 | 5.7 | Analytics Dashboard | Полноценный дашборд аналитики | ⏳ Запланирован |
-| 5.8 | Audit & Compliance | Журнал аудита с фильтрами и детальной карточкой | ✅ Backend завершён, frontend в очереди |
+| 5.8 | Audit & Compliance | Журнал аудита с фильтрами и детальной карточкой | ✅ Backend и frontend завершены, UI унифицировано (2026-08-04) |
 | 5.9 | Business Reports / Quality Reports | Управленческая сводка и качество | ⏳ Запланирован |
 
 > **Примечание:** номера 5.3+5.4 идут перед 5.2 по факту выполнения, так как AI & Retrieval Configuration был реализован раньше Knowledge Base Documents по договорённости о приоритетах.
@@ -631,11 +631,11 @@ Backend и frontend завершены и задеплоены (2026-08-01). Д�
 
 ### 10.2. Спринт A — Убрать read-only аудит + demo login
 
-| # | Задача | Артефакты | Критерий готовности |
-|---|--------|-----------|---------------------|
-| A1 | Удалить `view_*` аудит из admin endpoints | `src/api/v1/admin/audit.py`, `dialog_sessions.py`, `operational_logs.py`, `monitoring.py`, `analytics.py`, `kb.py` | `audit_logs` не растёт от просмотров |
-| A2 | Read-only demo login | `src/api/v1/admin/auth.py`, frontend `useAuth.js`, `Login.jsx` | Демо-пользователь входит только на просмотр, аудит входа работает |
-| A3 | RBAC: запретить demo-роли изменять данные | `src/api/v1/admin/auth.py` | PUT/POST/DELETE endpoints отдают 403 для `viewer` |
+| # | Задача | Артефакты | Критерий готовности | Статус |
+|---|--------|-----------|---------------------|--------|
+| A1 | Удалить `view_*` аудит из admin endpoints | `src/api/v1/admin/audit.py`, `dialog_sessions.py`, `operational_logs.py`, `monitoring.py`, `analytics.py`, `kb.py` | `audit_logs` не растёт от просмотров | ✅ 2026-08-02 |
+| A2 | Read-only demo login | `src/api/v1/admin/auth.py`, frontend `useAuth.js`, `Login.jsx` | Демо-пользователь входит только на просмотр, аудит входа работает | ⏳ |
+| A3 | RBAC: запретить demo-роли изменять данные | `src/api/v1/admin/auth.py` | PUT/POST/DELETE endpoints отдают 403 для `viewer` | ⏳ |
 
 ### 10.3. Спринт B — Изолировать smoke-тесты и подготовить Testing Cost Contract
 
@@ -667,26 +667,44 @@ Backend и frontend завершены и задеплоены (2026-08-01). Д�
 
 ### 10.6. Спринт E — Аналитика и отчёты
 
-| # | Задача | Артефакты | Критерий готовности |
-|---|--------|-----------|---------------------|
-| E1 | Sprint 5.7 Analytics Dashboard | `src/api/v1/admin/analytics.py`, `admin-console/src/components/Analytics.jsx` | Дашборд с фильтрами и агрегатами |
-| E2 | Sprint 5.9 Business Reports | `src/api/v1/admin/reports.py`, `admin-console/src/components/Reports.jsx` | Отчёты по KB coverage, popular topics, quality |
+| # | Задача | Артефакты | Критерий готовности | Статус |
+|---|--------|-----------|---------------------|--------|
+| E1 | Sprint 5.7 Analytics Dashboard | `src/api/v1/admin/analytics.py`, `admin-console/src/components/Analytics.jsx` | Дашборд с фильтрами и агрегатами | ⏳ |
+| E2 | Sprint 5.9 Business Reports | `src/api/v1/admin/reports.py`, `admin-console/src/components/Reports.jsx` | Отчёты по KB coverage, popular topics, quality | ⏳ |
 
-### 10.7. Критический путь
+### 10.7. Спринт F — Безопасный demo-режим Web UI
+
+| # | Задача | Артефакты | Критерий готовности | Статус |
+|---|--------|-----------|---------------------|--------|
+| F1 | Rate limiting и квоты для demo-сессий | `src/api/v1/chat.py`, middleware / dependency | Не более N запросов в час на demo-сессию, ограничение по токенам/длине | ⏳ |
+| F2 | Backend-флаг `demo_mode` | `src/api/v1/chat.py`, `src/services/orchestrator.py` | Demo-запросы помечены, не влияют на production-аналитику или влияют отдельно | ⏳ |
+| F3 | UI-индикация demo-режима | `web-ui/src/components/*` | Пользователь видит оставшиеся лимиты, таймер сессии, кнопку "начать демо" | ⏳ |
+| F4 | Кэширование + защита от повторов | `src/services/cache/response_cache.py` | Частые демо-запросы идут из кэша без расхода LLM | ⏳ |
+
+### 10.8. Критический путь
 
 ```
-A → B → C → D → E
+A → B → C → D → E → F
 ```
 
-### 10.8. Текущий статус
+Где:
+- **A** — cleanup и read-only demo admin + RBAC;
+- **B** — тестовая инфраструктура и cost contract;
+- **C** — кэширование;
+- **D** — ручной E2E Admin Console;
+- **E** — аналитика и отчёты;
+- **F** — безопасный demo-режим Web UI.
+
+### 10.9. Текущий статус
 
 - [x] A1 — read-only аудит убран (2026-08-02).
 - [ ] A2/A3 — demo read-only login и RBAC.
 - [x] B1–B4 — тестовая БД `ai_curator_test`, Alembic-миграции, маркеры pytest, `docs/TESTING_CONTRACT.md` (2026-08-02).
 - [x] B5 — очистка prod БД от тестового мусора (2026-08-02).
 - [x] C1–C5 — кэширование: ResponseCache, интеграция в Orchestrator, инвалидация, `cache_hit` в UI/API, тесты и документация (2026-08-02).
-- [ ] D1–D3 — ручной E2E.
+- [ ] D1–D3 — ручной E2E (частично: Operational Logs, Dialog Sessions, Audit Log — UI унифицировано и задеплоено; остальные консоли и сквозные сценарии — в процессе).
 - [ ] E1–E2 — аналитика и отчёты.
+- [ ] F1–F4 — Web UI safe demo mode (API-лимитированный публичный демо-доступ).
 
 ---
 
@@ -810,3 +828,4 @@ A → B → C → D → E
 | 2026-08-01 | 2.2d | Реализован backend Sprint 5.6 Dialog Sessions (structural redesign) и Sprint 5.8 Audit: модели, миграция, `ExecutionTracerService`, интеграция в `orchestrator.py`, API, тесты; `pytest` 53 passed; документация обновлена |
 | 2026-08-02 | 2.5 | Спринт C «Кэширование запросов» выполнен: ResponseCache, интеграция в Orchestrator, инвалидация в admin endpoints, `cache_hit` в ChatLog/ExecutionSession/API, `tests/test_cache.py`; обновлены `OPERATIONS.md`, `API_CONTRACT.md`, `.env.example` |
 | 2026-08-02 | 2.3 | Добавлен раздел 10 «Спринты стабилизации и подготовки к аналитике» (A–E); Sprint 5.8 отмечен полностью выполненным (frontend + read-only audit cleanup); выполнен A1 — удалён `view_*` аудит из admin endpoints; обновлены `API_CONTRACT.md` и `OPERATIONS.md` |
+| 2026-08-04 | 2.6 | Актуализированы статусы: Sprint 5.8 frontend UI унифицировано (Operational Logs, Dialog Sessions, Audit Log); добавлен Спринт F «Безопасный demo-режим Web UI» с rate limiting, квотами, demo-флагом и UI-индикацией; обновлены PROJECT_STATE.md, Next Steps, критический путь A→B→C→D→E→F |
