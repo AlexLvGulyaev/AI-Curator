@@ -101,11 +101,6 @@ function KbDocumentList({ filters, onFiltersChange, selectedDocument, onSelectDo
     }
   }
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.status, filters.document_type, refreshTick]);
-
   const filteredDocuments = useMemo(() => {
     const search = (filters.search || '').toLowerCase();
     if (!search) return documents;
@@ -118,6 +113,11 @@ function KbDocumentList({ filters, onFiltersChange, selectedDocument, onSelectDo
 
   const totalPages = Math.max(1, Math.ceil(filteredDocuments.length / PAGE_SIZE));
   const paginatedDocuments = filteredDocuments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.status, filters.document_type, refreshTick]);
 
   // Auto-focus on first document when list loads and nothing is selected
   useEffect(() => {

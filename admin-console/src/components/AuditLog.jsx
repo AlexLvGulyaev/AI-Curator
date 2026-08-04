@@ -215,6 +215,9 @@ export default function AuditLog() {
     return () => window.cancelAnimationFrame(id);
   }, [selectedId, pageIndex]);
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const safePageIdx = Math.min(pageIndex, Math.max(0, totalPages - 1));
+
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
@@ -222,7 +225,6 @@ export default function AuditLog() {
       if (t && (t.closest('input') || t.closest('textarea') || t.closest('select') || t.isContentEditable)) {
         return;
       }
-      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
       const curIdx = selectedId ? entries.findIndex((s) => String(s.id) === String(selectedId)) : 0;
       if (curIdx < 0) return;
       if (e.key === 'ArrowDown') {
@@ -259,10 +261,7 @@ export default function AuditLog() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [entries, selectedId, safePageIdx, total]);
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const safePageIdx = Math.min(pageIndex, Math.max(0, totalPages - 1));
+  }, [entries, selectedId, safePageIdx, total, totalPages]);
 
   useEffect(() => {
     if (pageIndex !== safePageIdx) setPageIndex(safePageIdx);
