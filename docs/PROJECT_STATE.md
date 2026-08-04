@@ -3,7 +3,7 @@
 **Проект:** ai-curator
 **Дата создания:** 2026-07-29
 **Последнее обновление:** 2026-08-04
-**Статус:** Implementation In Progress — Stabilization sprints A–E completed through Sprint E1; TZ compliance report ready; Phase 1 E2E in progress; Business Reports + Demo modes planned
+**Статус:** Implementation In Progress — Phase 1 E2E completed; intent classification stabilized; Business Reports + Demo modes planned
 
 ---
 
@@ -22,7 +22,7 @@ AI Curator не заменяет преподавателя, не выставл
 
 **Implementation In Progress.**
 
-Документы PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md, IMPLEMENTATION_PLAN.md и AI_CURATOR_SYSTEM_SPECIFICATION.md согласованы куратором. Дни 1–6 IMPLEMENTATION_PLAN выполнены, Sprints 5–6.1 завершены, стабилизационные спринты A–E1 завершены. Подготовлен отчёт о соответствии ТЗ (`docs/TZ_COMPLIANCE_REPORT.md`). Проект переходит к Phase 1 полного E2E-прогона.
+Документы PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md, IMPLEMENTATION_PLAN.md и AI_CURATOR_SYSTEM_SPECIFICATION.md согласованы куратором. Дни 1–6 IMPLEMENTATION_PLAN выполнены, Sprints 5–6.1 завершены, стабилизационные спринты A–E1 завершены. Подготовлен отчёт о соответствии ТЗ (`docs/TZ_COMPLIANCE_REPORT.md`). Выполнен первый Phase 1 E2E-прогон по `docs/PRODUCT_E2E_CHECKLIST.md`: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 cleaned-text UI). В ходе прогона устранены дефекты intent-классификации в Orchestrator и расширена keyword-конфигурация в БД.
 
 **Что уже реализовано и развёрнуто:**
 
@@ -51,8 +51,7 @@ AI Curator не заменяет преподавателя, не выставл
 
 **Оставшиеся ключевые работы:**
 
-1. **Phase 1 E2E-прогон:** выполнить первый полный ручной прогон по `docs/PRODUCT_E2E_CHECKLIST.md`, охватывающий Web UI студента, Admin Console, Observability и Deployment Validation; зафиксировать дефекты и внести исправления.
-2. **Спринт E2 — Business Reports / Quality Reports:** управленческая сводка — вопросы без ответа, гэпы Knowledge Base, популярные темы, кандидаты на расширение KB.
+1. **Спринт E2 — Business Reports / Quality Reports:** управленческая сводка — вопросы без ответа, гэпы Knowledge Base, популярные темы, кандидаты на расширение KB.
 3. **Спринт A2/A3 — Read-only demo admin + RBAC:** безопасный демо-доступ в Admin Console только на просмотр, запрет изменений для demo-роли.
 4. **Web UI safe demo mode:** ограниченный по запросам/расходу API режим для потенциальных клиентов на публичном Web UI с защитой API-лимитов.
 5. **Phase 2 E2E:** дополнить чек-лист сценариями Analytics, Business Reports, read-only demo admin / RBAC и safe Web UI demo mode по мере реализации фич.
@@ -130,7 +129,7 @@ AI Curator не заменяет преподавателя, не выставл
 11. ✅ Завершить ручной E2E Admin Console (Sprint D).
 12. ✅ Завершить Analytics Dashboard (Sprint E1) — фильтры, latency histogram, источники, CSV export.
 13. ✅ Подготовить `docs/TZ_COMPLIANCE_REPORT.md` — отчёт о соответствии ТЗ.
-14. 🔄 Выполнить первый прогон `docs/PRODUCT_E2E_CHECKLIST.md` (Phase 1).
+14. ✅ Выполнить первый прогон `docs/PRODUCT_E2E_CHECKLIST.md` (Phase 1) — 26 PASS, 0 FAIL, 1 NOT RUN.
 15. ⏳ Реализовать Business Reports / Quality Reports (Sprint E2).
 16. ⏳ Реализовать read-only demo login и RBAC в Admin Console (Sprint A2/A3).
 17. ⏳ Реализовать безопасный API-лимитированный demo режим на Web UI.
@@ -200,4 +199,4 @@ AI Curator не заменяет преподавателя, не выставл
 | 2026-07-29 | Implementation In Progress | Выполнен Sprint 4.2: RAG pipeline, обработка документов, Chroma search. |
 | 2026-07-29 | Implementation In Progress | Выполнен День 5: Web UI студента, гостевой demo-вход, чат с источниками. |
 | 2026-07-30 | Implementation In Progress | Выполнен День 6: LLM Chat, Admin Console scaffold, logging, analytics, audit, deploy. |
-| 2026-08-04 | Implementation In Progress — Stabilization Sprints | Завершены Sprint 5 (Admin Console panels), Sprint 6.1 (Orchestrator Config), Sprint C (ResponseCache), Sprint A1 (read-only audit cleanup), Sprint B (testing infrastructure), Sprint D (E2E planning), Sprint E1 (Analytics Dashboard refinements, split model → fallback/error, CSV export, Operational Logs source filter). UI консолей унифицирован. Подготовлен `docs/TZ_COMPLIANCE_REPORT.md`. Остались Phase 1 E2E execution, Sprint E2 (Business Reports), Sprint A2/A3 (demo admin + RBAC), Web UI safe demo mode, финальная документация. |
+| 2026-08-04 | Implementation In Progress — Phase 1 E2E | Выполнен первый Phase 1 E2E-прогон по `docs/PRODUCT_E2E_CHECKLIST.md`: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 cleaned-text UI). Устранены дефекты intent-классификации в Orchestrator (`src/services/orchestrator.py`) и расширена keyword-конфигурация в БД. Догружены 5 недостающих документов в KB course=99. Следующий шаг — Sprint E2 (Business Reports), Sprint A2/A3 (demo admin + RBAC), Web UI safe demo mode, финальная документация. |
