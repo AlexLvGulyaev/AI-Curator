@@ -196,8 +196,8 @@ function KbDocumentSummary({ documentId, onAction, onOpenTextEditor }) {
           <SectionBox title="Эксплуатация">
             <div className="space-y-1">
               <CompactRow label="Файл" value={activeVersion?.original_filename} />
-              <CompactRow label="Provider" value={execution?.provider} />
-              <CompactRow label="Model" value={execution?.model} />
+              <CompactRow label="Провайдер" value={execution?.provider} />
+              <CompactRow label="Модель" value={execution?.model} />
               <CompactRow label="PostgreSQL" value={execution?.postgres_status} />
               <CompactRow
                 label="Индексация"

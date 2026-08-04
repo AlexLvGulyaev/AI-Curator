@@ -70,6 +70,18 @@ export function formatTimestampMsk(isoOrMs) {
     .replace(',', '');
 }
 
+export function formatTimeMsk(isoOrMs) {
+  if (isoOrMs == null) return '—';
+  const ms = typeof isoOrMs === 'number' ? isoOrMs : new Date(isoOrMs).getTime();
+  if (!Number.isFinite(ms)) return '—';
+  return new Intl.DateTimeFormat('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(new Date(ms));
+}
+
 export function formatDate(isoOrMs) {
   if (isoOrMs == null) return '—';
   const ms = typeof isoOrMs === 'number' ? isoOrMs : new Date(isoOrMs).getTime();
@@ -104,6 +116,19 @@ export function normalizeRouteKey(route) {
 
 export function routeLabelRu(route) {
   return ROUTE_LABEL_RU[normalizeRouteKey(route)] || route || '—';
+}
+
+export function shortModelName(model) {
+  if (!model) return '—';
+  const raw = String(model).trim().toLowerCase();
+  if (raw.includes('gpt')) return 'gpt';
+  if (raw.includes('gigachat')) return 'gigachat';
+  if (raw.includes('claude')) return 'claude';
+  if (raw.includes('llama')) return 'llama';
+  if (raw.includes('deepseek')) return 'deepseek';
+  if (raw.includes('yandex')) return 'yandex';
+  const first = raw.split(/[-_/\s]/)[0];
+  return first || model;
 }
 
 export function stageToActionRu(stage) {

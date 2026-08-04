@@ -12,7 +12,7 @@ import {
   statusLabelRu,
 } from '../utils/operationalLabels';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 7;
 const WINDOW_OPTIONS = [
   { label: '24h', value: 1 },
   { label: '7d', value: 7 },
@@ -185,6 +185,59 @@ function SectionBox({ title, children, className = '' }) {
   );
 }
 
+function RagChunksModal({ chunks, threshold, onClose }) {
+  if (!chunks) return null;
+  return (
+    <div className="ai-modal-overlay" onClick={onClose}>
+      <div className="ai-modal ai-modal--wide" onClick={(e) => e.stopPropagation()}>
+        <div className="ai-modal__header">
+          <h3 className="ai-modal__title">Найденные чанки</h3>
+          <button type="button" className="ai-modal__close" onClick={onClose}>×</button>
+        </div>
+        <div className="ai-modal__body space-y-2">
+          {chunks.length === 0 ? (
+            <div className="text-sm text-ai-text-muted">Чанки не найдены.</div>
+          ) : (
+            chunks.map((chunk, idx) => {
+              const distance = chunk.distance;
+              const meta = chunk.metadata || {};
+              const hit = distance != null && threshold != null && distance <= threshold;
+              return (
+                <div key={idx} className="rounded-ai border border-ai-border-subtle bg-black/10 p-2 text-xs">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="mono text-ai-text-muted">#{idx + 1}</span>
+                      <span className="mono text-ai-text">{meta.document_id != null ? `doc ${meta.document_id}` : '—'}</span>
+                      <span className={`inline-flex rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${hit ? statusBadgeClass('ok') : statusBadgeClass('warning')}`}>
+                        {hit ? 'HIT' : 'MISS'}
+                      </span>
+                    </div>
+                    <span className="mono text-ai-text">distance: {distance != null ? distance.toFixed(4) : '—'}</span>
+                  </div>
+                  {meta.title ? (
+                    <div className="mb-1 text-ai-text font-medium truncate">{meta.title}</div>
+                  ) : null}
+                  <details>
+                    <summary className="cursor-pointer text-[10px] text-ai-accent">Показать полный текст</summary>
+                    <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-ai-bg p-1.5 text-[10px] text-ai-text-secondary">
+                      {chunk.content || '—'}
+                    </pre>
+                  </details>
+                </div>
+              );
+            })
+          )}
+        </div>
+        <div className="ai-modal__actions">
+          <button type="button" className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm" onClick={onClose}>
+            Закрыть
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OperationalLogs() {
   const [logs, setLogs] = useState({ items: [], total: 0, limit: PAGE_SIZE, offset: 0 });
   const [loading, setLoading] = useState(true);
@@ -194,6 +247,7 @@ export default function OperationalLogs() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [ragModalChunks, setRagModalChunks] = useState(null);
 
   const [windowDays, setWindowDays] = useState(7);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -203,6 +257,7 @@ export default function OperationalLogs() {
 
   const listRef = useRef(null);
   const pendingListFocusRef = useRef(false);
+  const pendingPageSelectIndexRef = useRef(null);
 
   const filters = useMemo(
     () => ({
@@ -224,8 +279,20 @@ export default function OperationalLogs() {
       .then((data) => {
         if (!cancelled) {
           setLogs(data);
-          if (data.items.length && !selectedId) {
-            setSelectedId(data.items[0].id);
+          if (data.items.length) {
+            if (pendingPageSelectIndexRef.current != null) {
+              const idx = pendingPageSelectIndexRef.current;
+              pendingPageSelectIndexRef.current = null;
+              const target = data.items[idx] || data.items[data.items.length - 1] || data.items[0];
+              if (target?.id) {
+                pendingListFocusRef.current = true;
+                setSelectedId(target.id);
+                return;
+              }
+            }
+            if (!selectedId) {
+              setSelectedId(data.items[0].id);
+            }
           }
         }
       })
@@ -266,6 +333,52 @@ export default function OperationalLogs() {
   useEffect(() => {
     setPage(0);
   }, [statusFilter, intentFilter, windowDays, search]);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      const t = e.target;
+      if (t && (t.closest('input') || t.closest('textarea') || t.closest('select') || t.isContentEditable)) {
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(logs.total / PAGE_SIZE));
+      const curIdx = selectedId ? logs.items.findIndex((s) => String(s.id) === String(selectedId)) : 0;
+      if (curIdx < 0) return;
+      if (e.key === 'ArrowDown') {
+        if (curIdx + 1 < logs.items.length) {
+          const next = logs.items[curIdx + 1];
+          if (!next?.id) return;
+          e.preventDefault();
+          pendingListFocusRef.current = true;
+          setSelectedId(next.id);
+          return;
+        }
+        if (page + 1 < totalPages) {
+          e.preventDefault();
+          pendingPageSelectIndexRef.current = 0;
+          setPage((p) => p + 1);
+        }
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        if (curIdx > 0) {
+          const next = logs.items[curIdx - 1];
+          if (!next?.id) return;
+          e.preventDefault();
+          pendingListFocusRef.current = true;
+          setSelectedId(next.id);
+          return;
+        }
+        if (page > 0) {
+          e.preventDefault();
+          pendingPageSelectIndexRef.current = PAGE_SIZE - 1;
+          setPage((p) => p - 1);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [logs.items, selectedId, page, logs.total]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(logs.total / PAGE_SIZE)), [logs.total]);
 
@@ -426,43 +539,43 @@ export default function OperationalLogs() {
           </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-1 space-y-2 min-h-0">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="flex h-full min-h-0 flex-col gap-2 pr-1">
+          <div className="grid grid-cols-2 gap-2 shrink-0">
             <SectionBox title="Параметры запроса">
               <div className="space-y-1">
-                <CompactRow label="session_id" value={detail.session_id} mono />
-                <CompactRow label="role" value={detail.role} />
-                <CompactRow label="course_id" value={detail.course_id} />
-                <CompactRow label="difficulty" value={detail.difficulty} />
-                <CompactRow label="created_at" value={formatTimestampMsk(detail.created_at)} />
+                <CompactRow label="Сессия" value={detail.session_id} mono />
+                <CompactRow label="Роль" value={detail.role} />
+                <CompactRow label="Курс" value={detail.course_id} />
+                <CompactRow label="Сложность" value={detail.difficulty} />
+                <CompactRow label="Создано" value={formatTimestampMsk(detail.created_at)} />
               </div>
             </SectionBox>
 
             <SectionBox title="Параметры исполнения">
               <div className="space-y-1">
-                <CompactRow label="intent" value={intentLabelRu(detail.intent)} />
-                <CompactRow label="latency" value={formatDurationMs(detail.latency_ms)} />
-                <CompactRow label="total_tokens" value={detail.total_tokens} />
-                <CompactRow label="llm_model" value={detail.llm_model} />
-                <CompactRow label="feedback_score" value={detail.feedback_score} />
-                <CompactRow label="cache_hit" value={detail.cache_hit ? 'да' : 'нет'} />
+                <CompactRow label="Интент" value={intentLabelRu(detail.intent)} />
+                <CompactRow label="Latency" value={formatDurationMs(detail.latency_ms)} />
+                <CompactRow label="Токены" value={detail.total_tokens} />
+                <CompactRow label="Модель" value={detail.llm_model} />
+                <CompactRow label="Оценка" value={detail.feedback_score} />
+                <CompactRow label="Cache hit" value={detail.cache_hit ? 'да' : 'нет'} />
               </div>
             </SectionBox>
           </div>
 
-          <SectionBox title="Цепочка этапов">
+          <SectionBox title="Цепочка этапов" className="shrink-0">
             <p className="text-xs text-ai-text-secondary break-words">{pipelineSummary}</p>
           </SectionBox>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 shrink-0">
             <SectionBox title="Запрос пользователя" className="min-h-0">
-              <pre className="max-h-[180px] overflow-auto whitespace-pre-wrap break-words rounded-ai bg-black/20 p-2 text-xs text-ai-text">
+              <pre className="max-h-[120px] overflow-auto whitespace-pre-wrap break-words rounded-ai bg-black/20 p-2 text-xs text-ai-text">
                 {detail.message}
               </pre>
             </SectionBox>
 
             <SectionBox title="Ответ системы" className="min-h-0">
-              <div className="max-h-[180px] overflow-auto rounded-ai bg-black/20 p-2 text-xs text-ai-text">
+              <div className="max-h-[120px] overflow-auto rounded-ai bg-black/20 p-2 text-xs text-ai-text">
                 {detail.answer ? (
                   <>
                     <p className="whitespace-pre-wrap break-words">{detail.answer}</p>
@@ -481,70 +594,99 @@ export default function OperationalLogs() {
           </div>
 
           {detail.error ? (
-            <SectionBox title="Ошибка" className="border-ai-error/20 bg-red-500/10">
+            <SectionBox title="Ошибка" className="border-ai-error/20 bg-red-500/10 shrink-0">
               <pre className="whitespace-pre-wrap text-xs text-ai-error">{detail.error}</pre>
             </SectionBox>
           ) : null}
 
-          <SectionBox title="Таймлайн pipeline">
-            <div className="space-y-1">
-              {pipelineStages.map((stage) => (
-                <div key={stage.key} className="rounded-ai border border-ai-border-subtle bg-black/10 text-xs">
-                  <div className="flex items-center justify-between px-2 py-1.5 gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="mono text-ai-text-muted shrink-0">{formatTimestampMsk(stage.timestamp)}</span>
-                      <span className={`inline-flex rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${statusBadgeClass(stage.status)}`}>
-                        {statusLabelRu(stage.status)}
-                      </span>
-                      <span className="text-ai-text font-medium truncate">{stage.label}</span>
+          <div className="ai-card flex min-h-0 flex-1 flex-col overflow-hidden p-2">
+            <h4 className="mb-1.5 text-[0.75rem] font-semibold uppercase tracking-wide text-ai-text-muted">
+              Таймлайн pipeline
+            </h4>
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+              <div className="space-y-1">
+                {pipelineStages.map((stage) => (
+                  <div key={stage.key} className="rounded-ai border border-ai-border-subtle bg-black/10 text-xs">
+                    <div className="flex items-center justify-between px-2 py-1.5 gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="mono text-ai-text-muted shrink-0">{formatTimestampMsk(stage.timestamp)}</span>
+                        <span className={`inline-flex rounded border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${statusBadgeClass(stage.status)}`}>
+                          {statusLabelRu(stage.status)}
+                        </span>
+                        <span className="text-ai-text font-medium truncate">{stage.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="mono text-ai-text">{formatDurationMs(stage.offset_ms)}</span>
+                        <span className="mono text-ai-text-muted">+{formatDurationMs(stage.duration_ms)}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="mono text-ai-text">{formatDurationMs(stage.offset_ms)}</span>
-                      <span className="mono text-ai-text-muted">+{formatDurationMs(stage.duration_ms)}</span>
+                    <div className="flex items-center gap-2 px-2 pb-1.5">
+                      <details className="flex-1">
+                        <summary className="cursor-pointer text-[10px] text-ai-accent">JSON payload</summary>
+                        <pre className="mt-1 max-h-24 overflow-auto rounded bg-ai-bg p-1.5 text-[10px] text-ai-text-secondary">
+                          {formatDetailsJson(stage.metadata)}
+                        </pre>
+                      </details>
+                      {stage.key === 'rag_chroma_ms' && detail.execution_session ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const contextStep = detail.execution_session.steps?.find(
+                              (s) => s.stage_name === 'context_build' && Array.isArray(s.step_metadata?.rag_context)
+                            );
+                            const meta = contextStep?.step_metadata || {};
+                            setRagModalChunks({
+                              chunks: meta.rag_context || [],
+                              threshold: meta.rag_distance_threshold ?? detail.rag_filters?.rag_distance_threshold ?? null,
+                            });
+                          }}
+                          className="text-[10px] text-ai-accent hover:underline"
+                        >
+                          Показать чанки
+                        </button>
+                      ) : null}
                     </div>
                   </div>
-                  <details className="px-2 pb-1.5">
-                    <summary className="cursor-pointer text-[10px] text-ai-accent">JSON payload</summary>
-                    <pre className="mt-1 max-h-24 overflow-auto rounded bg-ai-bg p-1.5 text-[10px] text-ai-text-secondary">
-                      {formatDetailsJson(stage.metadata)}
-                    </pre>
-                  </details>
-                </div>
-              ))}
-            </div>
-          </SectionBox>
+                ))}
+              </div>
 
-          <SectionBox title="Технический снимок (JSON)" className="min-h-0">
-            <details>
-              <summary className="cursor-pointer text-xs text-ai-text-muted">Развернуть JSON</summary>
-              <pre className="mt-1 max-h-[200px] overflow-auto rounded-ai bg-black/20 p-2 text-[10px] text-ai-text-secondary">
-                {formatDetailsJson(detail)}
-              </pre>
-            </details>
-          </SectionBox>
+              <details className="mt-2">
+                <summary className="cursor-pointer text-[10px] text-ai-text-muted">Технический снимок (JSON)</summary>
+                <pre className="mt-1 whitespace-pre-wrap rounded-ai bg-black/20 p-2 text-[10px] text-ai-text-secondary">
+                  {formatDetailsJson(detail)}
+                </pre>
+              </details>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-ai-border px-6 py-4">
+    <div className="ai-config-page flex h-full flex-col">
+      <div className="ai-page__header border-b border-ai-border">
         <div>
-          <h1 className="font-display text-xl font-bold text-ai-text">Логи</h1>
-          <p className="text-sm text-ai-text-muted">Операционная консоль запросов и исполнений</p>
+          <h1 className="ai-page__title">Логи</h1>
+          <p className="ai-page__subtitle">Операционная консоль запросов и исполнений</p>
         </div>
         <button
           type="button"
           onClick={() => setRefreshNonce((n) => n + 1)}
-          className="ai-btn-outline"
+          className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm"
         >
           Обновить
         </button>
       </div>
 
+      <RagChunksModal
+        chunks={ragModalChunks?.chunks}
+        threshold={ragModalChunks?.threshold}
+        onClose={() => setRagModalChunks(null)}
+      />
+
       <div className="flex flex-1 overflow-hidden">
-        <div className="ai-card flex h-full w-[420px] flex-col overflow-hidden p-3">
+        <div className="ai-card flex h-full w-[420px] flex-col overflow-hidden p-3 pb-2">
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <select
               className="ai-select w-auto min-w-[120px] flex-1 text-sm"
@@ -594,7 +736,7 @@ export default function OperationalLogs() {
               type="button"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page <= 0}
-              className="ai-btn-outline px-2 py-1"
+              className="ai-btn-outline rounded-ai px-2 py-1"
             >
               ← Назад
             </button>
@@ -605,7 +747,7 @@ export default function OperationalLogs() {
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="ai-btn-outline px-2 py-1"
+              className="ai-btn-outline rounded-ai px-2 py-1"
             >
               Вперёд →
             </button>
@@ -616,7 +758,7 @@ export default function OperationalLogs() {
             <button
               type="button"
               onClick={resetFilters}
-              className="text-ai-accent hover:underline"
+              className="ai-btn-outline rounded-ai px-2 py-1 text-ai-accent hover:underline"
             >
               Сброс
             </button>
@@ -625,7 +767,7 @@ export default function OperationalLogs() {
           {renderList()}
         </div>
 
-        <div className="flex-1 overflow-hidden bg-ai-bg p-2 pt-0">{renderDetail()}</div>
+        <div className="flex-1 overflow-hidden bg-ai-bg p-2 pt-0 pb-2">{renderDetail()}</div>
       </div>
     </div>
   );

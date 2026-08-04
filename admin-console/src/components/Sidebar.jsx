@@ -20,7 +20,7 @@ const MENU_GROUPS = [
     label: 'Операционная консоль',
     items: [
       { id: 'logs', label: 'Логи', icon: '📜' },
-      { id: 'dialogs', label: 'Dialog Sessions', icon: '💬' },
+      { id: 'dialogs', label: 'Диалоги', icon: '💬' },
       { id: 'audit', label: 'Журнал аудита', icon: '📋' },
     ],
   },

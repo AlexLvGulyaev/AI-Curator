@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { listKbDocuments } from '../api/backend';
 
 const STATUSES = {
@@ -51,7 +51,38 @@ function KbDocumentList({ filters, onFiltersChange, selectedDocument, onSelectDo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 7;
+  const listRef = useRef(null);
+  const pendingListFocusRef = useRef(false);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      const t = e.target;
+      if (t && (t.closest('input') || t.closest('textarea') || t.closest('select') || t.isContentEditable)) {
+        return;
+      }
+      if (!filteredDocuments.length) return;
+      const absIdx = selectedDocument
+        ? filteredDocuments.findIndex((d) => String(d.id) === String(selectedDocument.id))
+        : 0;
+      if (absIdx < 0) return;
+      const nextAbsIdx =
+        e.key === 'ArrowDown'
+          ? Math.min(filteredDocuments.length - 1, absIdx + 1)
+          : Math.max(0, absIdx - 1);
+      if (nextAbsIdx === absIdx) return;
+      e.preventDefault();
+      const next = filteredDocuments[nextAbsIdx];
+      if (!next?.id) return;
+      pendingListFocusRef.current = true;
+      setPage(Math.floor(nextAbsIdx / PAGE_SIZE) + 1);
+      onSelectDocument(next);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDocument, filters.search, filters.status, filters.document_type]);
 
   async function load() {
     setLoading(true);
@@ -95,6 +126,27 @@ function KbDocumentList({ filters, onFiltersChange, selectedDocument, onSelectDo
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paginatedDocuments.map((d) => d.id).join(','), selectedDocument?.id]);
+
+  useEffect(() => {
+    if (!selectedDocument?.id) return;
+    const list = listRef.current;
+    if (!list) return;
+    const safeId =
+      typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+        ? CSS.escape(String(selectedDocument.id))
+        : String(selectedDocument.id).replace(/"/g, '\\"');
+    const row = list.querySelector(`[data-doc-id="${safeId}"]`);
+    if (!row) return;
+    row.scrollIntoView({ block: 'nearest' });
+    const listHasFocus = document.activeElement instanceof Node && list.contains(document.activeElement);
+    const shouldFocus = pendingListFocusRef.current || listHasFocus;
+    pendingListFocusRef.current = false;
+    if (!shouldFocus) return;
+    const id = window.requestAnimationFrame(() => {
+      row.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [selectedDocument?.id, page]);
 
   const handleSearchChange = (event) => {
     onFiltersChange({ ...filters, search: event.target.value });
@@ -176,7 +228,7 @@ function KbDocumentList({ filters, onFiltersChange, selectedDocument, onSelectDo
       )}
 
       {/* Document list */}
-      <div className="flex-1 overflow-y-auto pr-1 min-h-0">
+      <div className="flex-1 overflow-y-auto pr-1 min-h-0" ref={listRef}>
         {paginatedDocuments.length === 0 ? (
           <div className="ai-empty py-8">Документы не найдены.</div>
         ) : (
@@ -187,6 +239,7 @@ function KbDocumentList({ filters, onFiltersChange, selectedDocument, onSelectDo
               return (
                 <button
                   key={doc.id}
+                  data-doc-id={doc.id}
                   onClick={() => onSelectDocument(doc)}
                   className={`text-left rounded-ai border p-2 transition-colors ${
                     isSelected

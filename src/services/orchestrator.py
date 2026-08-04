@@ -1427,6 +1427,7 @@ class Orchestrator:
                         timings[f"lms_{call['type']}_ms"] = call["latency_ms"]
                 if "chunks" in item:
                     rag_context = item["chunks"]
+                    raw_rag_context = rag_context
                     timings.update(item["timings"])
                     if item.get("error"):
                         rag_search_error = item["error"]
@@ -1975,6 +1976,15 @@ class Orchestrator:
                 "has_lms_data": bool(lms_data),
                 "rag_chunks": len(rag_context),
                 "rag_filters": rag_filters,
+                "rag_distance_threshold": retrieval_tuning.rag_distance_threshold,
+                "rag_context": [
+                    {
+                        "content": chunk.get("content"),
+                        "distance": chunk.get("distance"),
+                        "metadata": chunk.get("metadata"),
+                    }
+                    for chunk in (raw_rag_context if raw_rag_context is not None else rag_context)
+                ],
             },
         })
 

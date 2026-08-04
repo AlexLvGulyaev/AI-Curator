@@ -135,7 +135,7 @@ function KbDocuments() {
         <button
           onClick={handleRefresh}
           disabled={actionLoading === 'refresh'}
-          className="ai-btn-outline px-3 py-1.5 text-sm"
+          className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm"
           type="button"
         >
           {actionLoading === 'refresh' ? '…' : 'Обновить'}

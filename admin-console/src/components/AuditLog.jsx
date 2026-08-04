@@ -98,6 +98,7 @@ export default function AuditLog() {
 
   const listRef = useRef(null);
   const pendingListFocusRef = useRef(false);
+  const pendingPageSelectIndexRef = useRef(null);
 
   const hours = useMemo(
     () => WINDOW_OPTIONS.find((w) => w.label === windowLabel)?.value ?? null,
@@ -141,6 +142,19 @@ export default function AuditLog() {
   useEffect(() => {
     setPageIndex(0);
   }, [windowLabel, actionFilter, resourceTypeFilter, userFilter, refreshNonce]);
+
+  useEffect(() => {
+    if (pendingPageSelectIndexRef.current == null) return;
+    if (entries.length) {
+      const idx = pendingPageSelectIndexRef.current;
+      pendingPageSelectIndexRef.current = null;
+      const target = entries[idx] || entries[entries.length - 1] || entries[0];
+      if (target?.id) {
+        pendingListFocusRef.current = true;
+        setSelectedId(target.id);
+      }
+    }
+  }, [entries]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -208,24 +222,44 @@ export default function AuditLog() {
       if (t && (t.closest('input') || t.closest('textarea') || t.closest('select') || t.isContentEditable)) {
         return;
       }
-      if (!entries.length) return;
+      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
       const curIdx = selectedId ? entries.findIndex((s) => String(s.id) === String(selectedId)) : 0;
       if (curIdx < 0) return;
-      const nextIdx =
-        e.key === 'ArrowDown'
-          ? Math.min(entries.length - 1, curIdx + 1)
-          : Math.max(0, curIdx - 1);
-      if (nextIdx === curIdx) return;
-      e.preventDefault();
-      const next = entries[nextIdx];
-      if (!next?.id) return;
-      pendingListFocusRef.current = true;
-      setPageIndex(Math.floor(nextIdx / PAGE_SIZE));
-      setSelectedId(next.id);
+      if (e.key === 'ArrowDown') {
+        if (curIdx + 1 < entries.length) {
+          const next = entries[curIdx + 1];
+          if (!next?.id) return;
+          e.preventDefault();
+          pendingListFocusRef.current = true;
+          setSelectedId(next.id);
+          return;
+        }
+        if (safePageIdx + 1 < totalPages) {
+          e.preventDefault();
+          pendingPageSelectIndexRef.current = 0;
+          setPageIndex((p) => p + 1);
+        }
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        if (curIdx > 0) {
+          const next = entries[curIdx - 1];
+          if (!next?.id) return;
+          e.preventDefault();
+          pendingListFocusRef.current = true;
+          setSelectedId(next.id);
+          return;
+        }
+        if (safePageIdx > 0) {
+          e.preventDefault();
+          pendingPageSelectIndexRef.current = PAGE_SIZE - 1;
+          setPageIndex((p) => p - 1);
+        }
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [entries, selectedId]);
+  }, [entries, selectedId, safePageIdx, total]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePageIdx = Math.min(pageIndex, Math.max(0, totalPages - 1));
@@ -263,15 +297,15 @@ export default function AuditLog() {
 
   return (
     <div className="page logs-page">
-      <div className="flex items-start justify-between border-b border-ai-border pb-3 mb-3">
+      <div className="ai-page__header border-b border-ai-border">
         <div>
-          <h1 className="font-display text-xl font-bold text-ai-text">Журнал аудита</h1>
-          <p className="page__lead muted text-sm">Административные действия и изменения</p>
+          <h1 className="ai-page__title">Журнал аудита</h1>
+          <p className="ai-page__subtitle">Административные действия и изменения</p>
         </div>
         <button
           type="button"
           onClick={() => setRefreshNonce((n) => n + 1)}
-          className="ai-btn-outline text-sm px-3 py-1.5"
+          className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm"
           disabled={loading}
         >
           {loading ? '…' : 'Обновить'}

@@ -19,7 +19,7 @@ function KbDocumentToolbar({
   }, [status]);
 
   const statusClass =
-    'inline-flex min-w-[120px] items-center justify-center whitespace-nowrap px-3 py-1.5 text-sm';
+    'inline-flex min-w-[120px] items-center justify-center whitespace-nowrap rounded-ai px-3 py-1.5 text-sm';
 
   return (
     <div className="ai-card mb-2 py-2 px-3">

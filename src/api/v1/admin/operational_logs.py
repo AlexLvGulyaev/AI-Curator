@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from db import get_db
-from models.chat import AnalyticsEvent, ChatLog, ChatRequest, LlmCall, LlmCallTrace
+from models.chat import AnalyticsEvent, ChatLog, ChatRequest, ExecutionSession, ExecutionStep, LlmCall, LlmCallTrace
 
 router = APIRouter(prefix="/operational-logs", tags=["admin-operational-logs"])
 
@@ -175,6 +175,39 @@ async def get_operational_log(
         for e in analytics_result.scalars().all()
     ]
 
+    exec_result = await db.execute(
+        select(ExecutionSession)
+        .where(ExecutionSession.request_id == log_id)
+        .options(joinedload(ExecutionSession.steps))
+        .order_by(ExecutionSession.id.desc())
+        .limit(1)
+    )
+    exec_session = exec_result.unique().scalar_one_or_none()
+    execution_session = None
+    if exec_session:
+        execution_session = {
+            "id": exec_session.id,
+            "status": exec_session.status,
+            "route": exec_session.route,
+            "duration_ms": exec_session.duration_ms,
+            "started_at": exec_session.started_at.isoformat() if exec_session.started_at else None,
+            "finished_at": exec_session.finished_at.isoformat() if exec_session.finished_at else None,
+            "execution_metadata": exec_session.execution_metadata,
+            "steps": [
+                {
+                    "id": step.id,
+                    "stage_name": step.stage_name,
+                    "step_order": step.step_order,
+                    "status": step.status,
+                    "duration_ms": step.duration_ms,
+                    "step_metadata": step.step_metadata,
+                    "started_at": step.started_at.isoformat() if step.started_at else None,
+                    "finished_at": step.finished_at.isoformat() if step.finished_at else None,
+                }
+                for step in exec_session.steps
+            ],
+        }
+
     return {
         "id": req.id,
         "session_id": req.session_id,
@@ -197,4 +230,5 @@ async def get_operational_log(
         "error": chat_log.error if chat_log else None,
         "llm_calls": llm_calls,
         "analytics_events": analytics_events,
+        "execution_session": execution_session,
     }
