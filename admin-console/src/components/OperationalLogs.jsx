@@ -34,6 +34,7 @@ const INTENT_OPTIONS = [
   { value: 'mixed', label: 'смешанный' },
   { value: 'progress', label: 'прогресс' },
   { value: 'deadline', label: 'дедлайн' },
+  { value: 'out_of_scope', label: 'не распределено' },
 ];
 
 const SOURCE_OPTIONS = [

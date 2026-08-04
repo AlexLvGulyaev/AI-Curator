@@ -20,6 +20,8 @@ const INTENT_RU = {
   mixed: 'смешанный',
   progress: 'прогресс',
   deadline: 'дедлайн',
+  out_of_scope: 'не распределено',
+  error: 'ошибка',
 };
 
 const ROUTE_LABEL_RU = {
