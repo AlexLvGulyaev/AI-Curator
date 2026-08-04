@@ -21,9 +21,14 @@ class KbDocumentBase(BaseModel):
 
 
 class KbDocumentCreate(KbDocumentBase):
-    """Payload for creating a new document card."""
+    """Payload for creating a new document card.
 
-    pass
+    Difficulty is optional on create: the service assigns the default level
+    (`beginner`) because it is currently controlled by the chat UI, not by the
+    uploaded document metadata.
+    """
+
+    difficulty: Optional[str] = None
 
 
 class KbDocumentUpdate(BaseModel):
