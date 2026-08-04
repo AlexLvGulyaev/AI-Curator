@@ -948,6 +948,13 @@
     min-height: 360px;
   }
 
+  .ai-modal form .ai-textarea {
+    margin: 0;
+    width: 100%;
+    flex: 0 0 auto;
+    min-height: 200px;
+  }
+
   .ai-modal__actions {
     display: flex;
     justify-content: flex-end;
