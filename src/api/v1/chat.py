@@ -14,12 +14,19 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 def _client_ip(request: Request) -> Optional[str]:
-    """Extract client IP from the incoming request."""
-    if request.client:
-        return request.client.host
+    """Extract the real client IP from proxy headers or the connection."""
+    # Trust proxy headers first: traefik passes the original client IP here.
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        # First address in the chain is the original client.
+        client = forwarded.split(",")[0].strip()
+        if client:
+            return client
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip() or None
+    if request.client:
+        return request.client.host
     return None
 
 
