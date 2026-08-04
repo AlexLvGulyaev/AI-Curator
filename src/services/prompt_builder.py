@@ -124,10 +124,9 @@ class PromptBuilder:
             meta = chunk.get("metadata", {})
             doc_id = meta.get("document_id", "?")
             chunk_idx = meta.get("chunk_index", "?")
-            difficulty = meta.get("difficulty", "?")
             lines.append(
                 f"[Фрагмент KB-{doc_id}-{chunk_idx}] "
-                f"document_id={doc_id} chunk_index={chunk_idx} difficulty={difficulty}:\n"
+                f"document_id={doc_id} chunk_index={chunk_idx}:\n"
                 f"{chunk.get('content', '')}"
             )
         return "\n\n".join(lines)

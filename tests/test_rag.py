@@ -31,7 +31,6 @@ async def test_rag_process_and_search(client, tmp_path):
                 "document_type": "lecture",
                 "course_id": 3,
                 "module_id": 1,
-                "difficulty": "beginner",
                 "language": "ru",
             },
             files={"file": ("claude-code-intro.md", file_path.read_bytes(), "text/markdown")},

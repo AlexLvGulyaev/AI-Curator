@@ -129,16 +129,17 @@ class RagPipeline:
         course_id: Optional[int],
         module_id: Optional[int],
         topic_id: Optional[int],
-        difficulty: str,
+        difficulty: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Build a Chroma metadata dict (JSON-serializable, no nulls)."""
         metadata: Dict[str, Any] = {
             "document_id": document_id,
             "version_id": version_id,
             "chunk_index": chunk_index,
-            "difficulty": difficulty,
             "status": "indexed",
         }
+        if difficulty is not None:
+            metadata["difficulty"] = difficulty
         if course_id is not None:
             metadata["course_id"] = course_id
         if module_id is not None:

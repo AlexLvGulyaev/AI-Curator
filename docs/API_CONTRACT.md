@@ -295,7 +295,6 @@
 | `course_id` | int | — | Привязка к курсу LMS |
 | `module_id` | int | — | Привязка к модулю курса |
 | `topic_id` | int | — | Привязка к теме |
-| `difficulty` | string | — | `beginner` (по умолчанию), `intermediate`, `advanced` |
 | `language` | string | — | Код языка, по умолчанию `ru` |
 | `description` | string | — | Описание документа |
 | `source_url` | string | — | URL источника |
@@ -311,7 +310,6 @@
   "course_id": 3,
   "module_id": 1,
   "topic_id": null,
-  "difficulty": "beginner",
   "language": "ru",
   "description": null,
   "source_url": null,
@@ -398,7 +396,6 @@
 | `course_id` | int | Курс |
 | `module_id` | int | Модуль |
 | `topic_id` | int | Тема |
-| `difficulty` | string | Уровень сложности |
 | `language` | string | Язык |
 | `description` | string | Описание |
 | `source_url` | string | URL источника |
@@ -688,7 +685,6 @@
 | `course_id` | int | Фильтр по курсу (опционально) |
 | `module_id` | int | Фильтр по модулю (опционально) |
 | `topic_id` | int | Фильтр по теме (опционально) |
-| `difficulty` | string | Фильтр по уровню сложности (опционально) |
 | `k` | int | Количество результатов, по умолчанию 5, макс. 20 |
 
 **Ответ 200 OK:**
@@ -704,7 +700,6 @@
         "document_id": 31,
         "version_id": 41,
         "chunk_index": 0,
-        "difficulty": "beginner",
         "status": "indexed"
       },
       "distance": 0.123

@@ -36,7 +36,6 @@ async def test_create_and_get_document(client, tmp_path):
                 "document_type": "lecture",
                 "course_id": 3,
                 "module_id": 1,
-                "difficulty": "beginner",
                 "language": "ru",
                 "description": "Test description",
             },

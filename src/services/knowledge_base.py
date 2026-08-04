@@ -162,7 +162,7 @@ class KnowledgeBaseService:
             course_id=data.course_id,
             module_id=data.module_id,
             topic_id=data.topic_id,
-            difficulty=DifficultyLevel(data.difficulty),
+            difficulty=DifficultyLevel.BEGINNER,
             language=data.language,
             description=data.description,
             source_url=data.source_url,
@@ -264,8 +264,9 @@ class KnowledgeBaseService:
         update_data = data.model_dump(exclude_unset=True)
         if "document_type" in update_data:
             update_data["document_type"] = DocumentType(update_data["document_type"])
-        if "difficulty" in update_data:
-            update_data["difficulty"] = DifficultyLevel(update_data["difficulty"])
+        # difficulty is intentionally ignored: it is controlled by the chat UI
+        # (beginner/advanced instructions), not by the KB document card.
+        update_data.pop("difficulty", None)
         for field, value in update_data.items():
             setattr(document, field, value)
         await self.db.commit()
@@ -434,7 +435,6 @@ class KnowledgeBaseService:
             course_id=document.course_id,
             module_id=document.module_id,
             topic_id=document.topic_id,
-            difficulty=document.difficulty.value,
             embedding_timeout_ms=tuning.embedding_timeout_ms,
         )
 

@@ -83,7 +83,7 @@
 
 ```text
 Релевантные фрагменты из Knowledge Base:
-[Фрагмент 1] document_id={id} chunk_index={idx} difficulty={difficulty}:
+[Фрагмент 1] document_id={id} chunk_index={idx}:
 {content}
 ```
 

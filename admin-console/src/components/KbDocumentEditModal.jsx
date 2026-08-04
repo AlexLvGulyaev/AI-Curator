@@ -11,12 +11,6 @@ const DOCUMENT_TYPES = [
   { id: 'external', label: 'Внешний ресурс' },
 ];
 
-const DIFFICULTIES = [
-  { id: 'beginner', label: 'Базовый' },
-  { id: 'intermediate', label: 'Средний' },
-  { id: 'advanced', label: 'Углублённый' },
-];
-
 function KbDocumentEditModal({ document, onDone, onCancel }) {
   const [form, setForm] = useState({
     title: '',
@@ -24,7 +18,6 @@ function KbDocumentEditModal({ document, onDone, onCancel }) {
     course_id: '',
     module_id: '',
     topic_id: '',
-    difficulty: 'beginner',
     language: 'ru',
     description: '',
     source_url: '',
@@ -40,7 +33,6 @@ function KbDocumentEditModal({ document, onDone, onCancel }) {
         course_id: document.course_id || '',
         module_id: document.module_id || '',
         topic_id: document.topic_id || '',
-        difficulty: document.difficulty || 'beginner',
         language: document.language || 'ru',
         description: document.description || '',
         source_url: document.source_url || '',
@@ -62,7 +54,6 @@ function KbDocumentEditModal({ document, onDone, onCancel }) {
       course_id: form.course_id ? parseInt(form.course_id, 10) : null,
       module_id: form.module_id ? parseInt(form.module_id, 10) : null,
       topic_id: form.topic_id ? parseInt(form.topic_id, 10) : null,
-      difficulty: form.difficulty,
       language: form.language,
       description: form.description || null,
       source_url: form.source_url || null,
@@ -134,19 +125,6 @@ function KbDocumentEditModal({ document, onDone, onCancel }) {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm text-ai-text-secondary">Сложность</label>
-              <select
-                value={form.difficulty}
-                onChange={(event) => handleChange('difficulty', event.target.value)}
-                className="ai-input w-full"
-              >
-                {DIFFICULTIES.map((level) => (
-                  <option key={level.id} value={level.id}>{level.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
               <label className="mb-1 block text-sm text-ai-text-secondary">ID курса</label>
               <input
                 type="number"
@@ -191,8 +169,9 @@ function KbDocumentEditModal({ document, onDone, onCancel }) {
               <textarea
                 value={form.description}
                 onChange={(event) => handleChange('description', event.target.value)}
-                rows={3}
+                rows={6}
                 className="ai-textarea w-full"
+                style={{ minHeight: '160px' }}
               />
             </div>
 

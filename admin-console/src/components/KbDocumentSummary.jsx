@@ -187,7 +187,6 @@ function KbDocumentSummary({ documentId, onAction, onOpenTextEditor }) {
               <CompactRow label="ID" value={document.id} mono />
               <CompactRow label="Название" value={document.title} />
               <CompactRow label="Тип" value={document.document_type} />
-              <CompactRow label="Сложность" value={document.difficulty} />
               <CompactRow label="Язык" value={document.language} />
               <CompactRow
                 label="Курс / Модуль / Тема"

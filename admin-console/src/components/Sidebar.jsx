@@ -12,7 +12,7 @@ const MENU_GROUPS = [
     id: 'content',
     label: 'Контент / База знаний',
     items: [
-      { id: 'kb', label: 'Knowledge Base', icon: '📚' },
+      { id: 'kb', label: 'База знаний', icon: '📚' },
     ],
   },
   {

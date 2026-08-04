@@ -11,12 +11,6 @@ const DOCUMENT_TYPES = [
   { id: 'external', label: 'Внешний ресурс' },
 ];
 
-const DIFFICULTIES = [
-  { id: 'beginner', label: 'Базовый' },
-  { id: 'intermediate', label: 'Средний' },
-  { id: 'advanced', label: 'Углублённый' },
-];
-
 function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
   const isVersion = mode === 'version';
   const [form, setForm] = useState({
@@ -25,7 +19,6 @@ function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
     course_id: 3,
     module_id: '',
     topic_id: '',
-    difficulty: 'beginner',
     language: 'ru',
     description: '',
     source_url: '',
@@ -57,7 +50,6 @@ function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
       formData.append('course_id', form.course_id || '');
       formData.append('module_id', form.module_id || '');
       formData.append('topic_id', form.topic_id || '');
-      formData.append('difficulty', form.difficulty);
       formData.append('language', form.language);
       formData.append('description', form.description);
       formData.append('source_url', form.source_url);
@@ -115,19 +107,6 @@ function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm text-ai-text-secondary">Сложность</label>
-              <select
-                value={form.difficulty}
-                onChange={(event) => handleChange('difficulty', event.target.value)}
-                className="ai-input w-full"
-              >
-                {DIFFICULTIES.map((level) => (
-                  <option key={level.id} value={level.id}>{level.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
               <label className="mb-1 block text-sm text-ai-text-secondary">ID курса</label>
               <input
                 type="number"
@@ -172,8 +151,9 @@ function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
               <textarea
                 value={form.description}
                 onChange={(event) => handleChange('description', event.target.value)}
-                rows={3}
+                rows={6}
                 className="ai-textarea w-full"
+                style={{ minHeight: '160px' }}
               />
             </div>
 

@@ -98,7 +98,7 @@ async def create_document(
     course_id: int = Form(None),
     module_id: int = Form(None),
     topic_id: int = Form(None),
-    difficulty: str = Form("beginner"),
+    difficulty: str = Form(None),
     language: str = Form("ru"),
     description: str = Form(None),
     source_url: str = Form(None),
