@@ -306,6 +306,7 @@ async def sources(
             ChatRequest.lms_calls,
             request_log.sources,
             request_log.cache_hit,
+            request_log.error,
         )
         .join(request_log, request_log.request_id == ChatRequest.id, isouter=True)
     )
@@ -314,15 +315,16 @@ async def sources(
         stmt = stmt.where(ChatRequest.course_id == course_id)
 
     result = await db.execute(stmt)
-    counts = {"lms": 0, "rag": 0, "both": 0, "cache": 0, "model": 0}
+    counts = {"lms": 0, "rag": 0, "both": 0, "cache": 0, "fallback": 0, "error": 0}
     seen_requests = set()
-    for request_id, lms_calls, sources, cache_hit in result.all():
+    for request_id, lms_calls, sources, cache_hit, error in result.all():
         if request_id in seen_requests:
             continue
         seen_requests.add(request_id)
         has_lms = bool(lms_calls)
         has_rag = _sources_have_rag(sources)
         is_cache = bool(cache_hit)
+        is_error = bool(error)
         if is_cache:
             counts["cache"] += 1
         elif has_lms and has_rag:
@@ -331,8 +333,10 @@ async def sources(
             counts["lms"] += 1
         elif has_rag:
             counts["rag"] += 1
+        elif is_error:
+            counts["error"] += 1
         else:
-            counts["model"] += 1
+            counts["fallback"] += 1
 
     return {
         "total": sum(counts.values()),
@@ -479,7 +483,7 @@ async def export(
 
     result = await db.execute(stmt)
 
-    def classify_source(lms_calls, sources, cache_hit):
+    def classify_source(lms_calls, sources, cache_hit, error):
         if cache_hit:
             return "cache"
         has_lms = bool(lms_calls)
@@ -490,7 +494,9 @@ async def export(
             return "lms"
         if has_rag:
             return "rag"
-        return "model"
+        if error:
+            return "error"
+        return "fallback"
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -527,7 +533,7 @@ async def export(
             error,
             cache_hit,
         ) = row
-        source_type = classify_source(lms_calls, sources, cache_hit)
+        source_type = classify_source(lms_calls, sources, cache_hit, error)
         writer.writerow([
             request_id,
             session_id,

@@ -42,7 +42,8 @@ const SOURCE_OPTIONS = [
   { value: 'rag', label: 'База знаний' },
   { value: 'both', label: 'LMS + База знаний' },
   { value: 'cache', label: 'Кэш' },
-  { value: 'model', label: 'Модель' },
+  { value: 'fallback', label: 'Fallback бэкенда' },
+  { value: 'error', label: 'Ошибка' },
 ];
 
 function isoDate(offsetDays) {

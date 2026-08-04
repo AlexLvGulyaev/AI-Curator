@@ -30,7 +30,7 @@ def _sources_have_rag(sources):
     return False
 
 
-def _classify_source(lms_calls, sources, cache_hit):
+def _classify_source(lms_calls, sources, cache_hit, error):
     if cache_hit:
         return "cache"
     has_lms = bool(lms_calls)
@@ -41,7 +41,9 @@ def _classify_source(lms_calls, sources, cache_hit):
         return "lms"
     if has_rag:
         return "rag"
-    return "model"
+    if error:
+        return "error"
+    return "fallback"
 
 router = APIRouter(prefix="/operational-logs", tags=["admin-operational-logs"])
 
@@ -116,11 +118,19 @@ async def list_operational_logs(
     if source_type:
         if source_type == "cache":
             stmt = stmt.where(ChatLog.cache_hit == True)
-        elif source_type == "model":
+        elif source_type == "fallback":
             stmt = stmt.where(
                 ((ChatLog.cache_hit == False) | (ChatLog.cache_hit == None))
                 & ((ChatLog.sources == None) | (func.json_array_length(ChatLog.sources) == 0))
                 & ((ChatRequest.lms_calls == None) | (func.json_array_length(ChatRequest.lms_calls) == 0))
+                & ((ChatLog.error == None) | (ChatLog.error == ""))
+            )
+        elif source_type == "error":
+            stmt = stmt.where(
+                ((ChatLog.cache_hit == False) | (ChatLog.cache_hit == None))
+                & ((ChatLog.sources == None) | (func.json_array_length(ChatLog.sources) == 0))
+                & ((ChatRequest.lms_calls == None) | (func.json_array_length(ChatRequest.lms_calls) == 0))
+                & (ChatLog.error != None) & (ChatLog.error != "")
             )
         elif source_type == "lms":
             stmt = stmt.where(
