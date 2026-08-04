@@ -545,6 +545,17 @@ class Orchestrator:
             org_keywords = _intent_keywords("deadline") + _intent_keywords("progress")
         is_org = any(kw in lower for kw in org_keywords)
 
+        # Configured conditions take precedence over simple keyword heuristics. This lets
+        # methodologists define mixed/organizational rules via the condition DSL even
+        # when no simple keyword overlap triggered is_org / is_study. Mixed intent in
+        # particular must be checked before hard-coded deadline/progress shortcuts so
+        # that questions combining organizational and study keywords route to both LMS and
+        # RAG instead of being captured by a single-source intent.
+        condition_intent = _intent_from_conditions()
+        if condition_intent:
+            return condition_intent
+        if is_org and is_study:
+            return "mixed"
         # Deadline questions need deterministic answer from LMS data.
         if is_deadline:
             return "deadline"
@@ -552,14 +563,6 @@ class Orchestrator:
         # Treat them as a dedicated intent so we can answer from LMS progress directly.
         if is_progress:
             return "progress"
-        # Configured conditions take precedence over simple keyword heuristics. This lets
-        # methodologists define mixed/organizational rules via the condition DSL even
-        # when no simple keyword overlap triggered is_org / is_study.
-        condition_intent = _intent_from_conditions()
-        if condition_intent:
-            return condition_intent
-        if is_org and is_study:
-            return "mixed"
         # Pure structure questions ("сколько модулей", "из чего состоит курс") need
         # both LMS contents and KB context to avoid hallucinated module counts.
         if is_org and any(kw in lower for kw in ("модуль", "модули", "структура курса", "из чего состоит курс")):
