@@ -202,6 +202,19 @@ class Orchestrator:
         starters = non_course_starters or set()
         mentions = []
 
+        def _first_word_in_starters(candidate: str) -> bool:
+            if not candidate:
+                return False
+            words = candidate.split()
+            if not words:
+                return False
+            first_word = words[0].lower()
+            # Strip only complete Russian question/particle suffixes such as
+            # -нибудь / -либо / -то. re.sub with word boundaries avoids
+            # deleting individual characters that happen to be in the suffix.
+            first_word = re.sub(r"(-нибудь|-либо|-то)$", "", first_word)
+            return first_word in starters
+
         # Quoted strings are course names only if preceded by a course marker.
         for match in re.finditer(
             r'курс[аеуом]?\s+["«"]([^"""]+)["""]',
@@ -209,8 +222,7 @@ class Orchestrator:
             re.IGNORECASE,
         ):
             candidate = match.group(1).strip()
-            first_word = candidate.split()[0].lower().rstrip("-нибудь-либо-то") if candidate else ""
-            if first_word in starters:
+            if _first_word_in_starters(candidate):
                 continue
             mentions.append(candidate)
 
@@ -225,11 +237,7 @@ class Orchestrator:
             re.IGNORECASE,
         ):
             candidate = match.group(1).strip()
-            words = candidate.split()
-            if not words:
-                continue
-            first_word = words[0].lower().rstrip("-нибудь-либо-то")
-            if first_word in starters:
+            if _first_word_in_starters(candidate):
                 continue
             mentions.append(candidate)
         return mentions
