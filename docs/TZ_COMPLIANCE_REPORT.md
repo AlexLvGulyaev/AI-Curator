@@ -20,7 +20,7 @@
 |---------------|----------------------------------|--------|
 | Помощь студентам в материалах курса | Web UI: чат, история диалога, источники, переключатель сложности | **Выполнено** |
 | Организационные и учебные вопросы | Orchestrator классифицирует интенты: `organizational`, `deadline`, `progress`, `study`, `mixed`, `out_of_scope`, `error`, `refusal` | **Выполнено** |
-| Рекомендации с учётом уровня подготовки | `difficulty` (`beginer`/`advanced`) влияет на `PromptBuilder`; `beginner_instructions` / `advanced_instructions` в `ai_configs` | **Выполнено** |
+| Рекомендации с учётом уровня подготовки | `difficulty` (`beginner`/`advanced`) влияет на `PromptBuilder`; `beginner_instructions` / `advanced_instructions` в `ai_configs` | **Выполнено** |
 | Платформа: OpenAI API + LangChain/LlamaIndex (техн. ТЗ) | FastAPI + LangChain + Chroma + PostgreSQL; мультимодельность: OpenAI primary + GigaChat fallback | **Выполнено и расширено** |
 | Векторная БД | Chroma в Docker Compose; embeddings OpenAI `text-embedding-3-small` | **Выполнено** |
 | Формат сдачи: Jupyter Notebook или Streamlit | Заменён на публичный Web UI + Admin Console на React + VPS + HTTPS | **Частично** — см. §10 |
