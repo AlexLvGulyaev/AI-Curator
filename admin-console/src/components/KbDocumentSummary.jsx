@@ -49,14 +49,13 @@ function SectionBox({ title, children, className = '', right = null }) {
 
 function CompactRow({ label, value, mono = false }) {
   return (
-    <div className="grid grid-cols-[5.5rem_1fr] items-baseline gap-2 text-xs leading-tight min-w-0">
-      <span className="text-ai-text-muted truncate">{label}:</span>
+    <div className="grid grid-cols-[7.5rem_1fr] items-baseline gap-2 text-xs leading-tight min-w-0">
+      <span className="text-ai-text-muted">{label}:</span>
       <span
         className={`text-ai-text truncate ${mono ? 'font-mono' : ''}`}
         title={value}
       >
-        {value || '—'}
-      </span>
+        {value || '—'}</span>
     </div>
   );
 }

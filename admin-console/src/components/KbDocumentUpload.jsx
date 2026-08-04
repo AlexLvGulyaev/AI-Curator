@@ -151,9 +151,9 @@ function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
               <textarea
                 value={form.description}
                 onChange={(event) => handleChange('description', event.target.value)}
-                rows={6}
+                rows={8}
                 className="ai-textarea w-full"
-                style={{ minHeight: '160px' }}
+                style={{ minHeight: '200px', resize: 'vertical' }}
               />
             </div>
 
