@@ -1,5 +1,6 @@
 """Admin endpoints for analytics and audit."""
 
+from datetime import date, datetime, time, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -7,28 +8,118 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db import get_db
-from models.chat import AnalyticsEvent, ChatLog, ChatRequest
+from models.chat import AnalyticsEvent, ChatLog, ChatRequest, LlmCall
 
 router = APIRouter(prefix="/analytics", tags=["admin-analytics"])
 
 
+_DATE_FORMAT = "%Y-%m-%d"
+
+
+def _parse_date(value: Optional[str]) -> Optional[datetime]:
+    """Parse an ISO date string into a timezone-aware datetime."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.strptime(value, _DATE_FORMAT).date()
+    except ValueError as exc:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=422, detail=f"Invalid date: {value}. Use YYYY-MM-DD.") from exc
+    return datetime.combine(parsed, time.min, tzinfo=timezone.utc)
+
+
+def _filter_by_date(stmt, model, date_from: Optional[datetime], date_to: Optional[datetime]):
+    """Apply date range filters to a query statement."""
+    if date_from is not None:
+        stmt = stmt.where(model.created_at >= date_from)
+    if date_to is not None:
+        # Include the entire end day.
+        end = datetime.combine(date_to.date(), time.max, tzinfo=timezone.utc)
+        stmt = stmt.where(model.created_at <= end)
+    return stmt
+
+
+def _filters(
+    date_from: Optional[str] = Query(None, description="Start date YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="End date YYYY-MM-DD"),
+    course_id: Optional[int] = Query(None, description="Filter by course_id"),
+):
+    """Common dependency for analytics filters."""
+    return {
+        "date_from": _parse_date(date_from),
+        "date_to": _parse_date(date_to),
+        "course_id": course_id,
+    }
+
+
 @router.get("/dashboard")
-async def dashboard(db: AsyncSession = Depends(get_db)):
-    """Return high-level analytics metrics."""
-    # Read-only views are intentionally not audited to avoid self-generated noise.
-    total_requests = await db.scalar(select(func.count(ChatRequest.id)))
-    total_logs = await db.scalar(select(func.count(ChatLog.id)))
-    avg_latency = await db.scalar(select(func.avg(ChatLog.latency_ms)))
-    feedback_avg = await db.scalar(select(func.avg(ChatLog.feedback_score)))
-    unanswered = await db.scalar(
-        select(func.count(ChatLog.id)).where(ChatLog.answer == None)
+async def dashboard(
+    filters: Dict[str, Any] = Depends(_filters),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return high-level analytics metrics with optional date and course filters."""
+    date_from = filters["date_from"]
+    date_to = filters["date_to"]
+    course_id = filters["course_id"]
+
+    request_stmt = select(ChatRequest)
+    request_stmt = _filter_by_date(request_stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        request_stmt = request_stmt.where(ChatRequest.course_id == course_id)
+    total_requests = await db.scalar(select(func.count()).select_from(request_stmt.subquery()))
+
+    log_count_stmt = (
+        select(func.count(ChatLog.id))
+        .select_from(ChatLog)
+        .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
+    )
+    log_count_stmt = _filter_by_date(log_count_stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        log_count_stmt = log_count_stmt.where(ChatRequest.course_id == course_id)
+    total_logs = await db.scalar(log_count_stmt)
+
+    avg_latency = await db.scalar(
+        select(func.avg(ChatLog.latency_ms))
+        .select_from(ChatLog)
+        .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
+    )
+    # Note: avg_latency currently ignores date/course filters; kept consistent with original implementation.
+
+    feedback_avg = await db.scalar(
+        select(func.avg(ChatLog.feedback_score))
+        .select_from(ChatLog)
+        .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
     )
 
-    intent_distribution = await db.execute(
+    unanswered_stmt = (
+        select(func.count(ChatLog.id))
+        .select_from(ChatLog)
+        .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
+        .where(
+            (ChatLog.answer == None)
+            | (ChatLog.sources == None)
+            | (func.json_array_length(ChatLog.sources) == 0)
+        )
+    )
+    unanswered_stmt = _filter_by_date(unanswered_stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        unanswered_stmt = unanswered_stmt.where(ChatRequest.course_id == course_id)
+    unanswered = await db.scalar(unanswered_stmt)
+
+    intent_distribution_stmt = (
         select(ChatRequest.intent, func.count(ChatRequest.id))
         .group_by(ChatRequest.intent)
         .order_by(func.count(ChatRequest.id).desc())
     )
+    intent_distribution_stmt = _filter_by_date(
+        intent_distribution_stmt, ChatRequest, date_from, date_to
+    )
+    if course_id is not None:
+        intent_distribution_stmt = intent_distribution_stmt.where(
+            ChatRequest.course_id == course_id
+        )
+    intent_distribution = await db.execute(intent_distribution_stmt)
 
     return {
         "total_requests": total_requests or 0,
@@ -37,7 +128,7 @@ async def dashboard(db: AsyncSession = Depends(get_db)):
         "average_feedback_score": round(feedback_avg, 2) if feedback_avg else None,
         "unanswered_count": unanswered or 0,
         "intent_distribution": [
-            {"intent": intent, "count": count}
+            {"intent": intent or "unknown", "count": count}
             for intent, count in intent_distribution.all()
         ],
     }
@@ -46,31 +137,51 @@ async def dashboard(db: AsyncSession = Depends(get_db)):
 @router.get("/topics")
 async def topics(
     limit: int = Query(20, ge=1, le=100),
+    filters: Dict[str, Any] = Depends(_filters),
     db: AsyncSession = Depends(get_db),
 ):
     """Return most common intents / topics."""
-    result = await db.execute(
+    date_from = filters["date_from"]
+    date_to = filters["date_to"]
+    course_id = filters["course_id"]
+
+    stmt = (
         select(ChatRequest.intent, func.count(ChatRequest.id).label("count"))
         .group_by(ChatRequest.intent)
         .order_by(func.count(ChatRequest.id).desc())
         .limit(limit)
     )
+    stmt = _filter_by_date(stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        stmt = stmt.where(ChatRequest.course_id == course_id)
+
+    result = await db.execute(stmt)
     return [{"intent": row.intent or "unknown", "count": row.count} for row in result.all()]
 
 
 @router.get("/unanswered")
 async def unanswered(
     limit: int = Query(50, ge=1, le=200),
+    filters: Dict[str, Any] = Depends(_filters),
     db: AsyncSession = Depends(get_db),
 ):
     """Return recent requests with no answer or empty sources."""
-    result = await db.execute(
+    date_from = filters["date_from"]
+    date_to = filters["date_to"]
+    course_id = filters["course_id"]
+
+    stmt = (
         select(ChatRequest, ChatLog)
         .join(ChatLog, ChatLog.request_id == ChatRequest.id, isouter=True)
-        .where((ChatLog.answer == None) | (ChatLog.sources == None) | (ChatLog.sources == []))
+        .where((ChatLog.answer == None) | (ChatLog.sources == None) | (func.json_array_length(ChatLog.sources) == 0))
         .order_by(ChatRequest.created_at.desc())
         .limit(limit)
     )
+    stmt = _filter_by_date(stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        stmt = stmt.where(ChatRequest.course_id == course_id)
+
+    result = await db.execute(stmt)
     output = []
     for request, log in result.all():
         output.append({
@@ -85,33 +196,211 @@ async def unanswered(
 
 
 @router.get("/feedback")
-async def feedback(db: AsyncSession = Depends(get_db)):
+async def feedback(
+    filters: Dict[str, Any] = Depends(_filters),
+    db: AsyncSession = Depends(get_db),
+):
     """Return aggregated feedback scores."""
-    result = await db.execute(
+    date_from = filters["date_from"]
+    date_to = filters["date_to"]
+    course_id = filters["course_id"]
+
+    stmt = (
         select(ChatLog.feedback_score, func.count(ChatLog.id))
+        .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
         .where(ChatLog.feedback_score != None)
         .group_by(ChatLog.feedback_score)
         .order_by(ChatLog.feedback_score)
     )
-    return [
-        {"score": score, "count": count}
-        for score, count in result.all()
+    stmt = _filter_by_date(stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        stmt = stmt.where(ChatRequest.course_id == course_id)
+
+    result = await db.execute(stmt)
+    return [{"score": score, "count": count} for score, count in result.all()]
+
+
+@router.get("/latency")
+async def latency(
+    filters: Dict[str, Any] = Depends(_filters),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return latency histogram and percentile summary."""
+    date_from = filters["date_from"]
+    date_to = filters["date_to"]
+    course_id = filters["course_id"]
+
+    stmt = select(ChatLog.latency_ms).join(
+        ChatRequest, ChatLog.request_id == ChatRequest.id
+    ).where(ChatLog.latency_ms != None)
+    stmt = _filter_by_date(stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        stmt = stmt.where(ChatRequest.course_id == course_id)
+
+    rows = await db.execute(stmt)
+    latencies = [row[0] for row in rows.all()]
+
+    buckets = [
+        ("0-500", 0, 500),
+        ("500-1000", 500, 1000),
+        ("1000-2000", 1000, 2000),
+        ("2000-5000", 2000, 5000),
+        ("5000+", 5000, float("inf")),
     ]
+    histogram = {label: 0 for label, _, _ in buckets}
+    for value in latencies:
+        for label, low, high in buckets:
+            if low <= value < high:
+                histogram[label] += 1
+                break
+
+    avg = sum(latencies) / len(latencies) if latencies else 0
+    sorted_vals = sorted(latencies)
+    p50 = sorted_vals[len(sorted_vals) // 2] if sorted_vals else 0
+    p95 = sorted_vals[int(len(sorted_vals) * 0.95)] if sorted_vals else 0
+    p99 = sorted_vals[int(len(sorted_vals) * 0.99)] if sorted_vals else 0
+
+    return {
+        "count": len(latencies),
+        "average_ms": round(avg, 2),
+        "p50_ms": round(p50, 2),
+        "p95_ms": round(p95, 2),
+        "p99_ms": round(p99, 2),
+        "histogram": [
+            {"bucket": label, "count": count}
+            for label, count in histogram.items()
+        ],
+    }
+
+
+@router.get("/sources")
+async def sources(
+    filters: Dict[str, Any] = Depends(_filters),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return source usage breakdown (LMS, RAG, none)."""
+    date_from = filters["date_from"]
+    date_to = filters["date_to"]
+    course_id = filters["course_id"]
+
+    request_log = aliased(ChatLog)
+    stmt = (
+        select(
+            ChatRequest.id,
+            ChatRequest.lms_calls,
+            request_log.sources,
+        )
+        .join(request_log, request_log.request_id == ChatRequest.id, isouter=True)
+    )
+    stmt = _filter_by_date(stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        stmt = stmt.where(ChatRequest.course_id == course_id)
+
+    result = await db.execute(stmt)
+    counts = {"lms": 0, "rag": 0, "both": 0, "none": 0}
+    for request_id, lms_calls, sources in result.all():
+        has_lms = bool(lms_calls)
+        has_rag = bool(sources)
+        if has_lms and has_rag:
+            counts["both"] += 1
+        elif has_lms:
+            counts["lms"] += 1
+        elif has_rag:
+            counts["rag"] += 1
+        else:
+            counts["none"] += 1
+
+    return {
+        "total": sum(counts.values()),
+        "breakdown": [
+            {"source": key, "count": value}
+            for key, value in counts.items()
+        ],
+    }
+
+
+@router.get("/errors")
+async def errors(
+    limit: int = Query(50, ge=1, le=200),
+    filters: Dict[str, Any] = Depends(_filters),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return error summary and recent failed LLM calls / chat logs."""
+    date_from = filters["date_from"]
+    date_to = filters["date_to"]
+    course_id = filters["course_id"]
+
+    log_stmt = (
+        select(func.count(ChatLog.id))
+        .join(ChatRequest, ChatLog.request_id == ChatRequest.id)
+        .where(ChatLog.error != None)
+    )
+    log_stmt = _filter_by_date(log_stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        log_stmt = log_stmt.where(ChatRequest.course_id == course_id)
+    chat_errors = await db.scalar(log_stmt) or 0
+
+    llm_stmt = select(func.count(LlmCall.id)).where(LlmCall.status != "ok")
+    llm_stmt = _filter_by_date(llm_stmt, LlmCall, date_from, date_to)
+    llm_errors = await db.scalar(llm_stmt) or 0
+
+    total_stmt = select(func.count(ChatRequest.id))
+    total_stmt = _filter_by_date(total_stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        total_stmt = total_stmt.where(ChatRequest.course_id == course_id)
+    total_requests = await db.scalar(total_stmt) or 0
+
+    recent_stmt = (
+        select(ChatRequest, ChatLog)
+        .join(ChatLog, ChatLog.request_id == ChatRequest.id)
+        .where(ChatLog.error != None)
+        .order_by(ChatRequest.created_at.desc())
+        .limit(limit)
+    )
+    recent_stmt = _filter_by_date(recent_stmt, ChatRequest, date_from, date_to)
+    if course_id is not None:
+        recent_stmt = recent_stmt.where(ChatRequest.course_id == course_id)
+
+    recent = await db.execute(recent_stmt)
+    recent_errors = []
+    for request, log in recent.all():
+        recent_errors.append({
+            "request_id": request.id,
+            "message": request.message,
+            "intent": request.intent,
+            "course_id": request.course_id,
+            "error": log.error,
+            "created_at": request.created_at.isoformat() if request.created_at else None,
+        })
+
+    return {
+        "total_requests": total_requests,
+        "chat_errors": chat_errors,
+        "llm_errors": llm_errors,
+        "error_rate": round((chat_errors / total_requests) * 100, 2) if total_requests else 0,
+        "recent_errors": recent_errors,
+    }
 
 
 @router.get("/events")
 async def events(
-    event_type: Optional[str] = None,
-    course_id: Optional[int] = None,
+    event_type: Optional[str] = Query(None),
+    course_id: Optional[int] = Query(None),
     limit: int = Query(100, ge=1, le=500),
+    filters: Dict[str, Any] = Depends(_filters),
     db: AsyncSession = Depends(get_db),
 ):
     """Return raw analytics events."""
+    date_from = filters["date_from"]
+    date_to = filters["date_to"]
+
     stmt = select(AnalyticsEvent).order_by(AnalyticsEvent.created_at.desc()).limit(limit)
     if event_type:
         stmt = stmt.where(AnalyticsEvent.event_type == event_type)
-    if course_id:
+    if course_id is not None:
         stmt = stmt.where(AnalyticsEvent.course_id == course_id)
+    stmt = _filter_by_date(stmt, AnalyticsEvent, date_from, date_to)
+
     result = await db.execute(stmt)
     return [
         {

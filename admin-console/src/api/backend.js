@@ -256,24 +256,54 @@ export async function testLlmProvider(key) {
 }
 
 // Analytics
-export async function getAnalyticsDashboard() {
-  return apiRequest('/api/v1/admin/analytics/dashboard');
+export async function getAnalyticsDashboard(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/analytics/dashboard?${qs}`);
 }
 
-export async function getAnalyticsTopics(limit = 20) {
-  return apiRequest(`/api/v1/admin/analytics/topics?limit=${limit}`);
+export async function getAnalyticsTopics(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/analytics/topics?${qs}`);
 }
 
-export async function getAnalyticsUnanswered(limit = 50) {
-  return apiRequest(`/api/v1/admin/analytics/unanswered?limit=${limit}`);
+export async function getAnalyticsUnanswered(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/analytics/unanswered?${qs}`);
 }
 
-export async function getAnalyticsFeedback() {
-  return apiRequest('/api/v1/admin/analytics/feedback');
+export async function getAnalyticsFeedback(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/analytics/feedback?${qs}`);
 }
 
-export async function getAnalyticsEvents(limit = 100) {
-  return apiRequest(`/api/v1/admin/analytics/events?limit=${limit}`);
+export async function getAnalyticsLatency(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/analytics/latency?${qs}`);
+}
+
+export async function getAnalyticsSources(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/analytics/sources?${qs}`);
+}
+
+export async function getAnalyticsErrors(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/analytics/errors?${qs}`);
+}
+
+export async function getAnalyticsEvents(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/analytics/events?${qs}`);
+}
+
+function buildQueryString(params) {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      qs.set(key, value);
+    }
+  });
+  return qs.toString();
 }
 
 // Operational Logs
