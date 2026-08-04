@@ -3,7 +3,7 @@
 **Проект:** ai-curator
 **Дата создания:** 2026-07-29
 **Последнее обновление:** 2026-08-04
-**Статус:** Implementation In Progress — Day 7 extended into stabilization sprints A–E; UI unification and E2E in progress; Analytics + Business Reports + Demo modes planned
+**Статус:** Implementation In Progress — Stabilization sprints A–E completed through Sprint E1; TZ compliance report ready; Phase 1 E2E in progress; Business Reports + Demo modes planned
 
 ---
 
@@ -22,7 +22,7 @@ AI Curator не заменяет преподавателя, не выставл
 
 **Implementation In Progress.**
 
-Документы PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md и IMPLEMENTATION_PLAN.md согласованы куратором. Дни 1–6 IMPLEMENTATION_PLAN выполнены, Sprint 5 (Admin Console panels) и Sprint 6.1 (Configurable Orchestrator Routing) завершены. Проект находится в серии спринтов стабилизации и подготовки к аналитике (раздел 10 IMPLEMENTATION_PLAN), которые превратили "День 7" в многосессионный завершающий этап.
+Документы PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md, IMPLEMENTATION_PLAN.md и AI_CURATOR_SYSTEM_SPECIFICATION.md согласованы куратором. Дни 1–6 IMPLEMENTATION_PLAN выполнены, Sprints 5–6.1 завершены, стабилизационные спринты A–E1 завершены. Подготовлен отчёт о соответствии ТЗ (`docs/TZ_COMPLIANCE_REPORT.md`). Проект переходит к Phase 1 полного E2E-прогона.
 
 **Что уже реализовано и развёрнуто:**
 
@@ -39,22 +39,25 @@ AI Curator не заменяет преподавателя, не выставл
 - LLM Chat core: Prompt Builder, LLM Adapter, Answer Validator, Orchestrator с конфигурируемой интент-классификацией и source routing.
 - Execution tracing: `chat_sessions`, `execution_sessions`, `execution_steps`; timeline в консоли Dialog Sessions.
 - ResponseCache: кэширование запросов, инвалидация при мутациях KB/AI/retrieval/orchestrator, `cache_hit` в API и UI.
-- Logging & Analytics: `chat_requests`, `chat_logs`, `llm_calls`, `analytics_events`, `audit_logs`.
+- Logging & Analytics: `chat_requests`, `chat_logs`, `llm_calls`, `llm_call_traces`, `analytics_events`, `audit_logs`, `execution_sessions`, `execution_steps`.
 - Audit backend: фильтры по дате, действию, типу ресурса, пользователю; детальная карточка с `user_id`, `user_name`, `ip_address`, `details`.
+- Analytics Dashboard (Sprint E1): `/api/v1/admin/analytics/*` + `admin-console/src/components/Analytics.jsx` — KPI, фильтры по дате/курсу, latency histogram, источники, CSV export.
+- Operational Logs source filter: `source_type` (lms, rag, both, cache, fallback, error) в backend и UI.
 - E2E testing strategy: `docs/E2E_TEST_PLAN.md` + `docs/PRODUCT_E2E_CHECKLIST.md` для ручных сквозных прогонов.
 - Auth: Admin Console защищён Bearer-токеном `ADMIN_CONSOLE_TOKEN`.
+- TZ compliance report: `docs/TZ_COMPLIANCE_REPORT.md` — соответствие реализации исходному `ТЗ проекта.md`.
 - Testing infrastructure: тестовая БД `ai_curator_test`, Alembic-миграции в тестах, маркеры pytest, `docs/TESTING_CONTRACT.md`.
 - `pytest` стабильно проходит (53+ тестов).
 
 **Оставшиеся ключевые работы:**
 
-1. **Спринт E1 — Analytics Dashboard:** полноценный дашборд с фильтрами по периоду/курсу, latency histograms, топ источников, ошибками, распределением интентов.
+1. **Phase 1 E2E-прогон:** выполнить первый полный ручной прогон по `docs/PRODUCT_E2E_CHECKLIST.md`, охватывающий Web UI студента, Admin Console, Observability и Deployment Validation; зафиксировать дефекты и внести исправления.
 2. **Спринт E2 — Business Reports / Quality Reports:** управленческая сводка — вопросы без ответа, гэпы Knowledge Base, популярные темы, кандидаты на расширение KB.
 3. **Спринт A2/A3 — Read-only demo admin + RBAC:** безопасный демо-доступ в Admin Console только на просмотр, запрет изменений для demo-роли.
 4. **Web UI safe demo mode:** ограниченный по запросам/расходу API режим для потенциальных клиентов на публичном Web UI с защитой API-лимитов.
-5. **Продуктовое E2E-тестирование и документирование (Phase 1):** созданы `docs/E2E_TEST_PLAN.md` и `docs/PRODUCT_E2E_CHECKLIST.md`, охватывающие Web UI студента, Admin Console, Observability и Deployment Validation. Требуется выполнить первый полный ручной прогон и зафиксировать дефекты.
-6. **Phase 2 E2E:** дополнить чек-лист сценариями Analytics, Business Reports, read-only demo admin / RBAC и safe Web UI demo mode по мере реализации фич.
-7. **Актуализация DEPLOYMENT_GUIDE.md и README.md:** подготовка материалов для портфолио.
+5. **Phase 2 E2E:** дополнить чек-лист сценариями Analytics, Business Reports, read-only demo admin / RBAC и safe Web UI demo mode по мере реализации фич.
+6. **Актуализация DEPLOYMENT_GUIDE.md и README.md:** подготовка материалов для портфолио.
+7. **Инфраструктурная безопасность:** настроить регулярные бэкапы PostgreSQL и процедуру проверки БД перед тестами (после инцидента с `TRUNCATE`).
 
 ## Market Validation
 
@@ -125,12 +128,14 @@ AI Curator не заменяет преподавателя, не выставл
 9. ✅ Sprint A1 (read-only audit cleanup) выполнен.
 10. ✅ Sprint B (test DB, testing contract, prod cleanup) выполнен.
 11. ✅ Завершить ручной E2E Admin Console (Sprint D).
-12. 🔄 Выполнить первый прогон `docs/PRODUCT_E2E_CHECKLIST.md` (Phase 1).
-13. ⏳ Реализовать Analytics Dashboard (Sprint E1).
-13. ⏳ Реализовать Business Reports / Quality Reports (Sprint E2).
-14. ⏳ Реализовать read-only demo login и RBAC в Admin Console (Sprint A2/A3).
-15. ⏳ Реализовать безопасный API-лимитированный demo режим на Web UI.
-16. ⏳ Актуализировать DEPLOYMENT_GUIDE.md и README.md для портфолио.
+12. ✅ Завершить Analytics Dashboard (Sprint E1) — фильтры, latency histogram, источники, CSV export.
+13. ✅ Подготовить `docs/TZ_COMPLIANCE_REPORT.md` — отчёт о соответствии ТЗ.
+14. 🔄 Выполнить первый прогон `docs/PRODUCT_E2E_CHECKLIST.md` (Phase 1).
+15. ⏳ Реализовать Business Reports / Quality Reports (Sprint E2).
+16. ⏳ Реализовать read-only demo login и RBAC в Admin Console (Sprint A2/A3).
+17. ⏳ Реализовать безопасный API-лимитированный demo режим на Web UI.
+18. ⏳ Актуализировать DEPLOYMENT_GUIDE.md и README.md для портфолио.
+19. ⏳ Настроить бэкапы PostgreSQL и процедуру проверки БД перед тестами.
 
 ## Open Questions
 
@@ -195,4 +200,4 @@ AI Curator не заменяет преподавателя, не выставл
 | 2026-07-29 | Implementation In Progress | Выполнен Sprint 4.2: RAG pipeline, обработка документов, Chroma search. |
 | 2026-07-29 | Implementation In Progress | Выполнен День 5: Web UI студента, гостевой demo-вход, чат с источниками. |
 | 2026-07-30 | Implementation In Progress | Выполнен День 6: LLM Chat, Admin Console scaffold, logging, analytics, audit, deploy. |
-| 2026-08-04 | Implementation In Progress — Stabilization Sprints | Завершены Sprint 5 (Admin Console panels), Sprint 6.1 (Orchestrator Config), Sprint C (ResponseCache), Sprint A1 (read-only audit cleanup), Sprint B (testing infrastructure). UI консолей унифицирован. Остались Sprint D (E2E), Sprint E (Analytics + Reports), Sprint A2/A3 (demo admin + RBAC), Web UI safe demo mode, финальная документация. |
+| 2026-08-04 | Implementation In Progress — Stabilization Sprints | Завершены Sprint 5 (Admin Console panels), Sprint 6.1 (Orchestrator Config), Sprint C (ResponseCache), Sprint A1 (read-only audit cleanup), Sprint B (testing infrastructure), Sprint D (E2E planning), Sprint E1 (Analytics Dashboard refinements, split model → fallback/error, CSV export, Operational Logs source filter). UI консолей унифицирован. Подготовлен `docs/TZ_COMPLIANCE_REPORT.md`. Остались Phase 1 E2E execution, Sprint E2 (Business Reports), Sprint A2/A3 (demo admin + RBAC), Web UI safe demo mode, финальная документация. |
