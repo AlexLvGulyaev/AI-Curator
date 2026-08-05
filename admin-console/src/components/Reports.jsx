@@ -94,8 +94,9 @@ function MetricCard({ label, value, variant = 'default', compact = false, suffix
       : variant === 'success'
       ? 'text-ai-success'
       : 'text-ai-text';
-  const card = (
-    <div className={`ai-card flex w-full cursor-help flex-col justify-between ${compact ? 'p-3' : 'p-5'}`}>
+  const tip = tooltip || KPI_TOOLTIPS[label] || '';
+  return (
+    <div className={`ai-card group relative flex w-full cursor-help flex-col justify-between ${compact ? 'p-3' : 'p-5'}`}>
       <p className={`text-ai-text-muted ${compact ? 'text-[0.65rem] uppercase tracking-wide' : 'text-xs'}`}>
         {label}
       </p>
@@ -103,20 +104,23 @@ function MetricCard({ label, value, variant = 'default', compact = false, suffix
         {value}
         {suffix && <span className="ml-1 text-sm font-normal text-ai-text-muted">{suffix}</span>}
       </p>
+      {tip && (
+        <span className="pointer-events-none absolute left-1/2 bottom-full z-50 mb-2 hidden max-w-xs -translate-x-1/2 whitespace-normal rounded-ai border border-ai-border bg-ai-surface p-2 text-xs text-ai-text shadow-lg group-hover:block">
+          {tip}
+        </span>
+      )}
     </div>
   );
-  const tip = tooltip || KPI_TOOLTIPS[label] || '';
-  if (!tip) return card;
-  return <Tooltip text={tip}>{card}</Tooltip>;
 }
 
 function ChartCard({ title, children, className = '' }) {
+  const tip = CHART_TOOLTIPS[title] || '';
   return (
     <div className={`ai-card p-3 ${className}`.trim()}>
       <div className="mb-1 flex items-center gap-1">
         <h3 className="font-display text-sm font-semibold text-ai-text">{title}</h3>
-        {CHART_TOOLTIPS[title] && (
-          <Tooltip text={CHART_TOOLTIPS[title]} placement="top">
+        {tip && (
+          <Tooltip text={tip} placement="top">
             <svg
               className="h-3.5 w-3.5 cursor-help text-ai-text-muted"
               fill="none"
