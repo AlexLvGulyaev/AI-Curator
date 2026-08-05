@@ -255,6 +255,54 @@ export async function testLlmProvider(key) {
   return apiRequest(`/api/v1/admin/llm-providers/${key}/test`, { method: 'POST' });
 }
 
+// Reports
+export async function getReportsQuality(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/reports/quality?${qs}`);
+}
+
+export async function getReportsUnanswered(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/reports/unanswered?${qs}`);
+}
+
+export async function getReportsKbGaps(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/reports/kb-gaps?${qs}`);
+}
+
+export async function getReportsPopularTopics(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/reports/popular-topics?${qs}`);
+}
+
+export async function getReportsKbCoverage() {
+  return apiRequest('/api/v1/admin/reports/kb-coverage');
+}
+
+export async function getReportsExpansionCandidates(params = {}) {
+  const qs = buildQueryString(params);
+  return apiRequest(`/api/v1/admin/reports/expansion-candidates?${qs}`);
+}
+
+export async function exportReportsReport(params = {}, section = 'all') {
+  const qs = buildQueryString({ ...params, section });
+  const token = getToken();
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const response = await fetch(`${API_BASE_URL}/api/v1/admin/reports/export?${qs}`, {
+    method: 'GET',
+    headers,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Ошибка ${response.status}: ${text}`);
+  }
+  return response.blob();
+}
+
 // Analytics
 export async function getAnalyticsDashboard(params = {}) {
   const qs = buildQueryString(params);

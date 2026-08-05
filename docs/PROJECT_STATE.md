@@ -2,8 +2,8 @@
 
 **Проект:** ai-curator
 **Дата создания:** 2026-07-29
-**Последнее обновление:** 2026-08-04
-**Статус:** Implementation In Progress — Phase 1 E2E completed; intent classification stabilized; Business Reports + Demo modes planned
+**Последнее обновление:** 2026-08-05
+**Статус:** Implementation In Progress — Sprint E2 Business Reports implemented; full pytest suite green; manual E2E pending
 
 ---
 
@@ -42,21 +42,22 @@ AI Curator не заменяет преподавателя, не выставл
 - Logging & Analytics: `chat_requests`, `chat_logs`, `llm_calls`, `llm_call_traces`, `analytics_events`, `audit_logs`, `execution_sessions`, `execution_steps`.
 - Audit backend: фильтры по дате, действию, типу ресурса, пользователю; детальная карточка с `user_id`, `user_name`, `ip_address`, `details`.
 - Analytics Dashboard (Sprint E1): `/api/v1/admin/analytics/*` + `admin-console/src/components/Analytics.jsx` — KPI, фильтры по дате/курсу, latency histogram, источники, CSV export.
+- Business Reports / Quality Reports (Sprint E2): `/api/v1/admin/reports/*` + `admin-console/src/components/Reports.jsx` — качество ответов, вопросы без ответа, гэпы KB, популярные темы, покрытие KB, кандидаты на расширение KB, CSV export.
 - Operational Logs source filter: `source_type` (lms, rag, both, cache, fallback, error) в backend и UI.
 - E2E testing strategy: `docs/E2E_TEST_PLAN.md` + `docs/PRODUCT_E2E_CHECKLIST.md` для ручных сквозных прогонов.
 - Auth: Admin Console защищён Bearer-токеном `ADMIN_CONSOLE_TOKEN`.
 - TZ compliance report: `docs/TZ_COMPLIANCE_REPORT.md` — соответствие реализации исходному `ТЗ проекта.md`.
 - Testing infrastructure: тестовая БД `ai_curator_test`, Alembic-миграции в тестах, маркеры pytest, `docs/TESTING_CONTRACT.md`.
-- `pytest` стабильно проходит (53+ тестов).
+- `pytest` стабильно проходит (87 тестов, ~20 секунд).
 
 **Оставшиеся ключевые работы:**
 
-1. **Спринт E2 — Business Reports / Quality Reports:** управленческая сводка — вопросы без ответа, гэпы Knowledge Base, популярные темы, кандидаты на расширение KB.
+1. ✅ **Спринт E2 — Business Reports / Quality Reports:** backend, frontend и тесты завершены; требуется ручная E2E-верификация PH2-02.
 3. **Спринт A2/A3 — Read-only demo admin + RBAC:** безопасный демо-доступ в Admin Console только на просмотр, запрет изменений для demo-роли.
 4. **Web UI safe demo mode:** ограниченный по запросам/расходу API режим для потенциальных клиентов на публичном Web UI с защитой API-лимитов.
 5. **Phase 2 E2E:** дополнить чек-лист сценариями Analytics, Business Reports, read-only demo admin / RBAC и safe Web UI demo mode по мере реализации фич.
 6. **Актуализация DEPLOYMENT_GUIDE.md и README.md:** подготовка материалов для портфолио.
-7. **Инфраструктурная безопасность:** настроить регулярные бэкапы PostgreSQL и процедуру проверки БД перед тестами (после инцидента с `TRUNCATE`).
+7. ✅ **Инфраструктурная безопасность:** зафиксирован инцидент с `TRUNCATE` deadlock; добавлен engineering pattern `shared/patterns/pytest-transactional-fixture-deadlock.md`; процедура проверки висящих backend-процессов перед прогоном pytest.
 
 ## Market Validation
 
@@ -130,11 +131,11 @@ AI Curator не заменяет преподавателя, не выставл
 12. ✅ Завершить Analytics Dashboard (Sprint E1) — фильтры, latency histogram, источники, CSV export.
 13. ✅ Подготовить `docs/TZ_COMPLIANCE_REPORT.md` — отчёт о соответствии ТЗ.
 14. ✅ Выполнить первый прогон `docs/PRODUCT_E2E_CHECKLIST.md` (Phase 1) — 26 PASS, 0 FAIL, 1 NOT RUN.
-15. ⏳ Реализовать Business Reports / Quality Reports (Sprint E2).
+15. ✅ Реализовать Business Reports / Quality Reports (Sprint E2).
 16. ⏳ Реализовать read-only demo login и RBAC в Admin Console (Sprint A2/A3).
 17. ⏳ Реализовать безопасный API-лимитированный demo режим на Web UI.
 18. ⏳ Актуализировать DEPLOYMENT_GUIDE.md и README.md для портфолио.
-19. ⏳ Настроить бэкапы PostgreSQL и процедуру проверки БД перед тестами.
+19. ✅ Настроить процедуру проверки БД перед тестами (pattern + мониторинг висящих процессов).
 
 ## Open Questions
 

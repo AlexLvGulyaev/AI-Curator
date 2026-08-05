@@ -565,7 +565,9 @@ class Orchestrator:
             return "progress"
         # Pure structure questions ("сколько модулей", "из чего состоит курс") need
         # both LMS contents and KB context to avoid hallucinated module counts.
-        if is_org and any(kw in lower for kw in ("модуль", "модули", "структура курса", "из чего состоит курс")):
+        if is_org and is_study and any(kw in lower for kw in ("модуль", "модули", "модулей")):
+            return "mixed"
+        if is_org and any(kw in lower for kw in ("структура курса", "из чего состоит курс")):
             return "mixed"
         if is_org:
             return "organizational"

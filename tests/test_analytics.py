@@ -3,23 +3,14 @@
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy import text
 
-from db import engine
 from models.chat import ChatLog, ChatRequest
 
 pytestmark = pytest.mark.unit
 
 
-@pytest.fixture
-async def clean_chat_tables():
-    async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE TABLE chat_requests, chat_logs, analytics_events, audit_logs, llm_calls RESTART IDENTITY CASCADE"))
-    yield
-
-
 @pytest.mark.anyio
-async def test_analytics_dashboard_empty(client, clean_chat_tables):
+async def test_analytics_dashboard_empty(client):
     async with client:
         response = await client.get("/api/v1/admin/analytics/dashboard")
         assert response.status_code == 200
@@ -29,7 +20,7 @@ async def test_analytics_dashboard_empty(client, clean_chat_tables):
 
 
 @pytest.mark.anyio
-async def test_analytics_sources_breakdown(client, clean_chat_tables, db_session):
+async def test_analytics_sources_breakdown(client, db_session):
     """Source breakdown should classify lms, rag, both, cache, fallback and error."""
     base_time = datetime(2026, 8, 4, 12, 0, 0, tzinfo=timezone.utc)
 

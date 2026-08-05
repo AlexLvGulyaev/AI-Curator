@@ -11,8 +11,9 @@ import Analytics from './components/Analytics';
 import OperationalLogs from './components/OperationalLogs';
 import DialogSessions from './components/DialogSessions';
 import AuditLog from './components/AuditLog';
+import Reports from './components/Reports';
 
-const PLACEHOLDER_PAGES = new Set(['reports']);
+const PLACEHOLDER_PAGES = new Set([]);
 
 function Placeholder({ page }) {
   return (
@@ -50,6 +51,7 @@ function App() {
     if (activePage === 'dialogs') return <DialogSessions />;
     if (activePage === 'analytics') return <Analytics />;
     if (activePage === 'audit') return <AuditLog />;
+    if (activePage === 'reports') return <Reports />;
     return <Dashboard />;
   };
 

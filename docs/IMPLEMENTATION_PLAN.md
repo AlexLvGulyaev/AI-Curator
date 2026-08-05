@@ -1,8 +1,8 @@
 # IMPLEMENTATION_PLAN.md — AI Curator
 
 **Проект:** ai-curator
-**Версия:** 2.6
-**Дата:** 2026-08-04
+**Версия:** 2.7
+**Дата:** 2026-08-05
 **Статус:** Approved
 **Срок реализации:** 7+ календарных дней основного цикла + 9–15 календарных дней спринтов стабилизации и аналитики
 
@@ -367,9 +367,9 @@ Sprint 5.1 (Dashboard) → Sprint 5.3+5.4 (AI & Retrieval) → Sprint 5.2 (KB Do
 | 5.2 | Knowledge Base Documents | Трёхпанельная операционная консоль документов KB | ✅ Завершён |
 | 5.5 | Operational Logs | Консоль operational-запросов студентов | ✅ Завершён |
 | 5.6 | Dialog Sessions | Консоль диалогов студентов (structural redesign) | ✅ Завершён |
-| 5.7 | Analytics Dashboard | Полноценный дашборд аналитики | ⏳ Запланирован |
+| 5.7 | Analytics Dashboard | Полноценный дашборд аналитики | ✅ Завершён |
 | 5.8 | Audit & Compliance | Журнал аудита с фильтрами и детальной карточкой | ✅ Backend и frontend завершены, UI унифицировано (2026-08-04) |
-| 5.9 | Business Reports / Quality Reports | Управленческая сводка и качество | ⏳ Запланирован |
+| 5.9 | Business Reports / Quality Reports | Управленческая сводка и качество | ✅ Backend, frontend и тесты завершены (2026-08-05); осталась ручная E2E-верификация |
 
 > **Примечание:** номера 5.3+5.4 идут перед 5.2 по факту выполнения, так как AI & Retrieval Configuration был реализован раньше Knowledge Base Documents по договорённости о приоритетах.
 
@@ -669,8 +669,8 @@ Backend и frontend завершены и задеплоены (2026-08-01). Д�
 
 | # | Задача | Артефакты | Критерий готовности | Статус |
 |---|--------|-----------|---------------------|--------|
-| E1 | Sprint 5.7 Analytics Dashboard | `src/api/v1/admin/analytics.py`, `admin-console/src/components/Analytics.jsx` | Дашборд с фильтрами и агрегатами | ⏳ |
-| E2 | Sprint 5.9 Business Reports | `src/api/v1/admin/reports.py`, `admin-console/src/components/Reports.jsx` | Отчёты по KB coverage, popular topics, quality | ⏳ |
+| E1 | Sprint 5.7 Analytics Dashboard | `src/api/v1/admin/analytics.py`, `admin-console/src/components/Analytics.jsx` | Дашборд с фильтрами и агрегатами | ✅ Завершён |
+| E2 | Sprint 5.9 Business Reports | `src/api/v1/admin/reports.py`, `admin-console/src/components/Reports.jsx` | Отчёты по KB coverage, popular topics, quality | ✅ Backend, frontend и тесты завершены; ручная E2E в процессе |
 
 ### 10.7. Спринт F — Безопасный demo-режим Web UI
 
@@ -702,8 +702,9 @@ A → B → C → D → E → F
 - [x] B1–B4 — тестовая БД `ai_curator_test`, Alembic-миграции, маркеры pytest, `docs/TESTING_CONTRACT.md` (2026-08-02).
 - [x] B5 — очистка prod БД от тестового мусора (2026-08-02).
 - [x] C1–C5 — кэширование: ResponseCache, интеграция в Orchestrator, инвалидация, `cache_hit` в UI/API, тесты и документация (2026-08-02).
-- [ ] D1–D3 — ручной E2E (частично: Operational Logs, Dialog Sessions, Audit Log — UI унифицировано и задеплоено; остальные консоли и сквозные сценарии — в процессе).
-- [ ] E1–E2 — аналитика и отчёты.
+- [ ] D1–D3 — ручной E2E (частично: Operational Logs, Dialog Sessions, Audit Log — UI унифицировано и задеплоено; Business Reports — в процессе верификации; остальные консоли и сквозные сценарии — в процессе).
+- [x] E1 — Analytics Dashboard завершён.
+- [x] E2 — Business Reports: backend, frontend, тесты завершены; ручная E2E в процессе.
 - [ ] F1–F4 — Web UI safe demo mode (API-лимитированный публичный демо-доступ).
 
 ---

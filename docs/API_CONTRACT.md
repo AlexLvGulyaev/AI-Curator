@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.15  
-**Дата:** 2026-08-02  
-**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + Sprint C Response Cache
+**Версия:** 1.16  
+**Дата:** 2026-08-05  
+**Статус:** Актуален для Sprint E2 Business Reports / Quality Reports
 
 ---
 
@@ -1048,11 +1048,134 @@
 | `created_at` | string | ISO timestamp |
 | `updated_at` | string \| null | ISO timestamp |
 
-### 4.7. Авторизация
+### 4.7. Reports (Business Reports / Quality Reports)
+
+Управленческая сводка для анализа качества ответов и покрытия Knowledge Base. Все endpoints read-only и не пишут в `audit_logs`.
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| `GET` | `/api/v1/admin/reports/quality` | Качество ответов: answered rate, error rate, fallback rate, cache hit rate, средняя оценка, RAG coverage |
+| `GET` | `/api/v1/admin/reports/unanswered` | Пагинированный список вопросов без ответа |
+| `GET` | `/api/v1/admin/reports/kb-gaps` | study/mixed запросы, отвеченные без источников KB/RAG |
+| `GET` | `/api/v1/admin/reports/popular-topics` | Распределение запросов по intent |
+| `GET` | `/api/v1/admin/reports/kb-coverage` | Покрытие KB по курсам и типам документов |
+| `GET` | `/api/v1/admin/reports/expansion-candidates` | Кандидаты на расширение KB (intent с наибольшим числом гэпов) |
+| `GET` | `/api/v1/admin/reports/export` | CSV-экспорт unanswered + KB gaps |
+
+**Общие параметры фильтрации:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `date_from` | string | ISO date YYYY-MM-DD |
+| `date_to` | string | ISO date YYYY-MM-DD |
+| `course_id` | int | ID курса |
+
+**Пагинированные endpoints** (`/unanswered`, `/kb-gaps`) дополнительно принимают `intent`, `limit`, `offset`.
+
+**Ответ `GET /api/v1/admin/reports/quality`:**
+
+```json
+{
+  "total_requests": 1250,
+  "answered_count": 1180,
+  "answered_rate": 94.4,
+  "error_count": 12,
+  "error_rate": 0.96,
+  "fallback_count": 18,
+  "fallback_rate": 1.44,
+  "cache_hit_count": 320,
+  "cache_hit_rate": 25.6,
+  "average_feedback_score": 8.2,
+  "rag_eligible_count": 420,
+  "rag_covered_count": 380,
+  "rag_coverage_rate": 90.48
+}
+```
+
+**Ответ `GET /api/v1/admin/reports/unanswered` и `/kb-gaps`:**
+
+```json
+{
+  "items": [
+    {
+      "request_id": 123,
+      "session_id": "...",
+      "message": "Как работает рекурсия?",
+      "intent": "study",
+      "course_id": 3,
+      "role": "active_student",
+      "difficulty": "beginner",
+      "created_at": "2026-08-04T12:00:00+00:00",
+      "answer": null,
+      "sources": null,
+      "feedback_score": null,
+      "latency_ms": null,
+      "cache_hit": false,
+      "error": null
+    }
+  ],
+  "total": 42,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+**Ответ `GET /api/v1/admin/reports/popular-topics`:**
+
+```json
+[
+  {"intent": "study", "count": 640},
+  {"intent": "deadline", "count": 210},
+  {"intent": "organizational", "count": 180},
+  {"intent": "mixed", "count": 90},
+  {"intent": "out_of_scope", "count": 45}
+]
+```
+
+**Ответ `GET /api/v1/admin/reports/kb-coverage`:**
+
+```json
+{
+  "total_documents": 25,
+  "documents_by_type": [
+    {"document_type": "lecture", "count": 12},
+    {"document_type": "faq", "count": 8},
+    {"document_type": "instruction", "count": 5}
+  ],
+  "coverage_by_course": [
+    {
+      "course_id": 3,
+      "total_documents": 18,
+      "published_documents": 15,
+      "chunk_count": 142
+    }
+  ]
+}
+```
+
+**Ответ `GET /api/v1/admin/reports/expansion-candidates`:**
+
+```json
+[
+  {
+    "intent": "study",
+    "gap_count": 38,
+    "recommendation": "Добавить или расширить материалы Knowledge Base по этой теме."
+  }
+]
+```
+
+**`GET /api/v1/admin/reports/export`:**
+
+- Параметр `section` — `unanswered`, `kb-gaps` или `all` (по умолчанию).
+- Возвращает `text/csv; charset=utf-8` с BOM (`utf-8-sig`) для корректного открытия в Excel.
+- Колонки: `report_section`, `request_id`, `session_id`, `created_at`, `role`, `course_id`, `intent`, `difficulty`, `message`, `answer_preview`, `feedback_score`, `latency_ms`, `cache_hit`, `error`.
+
+### 4.8. Авторизация
 
 Административные endpoints защищены Bearer-токеном из переменной окружения `ADMIN_CONSOLE_TOKEN`, если она задана. Web UI и публичный чат не требуют авторизации.
 
-### 4.8. Orchestrator Configuration
+### 4.9. Orchestrator Configuration
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
@@ -1376,3 +1499,4 @@
 | 2026-08-01 | 1.13 | `POST /api/v1/chat` создаёт audit-запись `chat_request` с `session_id`, ролью студента и `ip_address` |
 | 2026-08-02 | 1.14 | Убран аудит read-only действий (`view_*`) во всех admin endpoints; раздел 4.6 Audit описывает новую политику |
 | 2026-08-02 | 1.15 | Добавлен Response Cache: `cache_hit` в ответе `POST /api/v1/chat`, `chat_logs.cache_hit`, `execution_metadata.cache_hit`, `cache_hit` в Operational Logs / Dialog Sessions; добавлен этап `cache_hit` в `ExecutionStep`; описана инвалидация кэша в admin endpoints |
+| 2026-08-05 | 1.16 | Добавлен раздел 4.7 «Reports (Business Reports / Quality Reports)» с endpoints `/api/v1/admin/reports/*`, параметрами фильтрации, примерами ответов и CSV-экспортом |

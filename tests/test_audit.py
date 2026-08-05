@@ -54,12 +54,18 @@ async def test_audit_log_date_filters_and_detail(client, tmp_path):
             headers={"X-Forwarded-For": "198.51.100.7, 203.0.113.42"},
         )
 
-        list_response = await client.get("/api/v1/admin/audit?limit=1")
+        list_response = await client.get(
+            "/api/v1/admin/audit?action=create&resource_type=kb_document&limit=10"
+        )
         assert list_response.status_code == 200
         first_data = list_response.json()
         first_entries = first_data.get("items", first_data)
-        assert first_entries
-        entry_id = first_entries[0]["id"]
+        entry = next(
+            (e for e in first_entries if e.get("details", {}).get("title") == "Audit Filter Doc"),
+            None,
+        )
+        assert entry is not None, "KB document create audit entry not found"
+        entry_id = entry["id"]
 
         detail_response = await client.get(f"/api/v1/admin/audit/{entry_id}")
         assert detail_response.status_code == 200
@@ -74,7 +80,7 @@ async def test_audit_log_date_filters_and_detail(client, tmp_path):
 
         today = __import__("datetime").date.today().isoformat()
         filtered_response = await client.get(
-            f"/api/v1/admin/audit?date_from={today}&date_to={today}&limit=100"
+            f"/api/v1/admin/audit?date_from={today}&date_to={today}&action=create&resource_type=kb_document&limit=100"
         )
         assert filtered_response.status_code == 200
         filtered_data = filtered_response.json()
