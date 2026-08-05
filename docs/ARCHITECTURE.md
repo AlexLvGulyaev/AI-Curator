@@ -1,13 +1,13 @@
-# ARCHITECTURE.md — AI Curator
+# 🏗️ ARCHITECTURE.md — AI Curator
 
 **Проект:** ai-curator
-**Версия:** 2.4
-**Дата:** 2026-07-31
+**Версия:** 2.5
+**Дата:** 2026-08-05
 **Статус:** Approved
 
 ---
 
-## 1. Архитектурные принципы
+## 🎯 1. Архитектурные принципы
 
 AI Curator — самостоятельная подсистема образовательной платформы, развёрнутая на VPS.
 
@@ -27,7 +27,7 @@ AI Curator — самостоятельная подсистема образо�
 
 ---
 
-## 2. Context Diagram (C4 Level 1)
+## 🌐 2. Context Diagram (C4 Level 1)
 
 ```mermaid
 flowchart TB
@@ -60,7 +60,7 @@ flowchart TB
 
 ---
 
-## 3. Container Diagram (C4 Level 2)
+## 📦 3. Container Diagram (C4 Level 2)
 
 ```mermaid
 flowchart TB
@@ -105,22 +105,19 @@ flowchart TB
 
 ---
 
-## 4. Component Diagram (C4 Level 3 — Backend)
+## 🧩 4. Component Diagram (C4 Level 3 — Backend)
 
 ```mermaid
 flowchart TB
     subgraph "Backend AI Curator"
         API[API Layer / Auth & Routing]
-        Classifier[Request Classifier]
         Orchestrator[Orchestrator]
         LMSAdapter[LMS Adapter]
-        KBManager[Knowledge Base Manager]
         RAG[RAG Pipeline / LangChain Retrieval]
         PromptBuilder[Prompt Builder]
         LLMAdapter[LLM Adapter / LangChain LLM]
         Validator[Answer Validator]
-        Logger[Logging & Analytics]
-        Audit[Audit Log]
+        Logger[Logging, Analytics & Audit]
     end
 
     subgraph "Внешние зависимости"
@@ -131,31 +128,26 @@ flowchart TB
         LLM[(LLM Provider)]
     end
 
-    API --> Classifier
-    Classifier --> Orchestrator
+    API --> Orchestrator
     Orchestrator --> LMSAdapter
-    Orchestrator --> KBManager
     Orchestrator --> RAG
     Orchestrator --> PromptBuilder
     Orchestrator --> LLMAdapter
     Orchestrator --> Validator
     Orchestrator --> Logger
-    Orchestrator --> Audit
 
     LMSAdapter --> LMS
-    KBManager --> PostgreSQL
-    KBManager --> DocStore
     RAG --> Chroma
+    RAG --> DocStore
     LLMAdapter --> LLM
     Logger --> PostgreSQL
-    Audit --> PostgreSQL
 ```
 
 ---
 
-## 5. Границы ответственности
+## 🛡️ 5. Границы ответственности
 
-### 5.1. LMS
+### 🏫 5.1. LMS
 
 | Аспект | LMS | AI Curator |
 |--------|-----|------------|
@@ -166,7 +158,7 @@ flowchart TB
 | Расписание | ✅ | ❌ не изменяет |
 | Оценки, прогресс, статусы | ✅ | ❌ только читает разрешённое |
 
-### 5.1.1. LMS-KB Linking Contract
+### 🔗 5.1.1. LMS-KB Linking Contract
 
 LMS и Knowledge Base — **два независимых источника**. AI Curator связывает их не через жёсткие foreign keys, а через **контекст пользователя и семантический поиск**.
 
@@ -189,7 +181,7 @@ LMS и Knowledge Base — **два независимых источника**. 
 - Один и тот же материал (например, FAQ по Claude Code или методичка по промпт-инжинирингу) может быть полезен в нескольких курсах.
 - LLM сохраняет роль «склеивающего слоя» между независимыми источниками, вместо того чтобы система превращалась в SQL-JOIN с векторами.
 
-### 5.2. Knowledge Base AI Curator
+### 📚 5.2. Knowledge Base AI Curator
 
 Knowledge Base — самостоятельная продуктовая сущность AI Curator, не являющаяся частью LMS.
 
@@ -200,7 +192,7 @@ Knowledge Base — самостоятельная продуктовая сущ�
 | Версии и история изменений | ✅ PostgreSQL | ✅ Knowledge Base |
 | Векторный индекс (Chroma) | ❌ Производное хранилище | ❌ |
 
-### 5.3. Backend AI Curator
+### 🧩 5.3. Backend AI Curator
 
 Backend отвечает за:
 
@@ -216,7 +208,7 @@ Backend отвечает за:
 
 ---
 
-## 6. LMS Adapter
+## 🔌 6. LMS Adapter
 
 LMS Adapter — внутренний компонент Backend.
 
@@ -257,9 +249,9 @@ flowchart LR
 
 ---
 
-## 7. Knowledge Base и RAG Pipeline
+## 📚 7. Knowledge Base и RAG Pipeline
 
-### 7.1. Состав Knowledge Base
+### 📚 7.1. Состав Knowledge Base
 
 Минимальный состав:
 
@@ -277,7 +269,7 @@ flowchart LR
 - пояснения преподавателей;
 - материалы для разных уровней подготовки.
 
-### 7.2. Метаданные материала
+### 🏷️ 7.2. Метаданные материала
 
 - идентификатор;
 - название;
@@ -293,7 +285,7 @@ flowchart LR
 - дата обновления;
 - ссылка или идентификатор исходного документа.
 
-### 7.3. RAG Pipeline внутри Backend
+### 🔍 7.3. RAG Pipeline внутри Backend
 
 ```mermaid
 flowchart LR
@@ -321,55 +313,47 @@ RAG Pipeline отвечает только за retrieval, reranking и подг
 
 ---
 
-## 8. Runtime Sequence — пользовательский запрос
+## ⏱️ 8. Runtime Sequence — пользовательский запрос
 
 ```mermaid
 sequenceDiagram
     participant Student as Студент
-    participant WebUI as Web UI AI Curator
+    participant WebUI as Web UI
     participant API as API Layer
-    participant Classifier as Request Classifier
     participant Orchestrator as Orchestrator
     participant LMSAdapter as LMS Adapter
     participant LMS as LMS
-    participant RAG as RAG / LangChain
+    participant RAG as RAG
     participant Chroma as Chroma
-    participant KB as Knowledge Base Manager
     participant Prompt as Prompt Builder
     participant LLMAdapter as LLM Adapter
     participant LLM as LLM Provider
-    participant Validator as Answer Validator
-    participant Logger as Logging & Analytics
+    participant Logger as Logger
     participant DB as PostgreSQL
 
     Student->>WebUI: Вводит вопрос
     WebUI->>API: POST /api/v1/chat
+    API->>Orchestrator: Запрос + контекст сессии
 
-    API->>Classifier: Проверка сессии, роли, классификация
-    Classifier->>Orchestrator: Тип запроса + контекст
-
-    alt Организационный / смешанный запрос
-        Orchestrator->>LMSAdapter: Запрос данных LMS
+    alt Нужны данные LMS
+        Orchestrator->>LMSAdapter: Запрос курса / дедлайнов / прогресса
         LMSAdapter->>LMS: LMS API (read-only)
         LMS->>LMSAdapter: Raw LMS JSON
         LMSAdapter->>Orchestrator: Canonical Domain Model
     end
 
-    alt Учебный / смешанный запрос
-        Orchestrator->>RAG: Semantic search + filters
+    alt Нужен RAG-контекст
+        Orchestrator->>RAG: Semantic search + фильтры
         RAG->>Chroma: query + metadata filters
         Chroma->>RAG: топ-K фрагментов
-        RAG->>Orchestrator: Контекст + источники
+        RAG->>Orchestrator: Контекст + источники KB
     end
 
-    Orchestrator->>Prompt: Сборка промпта (LMS data + RAG context + rules)
+    Orchestrator->>Prompt: Сборка промпта
     Prompt->>LLMAdapter: Сформированный запрос
     LLMAdapter->>LLM: LLM call
     LLM->>LLMAdapter: Сырой ответ
     LLMAdapter->>Orchestrator: Сырой ответ
-
-    Orchestrator->>Validator: Проверка источников, границ, данных других пользователей
-    Validator->>Orchestrator: Валидированный ответ
 
     Orchestrator->>Logger: Запрос, ответ, источники, метрики
     Logger->>DB: Лог
@@ -381,37 +365,36 @@ sequenceDiagram
 
 ---
 
-## 9. Data Flow — добавление материала в Knowledge Base
+## 🔄 9. Data Flow — добавление материала в Knowledge Base
 
 ```mermaid
 sequenceDiagram
-    participant Admin as Администратор / Методист
+    participant Admin as Методист
     participant AdminConsole as Admin Console
     participant Backend as Backend
-    participant KB as Knowledge Base Manager
     participant DocStore as Хранилище документов
     participant DB as PostgreSQL
-    participant RAG as RAG / LangChain
+    participant RAG as RAG Pipeline
     participant Chroma as Chroma
 
     Admin->>AdminConsole: Загружает документ + метаданные
     AdminConsole->>Backend: POST /api/v1/admin/kb/documents
-    Backend->>KB: Создание карточки документа
-    KB->>DocStore: Сохранение исходного файла
-    KB->>DB: Сохранение метаданных и статуса
-    Backend->>RAG: Постановка задачи обработки
+    Backend->>DB: Сохранение метаданных и статуса
+    Backend->>DocStore: Сохранение исходного файла
+
+    AdminConsole->>Backend: POST /process
+    Backend->>RAG: Задача обработки
     RAG->>DocStore: Извлечение текста
-    RAG->>RAG: Разбиение на фрагменты
-    RAG->>RAG: Генерация embeddings
-    RAG->>Chroma: Запись в векторный индекс
-    RAG->>DB: Обновление статуса обработки
-    Backend->>AdminConsole: Статус: обработано / ошибка
+    RAG->>RAG: Chunking + embeddings
+    RAG->>Chroma: Запись в индекс
+    RAG->>DB: Обновление статуса
+    Backend->>AdminConsole: Обработано / ошибка
     AdminConsole->>Admin: Результат
 ```
 
 ---
 
-## 10. Deployment Diagram
+## 🚀 10. Deployment Diagram
 
 ```mermaid
 flowchart TB
@@ -423,7 +406,6 @@ flowchart TB
             WebUI3[Web UI container]
             Admin3[Admin Console container]
             Backend3[Backend container]
-            Worker3[Background Worker container]
             Chroma3[Chroma container]
             Postgres3[PostgreSQL container]
             DocStore3[Document Store volume]
@@ -434,19 +416,16 @@ flowchart TB
             MoodleDB[(Moodle DB)]
         end
 
-        Traefik -->|curator.alex-n8n.site| WebUI3
-        Traefik -->|curator-admin.alex-n8n.site| Admin3
-        Traefik -->|curator-api.alex-n8n.site| Backend3
-        Traefik -->|lms.alex-n8n.site| MoodleApp
+        Traefik -->|ai-curator.example.com| WebUI3
+        Traefik -->|ai-curator-admin.example.com| Admin3
+        Traefik -->|ai-curator-api.example.com| Backend3
+        Traefik -->|lms.example.com| MoodleApp
 
         WebUI3 --> Backend3
         Admin3 --> Backend3
         Backend3 --> Postgres3
         Backend3 --> Chroma3
         Backend3 --> DocStore3
-        Worker3 --> Postgres3
-        Worker3 --> Chroma3
-        Worker3 --> DocStore3
         MoodleApp --> MoodleDB
     end
 
@@ -456,9 +435,9 @@ flowchart TB
 
 ---
 
-## 11. Prompt Architecture
+## 📝 11. Prompt Architecture
 
-### 11.1. Состав prompt
+Prompt строится в Prompt Builder на основе активной версии `ai_configs` и конфигурации оркестратора `orchestrator_configs`.
 
 | Часть | Назначение |
 |-------|------------|
@@ -470,29 +449,23 @@ flowchart TB
 | User Question | Вопрос студента |
 | Output Rules | Требования к структуре, ссылкам, отказу |
 
-### 11.2. Latency-aware prompt design
+Основные параметры — версионируемые и управляются через Admin Console:
 
-После Sprint 4 (2026-07-30) размер prompt и выбор источников оптимизированы для NFR ≤ 5 сек:
+- `model`, `temperature`, `max_tokens`;
+- `top_k_retrieval`, `rag_distance_threshold`;
+- `beginner_instructions`, `advanced_instructions`;
+- `few_shot_examples`, `output_rules`, `refusal_answer_text`;
+- `max_history_messages`.
 
-- **LMS contents** — передаются не более **12** элементов (было 30).
-- **LMS deadlines** — передаются не более **5** ближайших (было 10).
-- **RAG top_k** — для chat-интентов (`study`, `mixed`) используется **3** чанка; для Admin и fallback — значение из `ai_configs.top_k_retrieval`.
-- **Few-shot examples** и **output rules** сокращены до минимума, сохраняющего качество ответов.
-- **History** — не более `max_history_messages` из активной конфигурации (по умолчанию 6).
+Latency-aware ограничения: LMS contents ≤ 12, deadlines ≤ 5, RAG top_k = 3 для `study`/`mixed`, intent-based `max_tokens`.
 
-### 11.3. System Prompt — ключевые правила
-
-- AI — наставник, отвечает в поддерживающем стиле.
-- Запрещено выставлять оценки.
-- Запрещено изменять расписание, дедлайны, задания, курсы.
-- Каждый факт должен сопровождаться ссылкой на источник или явным сообщением о недостатке данных.
-- Если информации недостаточно, AI честно признаёт это и предлагает обратиться к преподавателю.
+Подробная структура промптов, few-shot примеры и правила — в [`docs/PROMPT_ARCHITECTURE.md`](PROMPT_ARCHITECTURE.md).
 
 ---
 
-## 12. Logging, Analytics и Audit
+## 📜 13. Logging, Analytics и Audit
 
-### 12.1. Что логируется
+### 📋 13.1. Что логируется
 
 | Событие | Данные | Хранение | Retention |
 |---------|--------|----------|-----------|
@@ -508,7 +481,7 @@ flowchart TB
 | Административное действие | Действие, пользователь, изменения | PostgreSQL `audit_logs` | 30 дней |
 | Ошибка | Тип, трассировка, контекст | PostgreSQL `chat_logs.error` | 30 дней |
 
-### 12.2. Retention и архивирование
+### 🗄️ 13.2. Retention и архивирование
 
 Hot storage PostgreSQL хранит логи 30 дней. Полные prompt/response (`llm_call_traces`) хранятся 7 дней.
 
@@ -522,7 +495,7 @@ Hot storage PostgreSQL хранит логи 30 дней. Полные prompt/re
 - `HOT_RETENTION_DAYS` (по умолчанию 30)
 - `TRACE_RETENTION_DAYS` (по умолчанию 7)
 
-### 12.3. Аналитика
+### 📈 13.3. Аналитика
 
 Admin Console отображает:
 
@@ -538,35 +511,35 @@ Admin Console отображает:
 
 ---
 
-## 13. Модель авторизации
+## 🔐 14. Модель авторизации
 
-### 13.1. Доступ к LMS
+### 🔌 14.1. Доступ к LMS
 
 - LMS Adapter использует LMS API.
 - Аутентификация через токен или OAuth2-сервис из переменных окружения.
 - Права аккаунта ограничены read-only операциями.
 
-### 13.2. Доступ к Admin Console
+### 🔐 14.2. Доступ к Admin Console
 
 - Bearer token или аутентификация по логину/паролю.
 - Ролевая модель: администратор AI Curator, методист AI Curator.
 - Токен хранится в переменных окружения.
 
-### 13.3. Web UI студента
+### 🌐 14.3. Web UI студента
 
 - Гостевой доступ или аутентификация через Moodle OAuth.
 - Студент видит только собственные данные и курсы.
 
 ---
 
-## 12. Latency Architecture
+## ⚡ 15. Latency Architecture
 
-### 12.1. NFR и целевые показатели
+### 🎯 15.1. NFR и целевые показатели
 
 - **NFR-1 (chat):** повторный ответ на вопрос студента — не более **5 секунд** (p50).
 - **SLO:** p95 ≤ 8 сек для холодного старта (cache miss, embedding cache miss, LLM cold call); p50 ≤ 5 сек для повторных запросов (response cache hit).
 
-### 12.2. Компоненты оптимизации latency
+### ⚡ 15.2. Компоненты оптимизации latency
 
 | Оптимизация | Где | Эффект |
 |-------------|-----|--------|
@@ -584,7 +557,7 @@ Admin Console отображает:
 | **Response cache** | `src/services/cache/response_cache.py` | JSON-persistent cache с TTL 24 ч. Повторные идентичные запросы возвращаются без LLM-вызова. |
 | **Truncation monitoring** | `src/services/llm_adapter.py` + `services/orchestrator.py` | Если `finish_reason=length`, LLM-адаптер возвращает `error="response_truncated_by_max_tokens"`, оркестратор сохраняет флаг `llm_truncated` в `analytics_events`. |
 
-### 12.3. Разбивка latency в analytics
+### 📊 15.3. Разбивка latency в analytics
 
 `analytics_events.payload.timings_ms` содержит:
 
@@ -601,55 +574,30 @@ Admin Console отображает:
 | `llm_generate_ms` | Время генерации ответа LLM |
 | `validation_ms` | Валидация ответа |
 
-### 12.4. Фактические результаты Sprint D follow-up
+### ⏱️ 15.4. Методология измерений
 
-Профилирование на боевом контуре (2026-08-03, 30 запросов, после оптимизации). Измерено серверное `latency_ms`, включающее LMS, RAG, LLM и валидацию.
+Latency измеряется на серверной стороне и включает:
+- классификацию интента;
+- LMS-вызовы (parallel);
+- RAG-retrieval (embedding + Chroma + postprocess);
+- генерацию ответа LLM;
+- валидацию и логирование.
 
-| Сценарий | p50 latency_ms | max latency_ms | Статус NFR |
-|----------|----------------|----------------|------------|
-| organizational_deadline | 129 | 137 | ✅ ≤ 5 сек (cache hit) |
-| study_basic | 127 | 139 | ✅ ≤ 5 сек (cache hit) |
-| study_advanced | 123 | 144 | ✅ ≤ 5 сек (cache hit) |
-| mixed_revision | 122 | 132 | ✅ ≤ 5 сек (cache hit) |
-| progress | 122 | 138 | ✅ ≤ 5 сек (cache hit) |
-| refusal_grade | 0 | 0 | ✅ ≤ 5 сек (short-circuit) |
+Разбивка по компонентам доступна в `analytics_events.payload.timings_ms`. Повторяющиеся идентичные запросы обходят LLM через ResponseCache.
 
-Измерения проводились при response cache hit. Повторные запросы укладываются в NFR ≤ 5 сек. Холодный старт (cache miss + embedding cache miss + LLM cold call) занимает 3.5–5 сек и укладывается в SLO ≤ 8 сек.
+### ✅ 15.5. Целевые показатели
 
-### 12.5. Фактические результаты Sprint 4 (до регрессии)
+| Режим | Целевой NFR |
+|-------|-------------|
+| Повторные запросы (response cache hit) | p50 ≤ 5 сек |
+| Холодный старт (cache miss + embedding cache miss + LLM cold call) | p95 ≤ 8 сек |
+| Short-circuit (refusal / progress) | ≤ 500 мс |
 
-Профилирование на боевом контуре (2026-07-30, 30 запросов):
-
-| Сценарий | p50 latency_ms | max latency_ms | Статус NFR |
-|----------|----------------|----------------|------------|
-| organizational_deadline | 2016 | 2333 | ✅ ≤ 5 сек |
-| study_basic | 940 | 3547* | ✅ ≤ 5 сек |
-| study_advanced | 2452 | 3269 | ✅ ≤ 5 сек |
-| mixed_revision | 1816 | 1875 | ✅ ≤ 5 сек |
-| progress | 766 | 842 | ✅ ≤ 5 сек |
-| refusal_grade | 0 | 0 | ✅ ≤ 5 сек |
-
-\* Первый вызов `study_basic` — холодный старт (embedding cache miss + LLM client cache miss). Runs 2–5: 798–951 мс.
-
-### 12.6. Причины регрессии и устранение
-
-После Sprint 4 произошла регрессия latency из-за:
-
-1. **Раздутых token-бюджетов в `orchestrator_configs.intent_max_tokens`** — бюджеты поднялись до `organizational=800`, `study_beginner=650`, `mixed=800`, `default=1024`. При скорости генерации `gpt-4o-mini` ~100 tokens/sec только LLM занимал 6.5–13 сек.
-2. **Расширенных `advanced_instructions`** — добавили требование таблиц, кода, Big-O и edge cases, что увеличивало и prompt, и фактический ответ.
-
-Применённые меры:
-
-- Token-бюджеты снижены до `organizational=250`, `study_beginner=250`, `mixed=350`, `default=300`.
-- `advanced_instructions` переписаны: структурированный список, 1–2 примера кода, практические нюансы, без таблиц/Big-O/длинных edge cases.
-- Размер KB-чанков возвращён к 512 tokens; выполнена переиндексация документов.
-- Добавлено отслеживание обрезанных ответов (`finish_reason=length` → `llm_truncated=true` в analytics, `response_truncated_by_max_tokens` в `chat_logs.error`).
-- Response cache обеспечивает повторные запросы без LLM-вызова.
-- NFR/SLO уточнены: повторные запросы ≤ 5 сек, холодный старт ≤ 8 сек.
+Актуальные фактические замеры и методика нагрузочных тестов — в [`docs/TESTING_CONTRACT.md`](TESTING_CONTRACT.md).
 
 ---
 
-## 15. Основные архитектурные решения
+## ✅ 16. Основные архитектурные решения
 
 | Решение | Реализация |
 |---------|------------|
@@ -668,20 +616,20 @@ Admin Console отображает:
 
 ---
 
-## 15. Открытые архитектурные вопросы
+## 💡 17. Архитектурные решения, вынесенные из Open Questions
 
-| Вопрос | Категория | Примечание |
-|--------|-----------|------------|
-| Стек Web UI / Admin Console | Frontend | React / vanilla / другой |
-| Модель аутентификации студента | Безопасность | Гостевой доступ vs Moodle OAuth |
-| LLM-провайдер | AI | OpenAI / другой |
-| Хранилище документов Knowledge Base | Инфраструктура | Object Storage / файловая система |
-| Фоновая обработка документов | Эксплуатация | Worker внутри Backend / отдельный worker-контейнер |
-| Размер фрагментов и стратегия разбиения | RAG | Экспериментально |
+| Вопрос | Принятое решение | Где зафиксировано |
+|--------|------------------|-------------------|
+| Стек Web UI / Admin Console | React 18 + Vite 5 + Tailwind CSS 3 | `docs/ADMIN_CONSOLE.md`, `docs/WEB_UI.md` |
+| Модель аутентификации студента | Гостевой demo-доступ с выбором роли; Moodle OAuth — будущая опция | `docs/USER_GUIDE.md`, `docs/PROJECT_STATE.md` |
+| LLM-провайдер | OpenAI API (`gpt-4o-mini`, `text-embedding-3-small`) с опциональным fallback GigaChat | `docs/PROMPT_ARCHITECTURE.md`, `.env.example` |
+| Хранилище документов Knowledge Base | Файловое хранилище внутри Backend-контейнера через Docker volume (`/app/storage/documents`) | `docs/OPERATIONS.md`, `docker-compose.yml` |
+| Фоновая обработка документов | Синхронная обработка внутри Backend по endpoint'у `/admin/kb/documents/{id}/process` | `docs/API_CONTRACT.md` |
+| Размер фрагментов и стратегия разбиения | 512 tokens, overlap из `retrieval_tuning` | `docs/OPERATIONS.md` |
 
 ---
 
-## 16. История изменений
+## 📝 18. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
@@ -689,3 +637,6 @@ Admin Console отображает:
 | 2026-07-29 | 2.0 | Пересоздана архитектура: C4 Context/Container/Component, Runtime Sequence, Data Flow, Deployment, LMS + Knowledge Base, Backend как единый оркестратор. |
 | 2026-07-30 | 2.1 | Добавлены retention, параметризация промптов, latency-разбивка |
 | 2026-07-31 | 2.2 | Добавлены LMS-KB Linking Contract и конфигурируемая маршрутизация запросов через `orchestrator_configs` |
+| 2026-08-01 | 2.3 | Добавлены Execution Tracing (`chat_sessions`, `execution_sessions`, `execution_steps`), обновлена схема аудита с `ip_address`/`user_name` |
+| 2026-08-02 | 2.4 | Добавлен ResponseCache с инвалидацией, тестовая БД и Testing Cost Contract, убран read-only аудит |
+| 2026-08-05 | 2.5 | Актуализация Deployment Diagram, устранение дублирования номеров разделов, замена Open Questions на таблицу решений, сокращение Prompt Architecture, добавлены Sprint F (safe demo mode), Business Reports, log export/retention, RBAC demo admin |
