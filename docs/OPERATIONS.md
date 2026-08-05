@@ -1,21 +1,21 @@
 # ⚙️ OPERATIONS.md — AI Curator
 
 **Проект:** ai-curator  
-**Версия:** 1.7
+**Версия:** 1.8
 **Дата:** 2026-08-05
 **Статус:** Актуален: Knowledge Base, AI и Retrieval, Orchestrator, Dialog Sessions, Audit, Response Cache, retention, CSV export
 
 ---
 
-## 1. Назначение
+## 🎯 1. Назначение
 
 Руководство по эксплуатации AI Curator: обновление Knowledge Base, управление AI-конфигурацией и retrieval, настройка Orchestrator, просмотр аналитики, мониторинга и операционных логов.
 
 ---
 
-## 2. Knowledge Base
+## 📚 2. Knowledge Base
 
-### 2.1. Общий вид операционной консоли
+### 🧩 2.1. Общий вид операционной консоли
 
 Раздел **База знаний** → **Документы** представляет собой трёхпанельную операционную консоль.
 
@@ -93,7 +93,7 @@ Toolbar-кнопка **Переиндексировать** выполняет �
 
 ## 🤖 3. AI и Retrieval
 
-### 3.1. Панель AI и Retrieval
+### ⚙️ 3.1. Панель AI и Retrieval
 
 В Sidebar Admin Console раздел называется **AI и Retrieval**. Это единая панель, объединяющая настройки LLM-провайдеров, параметры retrieval и поведение модели.
 
@@ -103,7 +103,7 @@ Toolbar-кнопка **Переиндексировать** выполняет �
 
 В демо-режиме (`ADMIN_CONSOLE_DEMO_TOKEN`) кнопка **Сохранить** и кнопки мутаций отключены; backend вернёт `403` на любое изменяющее действие.
 
-### 3.2. LLM-провайдеры
+### 🔌 3.2. LLM-провайдеры
 
 Секция **LLM-провайдеры и активность** позволяет настроить:
 
@@ -118,7 +118,7 @@ Toolbar-кнопка **Переиндексировать** выполняет �
   - флаг **Включён**;
   - кнопка **Проверить** — тестовый вызов провайдера.
 
-### 3.3. Параметры поиска
+### 🔍 3.3. Параметры поиска
 
 Секция **Параметры поиска** управляет retrieval и кэшем:
 
@@ -135,7 +135,7 @@ Toolbar-кнопка **Переиндексировать** выполняет �
 | `course_boost_enabled` | Приоритизировать чанки текущего курса. |
 | `course_boost_factor` | Сила курсового буста (0–1). |
 
-### 3.4. Поведение
+### 🧠 3.4. Поведение
 
 Секция **Поведение** содержит текстовые поля (открываются в модальном редакторе):
 
@@ -144,7 +144,7 @@ Toolbar-кнопка **Переиндексировать** выполняет �
 - **Текст отказа** (`refusal_answer_text`).
 - **Max history messages** — лимит сообщений истории в prompt (0–50).
 
-### 3.5. Инструкции
+### 🎓 3.5. Инструкции
 
 Секция **Инструкции** содержит:
 
@@ -160,7 +160,7 @@ Backend автоматически подставляет дефолтные `be
 
 Раздел **Оркестратор** управляет маршрутизацией запросов студентов: как сообщение классифицируется по intent, какие источники данных используются для каждого intent, ограничениями контекста и token-бюджетами.
 
-### 4.1. Intent Classification
+### 🏷️ 4.1. Intent Classification
 
 Визуальный редактор `intent_rules`. Для каждого intent задаётся:
 
@@ -168,7 +168,7 @@ Backend автоматически подставляет дефолтные `be
 - `priority` — приоритет правила (меньше число — выше приоритет). Применяется только к интентам, определённым через conditions. `deadline` и `progress` определяются по keywords раньше и не участвуют в сравнении priority;
 - **Дополнительно** — чекбоксы, требующие наличия keywords другого типа (`is_org`, `is_study`, `is_progress`). Если выбрано несколько чекбоксов, backend строит составное условие `{and: [...]}`.
 
-### 4.2. Source Routing
+### 🔀 4.2. Source Routing
 
 Таблица **Маршрутизация источников** определяет, какие источники используются для каждого intent:
 
@@ -180,14 +180,14 @@ Backend автоматически подставляет дефолтные `be
 | `study` | ❌ | ✅ | ❌ | Только Knowledge Base |
 | `mixed` | ✅ | ✅ | ✅ | LMS + Knowledge Base |
 
-### 4.3. Context Limits
+### 📐 4.3. Context Limits
 
 | Параметр | По умолчанию | Влияние |
 |----------|--------------|---------|
 | `max_lms_contents` | 12 | Сколько элементов структуры курса попадает в prompt |
 | `max_lms_deadlines` | 5 | Сколько ближайших дедлайнов попадает в prompt |
 
-### 4.4. Token Budgets
+### 💰 4.4. Token Budgets
 
 | Ключ | По умолчанию | Применение |
 |------|--------------|------------|
@@ -198,7 +198,7 @@ Backend автоматически подставляет дефолтные `be
 
 Эти значения подобраны так, чтобы при скорости генерации `gpt-4o-mini` ~100 tokens/sec время LLM-вызова не превышало ~5–8 сек, а суммарная latency оставалась в пределах NFR ≤ 8 сек. Если ответы часто обрезаются (`response_truncated_by_max_tokens` в `chat_logs.error` или `llm_truncated=true` в `analytics_events`), бюджет можно увеличить, но это повысит latency.
 
-### 4.5. Fallback Messages
+### 💬 4.5. Fallback Messages
 
 | Ключ | По умолчанию | Когда применяется |
 |------|--------------|-------------------|
@@ -206,7 +206,7 @@ Backend автоматически подставляет дефолтные `be
 | `no_rag_context` | «У меня недостаточно данных…» | Study-вопрос, но релевантных материалов KB не найдено |
 | `out_of_scope_course` | «У меня нет данных о курсе «{course}»…» | Студент спрашивает про курс, недоступный для его роли |
 
-### 4.6. Рекомендации по настройке
+### 💡 4.6. Рекомендации по настройке
 
 - Не меняйте `intent_source_map` без понимания последствий: LMS — Source of Truth для организационных вопросов, KB — для учебных.
 - Для добавления нового типа вопроса используйте `keywords` в существующем intent или создайте новый intent + source map.
@@ -218,7 +218,7 @@ Backend автоматически подставляет дефолтные `be
 
 AI Curator кэширует ответы на частые запросы, чтобы сократить latency и снизить расходы на LLM/RAG/LMS. Кэш включён по умолчанию и управляется через **AI и Retrieval** → параметры `cache_enabled` и `cache_ttl_seconds`.
 
-### Ключ кэша
+### 🔑 5.1. Ключ кэша
 
 SHA-256 от нормализованных параметров запроса:
 
@@ -228,12 +228,12 @@ message | role | difficulty | course_id | intent
 
 История диалога в ключ не входит: кэш отвечает за последнее сообщение.
 
-### Управление в Admin Console
+### 🎮 5.2. Управление в Admin Console
 
 - **AI и Retrieval Configuration** → параметры `cache_enabled` и `cache_ttl_seconds`.
 - `cache_ttl_seconds` по умолчанию **300 секунд** в `RetrievalTuning`; fallback на `CACHE_TTL_SECONDS` (default 86400).
 
-### Инвалидация
+### 🔄 5.3. Инвалидация
 
 Кэш сбрасывается автоматически при изменениях, которые могут повлиять на ответы:
 
@@ -249,7 +249,7 @@ message | role | difficulty | course_id | intent
 
 > Публикация / снятие с публикации KB (`POST /api/v1/admin/kb/documents/{id}/publish`) инвалидирует кэш на уровне API, но в текущей версии UI не представлено кнопкой управления публикацией.
 
-### Наблюдаемость
+### 👁️ 5.4. Наблюдаемость
 
 - `chat_logs.cache_hit` — `true` для ответов, возвращённых из кэша.
 - `execution_sessions.execution_metadata.cache_hit` — флаг в трасировке.
@@ -269,14 +269,14 @@ message | role | difficulty | course_id | intent
 
 Аналитика читается из PostgreSQL: таблицы `chat_requests`, `chat_logs`, `analytics_events`.
 
-### 6.1. Фильтры
+### 🔍 6.1. Фильтры
 
 - **С / По** — диапазон дат.
 - **Курс** — фильтр по `course_id`.
 - Пресеты: **7 дней**, **30 дней**.
 - Кнопка **CSV** — экспорт аналитического отчёта.
 
-### 6.2. Мониторинг latency
+### ⏱️ 6.2. Мониторинг latency
 
 Каждый chat-ответ записывает полную разбивку latency в `analytics_events.payload.timings_ms`:
 
@@ -293,7 +293,7 @@ message | role | difficulty | course_id | intent
 
 Общая latency отчитывается в `chat_logs.latency_ms` и в ответе API как `latency_ms`. Дополнительно в `analytics_events.payload` сохраняется флаг `llm_truncated=true`, если ответ обрезался по `finish_reason=length`.
 
-### 6.3. Профилирование вручную
+### 🛠️ 6.3. Профилирование вручную
 
 Для замера latency на живом backend выполните изнутри контейнера:
 
@@ -303,7 +303,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 
 Скрипт делает 5 вызовов по 6 сценариям (30 запросов) и выводит p50/mean/max.
 
-### 6.4. SLO и NFR
+### 🎯 6.4. SLO и NFR
 
 - **NFR-1:** p50 latency на повторных chat-запросах (response cache hit) ≤ **5 секунд**.
 - **SLO:** p95 ≤ 8 сек для холодного старта (cache miss + embedding cache miss + LLM cold call).
@@ -329,7 +329,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 - `GET /api/v1/admin/monitoring/health`
 - `GET /api/v1/admin/monitoring/errors`
 
-### 7.1. Виджет «Последние ошибки»
+### 🚨 7.1. Виджет «Последние ошибки»
 
 Виджет показывает недавние ошибки и предупреждения обработки запросов. Он объединяет три источника:
 
@@ -357,7 +357,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 
 Раздел **Логи** — операционная консоль запросов студентов. Каждая запись соответствует одному запросу (`chat_requests`) и связанному ответу (`chat_logs`).
 
-### 8.1. Левая панель — список записей
+### 📋 8.1. Левая панель — список записей
 
 - Фильтры по периоду: **24h / 7d / 30d / все**.
 - Фильтры по статусу: **все / успешно / ошибка / ожидание**.
@@ -367,7 +367,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 - Backend-пагинация.
 - Карточка записи: дата/время, статус, intent, cache-hit, превью сообщения, `session_id`, роль, курс, latency.
 
-### 8.2. Правая панель — деталь записи
+### 📄 8.2. Правая панель — деталь записи
 
 - **Параметры запроса**: сессия, роль, курс, сложность, создано.
 - **Параметры исполнения**: интент, latency, токены, модель LLM, оценка, cache hit.
@@ -377,7 +377,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 - **Таймлайн pipeline**: этапы с timestamp, статусом, offset, длительностью и JSON payload. Для RAG-этапа доступна кнопка «Показать чанки».
 - **Технический снимок (JSON)**: полный JSON детали записи.
 
-### 8.3. Endpoints
+### 🔌 8.3. Endpoints
 
 - `GET /api/v1/admin/operational-logs` — список operational log entries.
 - `GET /api/v1/admin/operational-logs/{id}` — деталь operational log entry.
@@ -389,7 +389,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 
 Раздел **Диалоги** — операционная консоль диалоговых сессий студентов на схеме `chat_sessions` + `execution_sessions` + `execution_steps`.
 
-### 9.1. Структура данных
+### 🗂️ 9.1. Структура данных
 
 | Таблица | Назначение |
 |---------|------------|
@@ -399,13 +399,13 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 
 **Важно:** миграция старых данных (backfill) не выполняется. Новые таблицы заполняются с момента деплоя. До первых запросов после деплоя консоль будет пуста — это осознанное решение.
 
-### 9.2. Левая панель — список сессий
+### 📋 9.2. Левая панель — список сессий
 
 - Фильтры: период (**24h / 7d / 30d / все**), source mode (**все / текст / LMS / RAG / mixed**), активность (**все / активные / неактивные**), поиск по `session_id` / `role`.
 - Backend-пагинация.
 - Карточка сессии: `session_id`, роль, курс, mode, статус, количество сообщений, время последнего обновления.
 
-### 9.3. Правая панель — сводка сессии
+### 📄 9.3. Правая панель — сводка сессии
 
 - **Параметры сессии**: сессия, IP, режим (`mode`), активна, сообщений, обменов, обновлена.
 - **Параметры исполнения**: используется ли RAG, провайдер / модель, время ответа, источник памяти (`memory_source`), маршрут, cache hit.
@@ -414,7 +414,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 - **Таймлайн execution pipeline**: этапы `execution_steps` с duration, status и JSON-метаданными.
 - **Технический снимок диалога (JSON)**: полный payload detail-ответа.
 
-### 9.4. Endpoints
+### 🔌 9.4. Endpoints
 
 - `GET /api/v1/admin/dialog-sessions` — список `ChatSession`.
 - `GET /api/v1/admin/dialog-sessions/{session_id}` — деталь: turns + execution sessions + budget + memory_source.
@@ -426,7 +426,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 
 **Политика:** в `audit_logs` фиксируются только **изменяющие административные действия** и публичные `chat_request`. Read-only просмотры консолей (`GET /api/v1/admin/*`) намеренно не аудитируются, чтобы журнал не порождал сам себя при каждом открытии страницы.
 
-### 10.1. Фильтры журнала
+### 🔍 10.1. Фильтры журнала
 
 - **Окно времени**: 24h / 7d / 30d / все.
 - **action** — фильтр по действию.
@@ -436,7 +436,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 
 Для просмотра только запросов студентов используйте фильтр `action=chat_request`. Для административных действий отфильтруйте `action` известными значениями (`create`, `update`, `delete`, `publish`, `unpublish`, `process`, `reindex`, `activate_version`, `save_cleaned_text` и т.п.).
 
-### 10.2. Детальная карточка
+### 🪪 10.2. Детальная карточка
 
 Правая панель консоли аудита показывает:
 
@@ -445,7 +445,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 - **Детали / metadata**: JSON деталей действия.
 - **Технический снимок события (JSON)**: полный payload audit-записи.
 
-### 10.3. Endpoints
+### 🔌 10.3. Endpoints
 
 - `GET /api/v1/admin/audit` — журнал аудита с фильтрами (возвращает объект `{items, total, limit, offset}`).
 - `GET /api/v1/admin/audit/{id}` — деталь audit-записи.
@@ -453,7 +453,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 
 ---
 
-## 11. Переменные окружения
+## 🔧 11. Переменные окружения
 
 | Переменная | Описание |
 |------------|----------|
@@ -479,7 +479,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 | `CACHE_FILE_PATH` | Путь к JSON-файлу кэша ответов (`/app/storage/cache/response_cache.json`) |
 | `CACHE_TTL_SECONDS` | TTL ответов по умолчанию, когда `RetrievalTuning.cache_ttl_seconds` не задан (86400) |
 
-### 11.1. AI Config tuning для latency
+### ⚡ 11.1. AI Config tuning для latency
 
 В Admin Console можно влиять на latency через параметры активной конфигурации:
 
@@ -494,7 +494,7 @@ docker exec ai-curator-backend python /app/scripts/profile_latency.py
 | `system_prompt` + `output_rules` | Размер prompt | Избыточный текст увеличивает prompt tokens и latency |
 | `max_history_messages` | Длина истории в prompt | Меньше сообщений — меньше токенов |
 
-### 11.2. AI Config — default instructions backfill
+### 🎓 11.2. AI Config — default instructions backfill
 
 Backend автоматически подставляет дефолтные значения в `beginner_instructions` и `advanced_instructions`, если активная конфигурация не содержит этих полей (`NULL` или пустая строка). Это защищает от ситуации, когда учебный вопрос для beginner получает отказ из-за отсутствия чёткой инструкции отвечать на основе контекста.
 
@@ -528,9 +528,9 @@ asyncio.run(main())
 
 ---
 
-## 12. Retention и архивы
+## 🗄️ 12. Retention и архивы
 
-### 12.1. Политика хранения
+### 📜 12.1. Политика хранения
 
 AI Curator разделяет эксплуатационные данные на две категории с разными сроками хранения:
 
@@ -541,7 +541,7 @@ AI Curator разделяет эксплуатационные данные на
 
 По достижении срока записи архивируются в `ARCHIVE_DIR` как gzip-сжатые JSON Lines и удаляются из PostgreSQL.
 
-### 12.2. Архивы
+### 🗃️ 12.2. Архивы
 
 Файлы архивов именуются по шаблону:
 
@@ -578,7 +578,7 @@ asyncio.run(main())
 "
 ```
 
-### 12.3. Расписание cleanup
+### ⏰ 12.3. Расписание cleanup
 
 Cleanup запускается фоновой задачей `main.py::_retention_cleanup_loop()`:
 
@@ -587,7 +587,7 @@ Cleanup запускается фоновой задачей `main.py::_retentio
 - Задача не должна падать основное приложение.
 - Сам cleanup фиксируется в `audit_logs` как `action=retention_cleanup`, `resource_type=system`.
 
-### 12.4. Экспорт логов
+### 📤 12.4. Экспорт логов
 
 Помимо автоматической ротации, администратор может выгрузить логи в CSV из Admin Console:
 
@@ -606,7 +606,7 @@ Cleanup запускается фоновой задачей `main.py::_retentio
 
 ---
 
-## 13. Тестирование
+## 🧪 13. Тестирование
 
 Подробный контракт тестирования — в `docs/TESTING_CONTRACT.md`. Краткая сводка:
 
@@ -617,13 +617,13 @@ Cleanup запускается фоновой задачей `main.py::_retentio
 | `expensive` | Дорогие LLM-тесты (зарезервированы) | `pytest tests/ -m expensive -q` |
 | (все) | Полный прогон | `pytest tests/ -q` |
 
-### 13.1. Требования к окружению
+### 🧰 13.1. Требования к окружению
 
 - `TEST_DATABASE_URL` — отдельная PostgreSQL, например `ai_curator_test`. Никогда не должна совпадать с `DATABASE_URL`.
 - `PYTEST_ALLOW_PROD_DB=false` в production и `.env.example`.
 - `CHROMA_TEST_COLLECTION_NAME` — изолированная тестовая коллекция (по умолчанию `ai_curator_kb_test`).
 
-### 13.2. Запуск внутри backend-контейнера
+### ▶️ 13.2. Запуск внутри backend-контейнера
 
 ```bash
 docker compose exec ai-curator-backend pytest tests/ -m unit -q
@@ -631,7 +631,7 @@ docker compose exec ai-curator-backend pytest tests/ -m integration -q
 docker compose exec ai-curator-backend pytest tests/ -q
 ```
 
-### 13.3. Защита от случайного использования боевой БД
+### 🛡️ 13.3. Защита от случайного использования боевой БД
 
 Если `TEST_DATABASE_URL` не задана и `PYTEST_ALLOW_PROD_DB` не `true`, pytest завершается с ошибкой:
 
@@ -642,7 +642,7 @@ or set PYTEST_ALLOW_PROD_DB=true to intentionally use the production database fo
 
 ---
 
-## 14. История изменений
+## 📝 14. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
@@ -654,3 +654,4 @@ or set PYTEST_ALLOW_PROD_DB=true to intentionally use the production database fo
 | 2026-08-05 | 1.5 | Добавлены retention policy и CSV-экспорт логов |
 | 2026-08-05 | 1.6 | Актуализирован раздел Knowledge Base под реальный UI Admin Console; удалены не реализованные в UI функции |
 | 2026-08-05 | 1.7 | Полная фактическая проверка: AI и Retrieval, Orchestrator, Analytics, Monitoring, Operational Logs, Dialog Sessions, Audit; исправлены token budgets и нумерация разделов |
+| 2026-08-05 | 1.8 | Расставлены эмодзи по контракту `shared/patterns/documentation-emoji-contract.md` для всех H1–H3 заголовков |
