@@ -685,7 +685,7 @@ Admin Console отображает:
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
-| 2026-07-29 | 2.0 | Пересоздан ARCHITECTURE.md на основе AI_CURATOR_SYSTEM_SPECIFICATION.md: C4 Context/Container/Component диаграммы, Runtime Sequence, Data Flow, Deployment, разделение LMS и Knowledge Base, Backend как единый оркестратор |
+| 2026-07-29 | 2.0 | Пересоздан ARCHITECTURE.md: C4 Context/Container/Component диаграммы, Runtime Sequence, Data Flow, Deployment, разделение LMS и Knowledge Base, Backend как единый оркестратор |
 | 2026-07-29 | 2.0 (Approved) | Документ согласован куратором. Статус изменён на Approved. Исправлено архитектурное противоречие: RAG Pipeline не обращается к LLM напрямую, единственный вызов модели выполняется через LLM Adapter. |
 | 2026-07-29 | 1.0 | Первая версия ARCHITECTURE.md |
 | 2026-07-30 | 2.1 | Добавлены разделы retention и архивирования логов; параметризация промптов через `ai_configs`; детальная разбивка latency в analytics events |

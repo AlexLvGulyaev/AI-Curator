@@ -14,7 +14,6 @@
 
 | Документ | Назначение |
 |----------|------------|
-| `AI_CURATOR_SYSTEM_SPECIFICATION.md` | Концепция системы, первичный Source of Truth |
 | `docs/PROJECT_STATE.md` | Решения владельца / куратора |
 | `docs/SPEC.md` | Продуктовая спецификация |
 | `docs/ARCHITECTURE.md` | Архитектурные решения |
@@ -715,7 +714,7 @@ A → B → C → D → E → F
 - [x] E1 — Analytics Dashboard завершён.
 - [x] E2 — Business Reports: backend, frontend, тесты завершены; ручная E2E в процессе.
 - [x] F1–F4 — Web UI safe demo mode (API-лимитированный публичный демо-доступ).
-- [x] G1–G4 — экспорт логов (CSV) и retention policy (PEcf09 feedback).
+- [x] G1–G4 — экспорт логов (CSV) и retention policy (feedback урока PEcf09).
 
 ---
 
@@ -828,7 +827,7 @@ A → B → C → D → E → F
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
-| 2026-07-29 | 2.0 | Пересоздан IMPLEMENTATION_PLAN.md на основе AI_CURATOR_SYSTEM_SPECIFICATION.md: Knowledge Base загружается через Admin Console, Web UI — отдельный публичный сервис на VPS, Backend как единый оркестратор |
+| 2026-07-29 | 2.0 | Пересоздан IMPLEMENTATION_PLAN.md: Knowledge Base загружается через Admin Console, Web UI — отдельный публичный сервис на VPS, Backend как единый оркестратор |
 | 2026-07-29 | 2.0 (Approved) | Документ согласован куратором. Статус изменён на Approved. |
 | 2026-07-29 | 1.0 | Первая версия IMPLEMENTATION_PLAN на 7 дней |
 | 2026-07-31 | 2.1 | Добавлен Sprint 6.1 «Configurable Orchestrator Routing»: вынесение интент-классификации, source routing, context limits, token budgets и fallback-сообщений в конфигурируемую подсистему `orchestrator_configs` с отдельной консолью Admin Console; обновлены диаграмма этапов, зависимости и критический путь |
@@ -842,4 +841,4 @@ A → B → C → D → E → F
 | 2026-08-04 | 2.6 | Актуализированы статусы: Sprint 5.8 frontend UI унифицировано (Operational Logs, Dialog Sessions, Audit Log); добавлен Спринт F «Безопасный demo-режим Web UI» с rate limiting, квотами, demo-флагом и UI-индикацией; обновлены PROJECT_STATE.md, Next Steps, критический путь A→B→C→D→E→F |
 | 2026-08-05 | 2.7 | Sprint A2/A3 «Read-only demo admin + RBAC» выполнен: backend auth с `ADMIN_CONSOLE_DEMO_TOKEN` и `require_admin`, UI disabled кнопки мутаций, бейдж demo-режима, тесты `tests/test_admin_auth.py`; `pytest` 97 passed; PH2-03 PASS; Admin Console redeployed |
 | 2026-08-05 | 2.8 | Sprint F «Safe demo mode Web UI» выполнен: `X-Demo-Token`, `DemoLimiterService`, `/api/v1/demo/*`, `demo_mode` флаг, Web UI DemoBadge + DemoContext, тесты `tests/test_demo_mode.py`; `pytest` 109 passed; PH2-04 PASS |
-| 2026-08-05 | 2.9 | Sprint G «Log export + retention policy» выполнен: CSV export operational logs / audit / dialog sessions, кнопки в Admin Console, явная retention policy, закрыт feedback Антона Хапинского (PEcf09); `pytest` 109 passed; production smoke tests OK |
+| 2026-08-05 | 2.9 | Sprint G «Log export + retention policy» выполнен: CSV export operational logs / audit / dialog sessions, кнопки в Admin Console, явная retention policy, закрыт feedback урока PEcf09; `pytest` 109 passed; production smoke tests OK |

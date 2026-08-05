@@ -22,7 +22,7 @@ AI Curator не заменяет преподавателя, не выставл
 
 **Implementation In Progress.**
 
-Документы PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md, IMPLEMENTATION_PLAN.md и AI_CURATOR_SYSTEM_SPECIFICATION.md согласованы куратором. Дни 1–6 IMPLEMENTATION_PLAN выполнены, Sprints 5–6.1 завершены, стабилизационные спринты A–E1 завершены. Подготовлен отчёт о соответствии ТЗ (`docs/TZ_COMPLIANCE_REPORT.md`). Выполнен первый Phase 1 E2E-прогон по `docs/PRODUCT_E2E_CHECKLIST.md`: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 cleaned-text UI). В ходе прогона устранены дефекты intent-классификации в Orchestrator и расширена keyword-конфигурация в БД.
+Документы PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md и IMPLEMENTATION_PLAN.md согласованы куратором. Дни 1–6 IMPLEMENTATION_PLAN выполнены, Sprints 5–6.1 завершены, стабилизационные спринты A–E1 завершены. Подготовлен отчёт о соответствии ТЗ (`docs/TZ_COMPLIANCE_REPORT.md`). Выполнен первый Phase 1 E2E-прогон по `docs/PRODUCT_E2E_CHECKLIST.md`: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 cleaned-text UI). В ходе прогона устранены дефекты intent-классификации в Orchestrator и расширена keyword-конфигурация в БД.
 
 **Что уже реализовано и развёрнуто:**
 
@@ -46,12 +46,12 @@ AI Curator не заменяет преподавателя, не выставл
 - Operational Logs source filter: `source_type` (lms, rag, both, cache, fallback, error) в backend и UI.
 - E2E testing strategy: `docs/E2E_TEST_PLAN.md` + `docs/PRODUCT_E2E_CHECKLIST.md` для ручных сквозных прогонов.
 - Auth: Admin Console защищён Bearer-токеном `ADMIN_CONSOLE_TOKEN`.
-- TZ compliance report: `docs/TZ_COMPLIANCE_REPORT.md` — соответствие реализации исходному `ТЗ проекта.md`.
+- TZ compliance report: `docs/TZ_COMPLIANCE_REPORT.md` — соответствие реализации исходному техническому заданию проекта (урок PEcf13).
 - Testing infrastructure: тестовая БД `ai_curator_test`, Alembic-миграции в тестах, маркеры pytest, `docs/TESTING_CONTRACT.md`.
 - `pytest` стабильно проходит (109 тестов, ~30 секунд).
 - Read-only demo admin + RBAC (Sprint A2/A3): `ADMIN_CONSOLE_DEMO_TOKEN`, `AdminIdentity` с ролью `demo`, `require_admin` на mutation endpoints, UI disabled кнопки мутаций и бейдж demo-режима.
 - Safe demo mode Web UI (Sprint F): токенизированные demo-сессии (`X-Demo-Token`), квоты 20 запросов / 30 мин, rate limit, IP-лимит сессий, backend-флаг `demo_mode`, UI-индикация оставшихся запросов и таймер.
-- Log export и retention policy: CSV-экспорт operational logs, audit, dialog sessions из Admin Console; фоновая архивация и ротация hot logs 30 дней / LLM traces 7 дней; явная политика в `OPERATIONS.md`. Закрыт feedback Антона Хапинского (PEcf09).
+- Log export и retention policy: CSV-экспорт operational logs, audit, dialog sessions из Admin Console; фоновая архивация и ротация hot logs 30 дней / LLM traces 7 дней; явная политика в `OPERATIONS.md`. Закрыт feedback урока PEcf09.
 
 **Оставшиеся ключевые работы:**
 
@@ -138,7 +138,7 @@ AI Curator не заменяет преподавателя, не выставл
 16. ✅ Реализовать read-only demo login и RBAC в Admin Console (Sprint A2/A3).
 17. ✅ Реализовать безопасный API-лимитированный demo режим на Web UI.
 18. ✅ Актуализировать DEPLOYMENT_GUIDE.md для Sprint F и log export/retention. ⏳ README.md — финальная портфельная полировка.
-20. ✅ Закрыть feedback PEcf09: экспорт логов (CSV) и явная политика ротации.
+20. ✅ Закрыть feedback урока PEcf09: экспорт логов (CSV) и явная политика ротации.
 19. ✅ Настроить процедуру проверки БД перед тестами (pattern + мониторинг висящих процессов).
 
 ## Open Questions

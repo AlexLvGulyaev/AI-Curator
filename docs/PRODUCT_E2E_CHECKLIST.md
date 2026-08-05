@@ -397,4 +397,4 @@
 | 2026-08-04 | 1.1 | Результаты первого прогона Phase 1: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 UI). Добавлена сводка и найденные дефекты. |
 | 2026-08-05 | 1.2 | Sprint E2 Business Reports завершён: backend, frontend, тесты. PH2-02 отмечен PASS на уровне backend/тестов; ручная UI-верификация рекомендуется. |
 | 2026-08-05 | 1.3 | Sprint F safe demo mode Web UI завершён: `X-Demo-Token`, квоты, rate limit, UI-индикация. PH2-04 PASS; ручная UI-верификация рекомендуется. |
-| 2026-08-05 | 1.4 | Sprint G log export + retention policy завершён: CSV export operational logs / audit / dialog sessions, кнопки в Admin Console, retention policy. PH2-06 PASS; feedback Антона Хапинского (PEcf09) закрыт. |
+| 2026-08-05 | 1.4 | Sprint G log export + retention policy завершён: CSV export operational logs / audit / dialog sessions, кнопки в Admin Console, retention policy. PH2-06 PASS; feedback урока PEcf09 закрыт. |
