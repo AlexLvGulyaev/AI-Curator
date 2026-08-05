@@ -155,30 +155,30 @@ flowchart TB
 
 | Документ | Описание |
 |----------|----------|
-| [`docs/BUSINESS_VALUE.md`](docs/BUSINESS_VALUE.md) | Бизнес-проблема, решение, эффект, выгода |
-| [`docs/SYSTEM_DEMO.md`](docs/SYSTEM_DEMO.md) | Скриншоты, live demo, бизнес-сценарии |
-| [`docs/E2E_SCENARIOS.md`](docs/E2E_SCENARIOS.md) | Сквозные бизнес-сценарии без технических деталей |
+| [📈 `docs/BUSINESS_VALUE.md`](docs/BUSINESS_VALUE.md) | Бизнес-проблема, решение, эффект, выгода |
+| [🎬 `docs/SYSTEM_DEMO.md`](docs/SYSTEM_DEMO.md) | Скриншоты, live demo, бизнес-сценарии |
+| [🎬 `docs/E2E_SCENARIOS.md`](docs/E2E_SCENARIOS.md) | Сквозные бизнес-сценарии без технических деталей |
 
 ### Для пользователей и операторов
 
 | Документ | Описание |
 |----------|----------|
-| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | Как пользоваться Веб-интерфейс студенту |
-| [`docs/ADMIN_GUIDE.md`](docs/ADMIN_GUIDE.md) | Руководство администратора AI Curator |
-| [`docs/CURATOR_GUIDE.md`](docs/CURATOR_GUIDE.md) | Руководство методиста по Базе знаний |
-| [`docs/FAQ.md`](docs/FAQ.md) | Частые вопросы |
+| [📖 `docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | Как пользоваться веб-интерфейсом студенту |
+| [🎛️ `docs/ADMIN_GUIDE.md`](docs/ADMIN_GUIDE.md) | Руководство администратора AI Curator |
+| [🧠 `docs/CURATOR_GUIDE.md`](docs/CURATOR_GUIDE.md) | Руководство методиста по Базе знаний |
+| [❓ `docs/FAQ.md`](docs/FAQ.md) | Частые вопросы |
 
 ### Для инженеров и интеграторов
 
 | Документ | Описание |
 |----------|----------|
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Архитектурные решения, C4, потоки данных |
-| [`docs/SPEC.md`](docs/SPEC.md) | Продуктовая спецификация |
-| [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) | План реализации и развёртывания |
-| [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) | API endpoints и payload |
-| [`docs/DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md) | Развёртывание с нуля |
-| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Эксплуатация, KB, AI-config, аналитика |
-| [`docs/PROMPT_ARCHITECTURE.md`](docs/PROMPT_ARCHITECTURE.md) | Структура промптов |
+| [🏗️ `docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Архитектурные решения, C4, потоки данных |
+| [📋 `docs/SPEC.md`](docs/SPEC.md) | Продуктовая спецификация |
+| [📅 `docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) | План реализации и развёртывания |
+| [🔌 `docs/API_CONTRACT.md`](docs/API_CONTRACT.md) | API endpoints и payload |
+| [🚀 `docs/DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md) | Развёртывание с нуля |
+| [⚙️ `docs/OPERATIONS.md`](docs/OPERATIONS.md) | Эксплуатация, KB, AI-config, аналитика |
+| [📝 `docs/PROMPT_ARCHITECTURE.md`](docs/PROMPT_ARCHITECTURE.md) | Структура промптов |
 
 ---
 
@@ -188,7 +188,7 @@ flowchart TB
 
 `pytest`: 109 passed.
 
-Текущее состояние и следующий шаг — в [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
+Текущее состояние и следующий шаг — в [📍 `docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
 
 ---
 

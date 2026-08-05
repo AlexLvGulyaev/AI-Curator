@@ -149,7 +149,7 @@ AI Curator — самостоятельная AI-подсистема образ
 
 ## 📚 Связанные документы
 
-- [`README.md`](../README.md) — главное описание проекта и live demo.
-- [`SPEC.md`](SPEC.md) — продуктовая спецификация.
-- [`SYSTEM_DEMO.md`](SYSTEM_DEMO.md) — скриншоты и демонстрация.
-- [`E2E_SCENARIOS.md`](E2E_SCENARIOS.md) — бизнес-сценарии.
+- [🏠 `README.md`](../README.md) — главное описание проекта и live demo.
+- [📋 `SPEC.md`](SPEC.md) — продуктовая спецификация.
+- [🎬 `SYSTEM_DEMO.md`](SYSTEM_DEMO.md) — скриншоты и демонстрация.
+- [🎬 `E2E_SCENARIOS.md`](E2E_SCENARIOS.md) — бизнес-сценарии.
