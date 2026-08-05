@@ -7,7 +7,7 @@
 
 ---
 
-## 1. Общие соглашения
+## 📌 1. Общие соглашения
 
 - Базовый URL production: `https://ai-curator-api.example.com` (замените на ваш домен)
 - Версионированный API: `/api/v1`
@@ -18,7 +18,7 @@
 
 ---
 
-## 2. Публичные health endpoints
+## ❤️ 2. Публичные health endpoints
 
 ### 2.1. `GET /health`
 
@@ -114,7 +114,7 @@
 
 ---
 
-## 3. API v1
+## 🔌 3. API v1
 
 ### 3.1. `GET /api/v1/health`
 
@@ -884,7 +884,7 @@
 
 ---
 
-## 4. Административные endpoints (`/api/v1/admin/*`)
+## 🛡️ 4. Административные endpoints (`/api/v1/admin/*`)
 
 ### 4.1. AI Configuration
 
@@ -1481,7 +1481,7 @@
 
 ---
 
-## 5. Канонические модели данных
+## 📦 5. Канонические модели данных
 
 ### 5.1. `Course`
 
@@ -1667,7 +1667,7 @@
 
 ---
 
-## 6. Пользовательские интерфейсы
+## 🖥️ 6. Пользовательские интерфейсы
 
 ### 6.1. Web UI AI Curator
 
@@ -1692,7 +1692,7 @@
   - operational logs (запросы студентов, LLM calls, analytics events);
   - журнал аудита.
 
-## 7. Ограничения и допущения
+## ⚠️ 7. Ограничения и допущения
 
 1. **Авторизация студентов:** не реализована. Web UI использует гостевые демо-роли.
 2. **Авторизация администраторов:** административные endpoints защищены статическим Bearer-токеном.
@@ -1704,18 +1704,18 @@
 
 ---
 
-## 8. Связанные документы
+## 📚 8. Связанные документы
 
-- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — архитектура Backend и потоки данных.
-- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание и переменные окружения.
-- [⚙️ `docs/OPERATIONS.md`](OPERATIONS.md) — эксплуатация, retention, KB workflow.
-- [📝 `docs/PROMPT_ARCHITECTURE.md`](PROMPT_ARCHITECTURE.md) — структура промптов.
-- [🧪 `docs/TESTING_CONTRACT.md`](TESTING_CONTRACT.md) — стратегия тестирования.
-- [📁 `docs/examples/`](examples/) — curl и JSON-примеры.
+- [🏗️ ARCHITECTURE.md](ARCHITECTURE.md) — архитектура Backend и потоки данных.
+- [🚀 DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) — развёртывание и переменные окружения.
+- [⚙️ OPERATIONS.md](OPERATIONS.md) — эксплуатация, retention, KB workflow.
+- [📝 PROMPT_ARCHITECTURE.md](PROMPT_ARCHITECTURE.md) — структура промптов.
+- [🧪 TESTING_CONTRACT.md](TESTING_CONTRACT.md) — стратегия тестирования.
+- [📁 examples/](examples/) — curl и JSON-примеры.
 
 ---
 
-## 9. История изменений
+## 📝 9. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
