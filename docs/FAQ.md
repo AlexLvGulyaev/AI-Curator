@@ -105,6 +105,7 @@ Read-only токен Moodle Web Services с правами на чтение к�
 
 ## 📚 Связанные документы
 
+- [🏠 `README.md`](../README.md) — главная страница проекта и live demo.
 - [📖 `docs/USER_GUIDE.md`](USER_GUIDE.md) — руководство студента.
 - [🎛️ `docs/ADMIN_GUIDE.md`](ADMIN_GUIDE.md) — руководство администратора.
 - [🧠 `docs/CURATOR_GUIDE.md`](CURATOR_GUIDE.md) — руководство методиста.
