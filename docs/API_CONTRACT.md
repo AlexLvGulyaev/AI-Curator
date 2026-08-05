@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.19  
-**Дата:** 2026-08-05  
-**Статус:** Актуален для Sprint F safe demo mode Web UI + log export
+**Версия:** 1.5
+**Дата:** 2026-08-05
+**Статус:** Актуален: chat, admin KB/AI/orchestrator, analytics, reports, audit, logs, demo mode, CSV export
 
 ---
 
@@ -13,7 +13,8 @@
 - Версионированный API: `/api/v1`
 - Публичные health endpoints: `/health/*`
 - Все ответы в формате `application/json`
-- Авторизация студентов в текущей версии не реализована (`/api/v1/me/progress` возвращает данные тестового пользователя `student_demo`)
+- Авторизация студентов в текущей версии не реализована (`/api/v1/me/progress` возвращает данные тестового пользователя `student_demo`).
+- Примеры запросов и curl-скриптов — в [`docs/examples/`](examples/).
 
 ---
 
@@ -1612,23 +1613,9 @@
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
-| 2026-07-29 | 1.0 | Начальный API-контракт для Sprint 3.2: courses, deadlines, progress, health endpoints |
-| 2026-07-29 | 1.1 | Добавлен Knowledge Base Admin API: загрузка, версии, публикация, статус |
-| 2026-07-29 | 1.2 | Добавлены RAG endpoints: `/process`, `/rag/search` |
-| 2026-07-29 | 1.3 | Добавлен раздел Web UI, обновлено допущение по Chroma v2 |
-| 2026-07-30 | 1.4 | Добавлен `POST /api/v1/chat`, административные endpoints (AI-config, analytics, monitoring, audit), разделы Web UI и Admin Console, авторизация admin |
-| 2026-07-30 | 1.5 | Расширены поля AI Configuration; добавлена структура analytics payload с `timings_ms` |
-| 2026-07-31 | 1.6 | Добавлены endpoints операционной консоли KB Documents: `/detail`, `/text`, `/chunks`, `/timeline`, `/activate`, `/reindex`, `/reindex-all`; обновлены модели `KbDocumentVersionOut`, добавлены `KbDocumentChunkOut`, `KbDocumentEventOut`, `KbVersionTextOut`, `KbDocumentExecutionOut`, `KbDocumentDetailOut`, `KbReindexAllOut` |
-| 2026-07-31 | 1.7 | Уточнена семантика `course_id`/`module_id`/`topic_id` в KB: advisory retrieval-фильтры, не foreign keys из LMS |
-| 2026-07-31 | 1.8 | Добавлен раздел 4.6 «Orchestrator Configuration» с endpoints `GET/PUT /api/v1/admin/orchestrator/config` и JSON-схемой конфигурации оркестратора |
-| 2026-08-01 | 1.9 | Добавлен раздел 4.4 «Operational Logs» с endpoints `GET /api/v1/admin/operational-logs` и `GET /api/v1/admin/operational-logs/{id}`; добавлен `GET /api/v1/admin/audit/{id}`; обновлен список возможностей Admin Console |
-| 2026-08-01 | 1.10 | Добавлен раздел 4.5 «Dialog Sessions» с endpoints `GET /api/v1/admin/dialog-sessions` и `GET /api/v1/admin/dialog-sessions/{session_id}`; перенумерованы разделы 4.6+ |
-| 2026-08-01 | 1.11 | Реструктуризация Dialog Sessions под схему `chat_sessions` + `execution_sessions` + `execution_steps`; обновлены параметры фильтрации, модели ответов, добавлена модель `ExecutionSession`/`ExecutionStep`; Audit API получил фильтры `date_from`/`date_to` и поля `user_name`, `ip_address` |
-| 2026-08-01 | 1.12 | `GET /api/v1/admin/audit` возвращает объект с `items`, `total`, `limit`, `offset`; `POST /api/v1/chat` пробрасывает `client_ip` и `user_agent` в `ExecutionSession`; актуализирована документация Admin Console Dialog Sessions и Audit Log |
-| 2026-08-01 | 1.13 | `POST /api/v1/chat` создаёт audit-запись `chat_request` с `session_id`, ролью студента и `ip_address` |
-| 2026-08-02 | 1.14 | Убран аудит read-only действий (`view_*`) во всех admin endpoints; раздел 4.6 Audit описывает новую политику |
-| 2026-08-02 | 1.15 | Добавлен Response Cache: `cache_hit` в ответе `POST /api/v1/chat`, `chat_logs.cache_hit`, `execution_metadata.cache_hit`, `cache_hit` в Operational Logs / Dialog Sessions; добавлен этап `cache_hit` в `ExecutionStep`; описана инвалидация кэша в admin endpoints |
-| 2026-08-05 | 1.16 | Добавлен раздел 4.7 «Reports (Business Reports / Quality Reports)» с endpoints `/api/v1/admin/reports/*`, параметрами фильтрации, примерами ответов и CSV-экспортом |
-| 2026-08-05 | 1.17 | Добавлено поле `log_id` в ответ `POST /api/v1/chat`; добавлен endpoint `POST /api/v1/chat/{log_id}/feedback` для сбора оценок студентов; обновлены модели `ChatResponse` и `ChatFeedbackPayload` |
-| 2026-08-05 | 1.18 | Sprint F: добавлены endpoints `POST /api/v1/demo/start` и `GET /api/v1/demo/status`; `POST /api/v1/chat` требует `X-Demo-Token` в production; в `ChatResponse` добавлено `demo_mode` |
-| 2026-08-05 | 1.19 | Добавлены CSV export endpoints: `POST /api/v1/admin/operational-logs/export`, `POST /api/v1/admin/audit/export`, `POST /api/v1/admin/dialog-sessions/export`; экспорт доступен в demo-режиме Admin Console |
+| 2026-07-29 | 1.0 | Начальный API-контракт: LMS, Knowledge Base, RAG, chat |
+| 2026-07-30 | 1.1 | Добавлены admin endpoints: AI-config, analytics, monitoring, audit |
+| 2026-07-31 | 1.2 | Добавлены KB operational console, orchestrator config, уточнены KB метаданные |
+| 2026-08-01 | 1.3 | Добавлены operational logs, dialog sessions, execution tracing, расширенный audit |
+| 2026-08-02 | 1.4 | Добавлен Response Cache; аудит ограничен изменяющими действиями и chat_request |
+| 2026-08-05 | 1.5 | Добавлены business reports, demo mode Web UI, feedback endpoint, CSV export logs |

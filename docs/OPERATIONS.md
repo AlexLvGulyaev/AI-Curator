@@ -1,9 +1,9 @@
 # OPERATIONS.md — AI Curator
 
 **Проект:** ai-curator  
-**Версия:** 2.5  
-**Дата:** 2026-08-05  
-**Статус:** Актуален для Sprint 5.6 Dialog Sessions + Sprint 5.8 Audit + Sprint C Response Cache + log export
+**Версия:** 1.5
+**Дата:** 2026-08-05
+**Статус:** Актуален: Knowledge Base, AI Config, Orchestrator, Dialog Sessions, Audit, Response Cache, retention, CSV export
 
 ---
 
@@ -630,19 +630,9 @@ or set PYTEST_ALLOW_PROD_DB=true to intentionally use the production database fo
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
-| 2026-08-03 | 2.5 | Обновлён раздел 4 «Latency»: уточнены NFR/SLO (повторные запросы ≤ 5 сек, холодный старт ≤ 8 сек); актуальные результаты профилирования Sprint D follow-up; token-бюджеты в Orchestrator Configuration снижены до 250–350 tokens; размер KB-чанков возвращён к 512 tokens с переиндексацией; добавлена метрика `response_cache_ms`; добавлен флаг `llm_truncated` в analytics; обновлены рекомендуемые `beginner_instructions` и `advanced_instructions` |
-| 2026-08-01 | 1.9 | Добавлен подраздел 6.4 «Dialog Sessions» с описанием консоли диалогов и endpoints `GET /api/v1/admin/dialog-sessions` / `{session_id}` |
-| 2026-08-01 | 2.0 | Реструктуризация Dialog Sessions под схему `chat_sessions` + `execution_sessions` + `execution_steps`; обновлена структура консоли и описание timeline pipeline; раздел 7 «Аудит» дополнен полями `user_name`/`ip_address`, фильтрами по дате и детальной карточкой |
-| 2026-08-01 | 2.1 | `GET /api/v1/admin/audit` возвращает `{items, total, limit, offset}`; `POST /api/v1/chat` фиксирует `client_ip` и `user_agent` в `ExecutionSession`; в консоли Dialog Sessions отображается visitor IP и source |
-| 2026-08-01 | 2.2 | `POST /api/v1/chat` создаёт audit-запись `chat_request` с `session_id`, ролью студента и `ip_address`; в Журнале аудита можно отфильтровать запросы студентов по `action=chat_request` |
-| 2026-08-02 | 2.4 | Добавлен раздел 3.5 «Response Cache»: ключ кэша, инвалидация, наблюдаемость; добавлены переменные `CACHE_FILE_PATH` и `CACHE_TTL_SECONDS` |
-| 2026-08-05 | 2.5 | Расширен раздел 9 «Retention и архивы»: явная политика hot logs 30 дней / traces 7 дней, расписание cleanup, архивы JSONL.GZ; добавлен раздел 9.4 «Экспорт логов» с CSV export endpoints и правилом доступа в demo-режиме |
-| 2026-08-02 | 2.3 | Убран аудит read-only действий; раздел 7 Аудит описывает новую политику: только изменяющие действия и `chat_request` |
 | 2026-07-30 | 1.0 | Создан документ |
- | 2026-07-30 | 1.1 | Добавлены расширенные параметры AI Config, retention и архивирование логов |
-| 2026-07-30 | 1.2 | Добавлен раздел мониторинга latency: метрики из `analytics_events`, ручное профилирование через `scripts/profile_latency.py`, SLO/NFR, AI Config tuning для latency |
-| 2026-07-30 | 1.3 | Добавлен раздел AI Config default instructions backfill; задокументировано устранение критичного дефекта beginner-ответов в Sprint 4 |
-| 2026-07-31 | 1.4 | Добавлен раздел 2.5 «Git workflow для материалов KB» и переменные окружения KB Content Git |
-| 2026-07-31 | 1.5 | Актуализирован раздел 2 под трёхпанельную операционную консоль KB Documents; добавлены подразделы про toolbar, ПАСПОРТ/ЭКСПЛУАТАЦИЯ, PREVIEW ТЕКСТА, ЧАНКИ и lifecycle |
-| 2026-07-31 | 1.6 | В таблицу AI Config tuning добавлены параметры `course_boost_enabled` и `course_boost_factor` для мягкой приоритизации курсовых материалов в RAG |
-| 2026-07-31 | 1.7 | Добавлен раздел 3.4 «Orchestrator Configuration» с описанием интент-классификации, source routing, context limits, token budgets и fallback messages |
+| 2026-07-31 | 1.1 | Добавлены KB workflow, AI Config tuning, Orchestrator Configuration |
+| 2026-08-01 | 1.2 | Добавлены Dialog Sessions, Audit Log, execution tracing |
+| 2026-08-02 | 1.3 | Добавлен Response Cache; аудит ограничен изменяющими действиями и chat_request |
+| 2026-08-03 | 1.4 | Актуализирован раздел latency и NFR/SLO |
+| 2026-08-05 | 1.5 | Добавлены retention policy и CSV-экспорт логов |

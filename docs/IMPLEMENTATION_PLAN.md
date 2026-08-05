@@ -1,9 +1,9 @@
 # IMPLEMENTATION_PLAN.md — AI Curator
 
 **Проект:** ai-curator
-**Версия:** 2.8
+**Версия:** 2.5
 **Дата:** 2026-08-05
-**Статус:** Approved
+**Статус:** Approved — основной цикл и стабилизационные спринты завершены
 **Срок реализации:** 7+ календарных дней основного цикла + 9–15 календарных дней спринтов стабилизации и аналитики
 
 ---
@@ -827,18 +827,10 @@ A → B → C → D → E → F
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
-| 2026-07-29 | 2.0 | Пересоздан IMPLEMENTATION_PLAN.md: Knowledge Base загружается через Admin Console, Web UI — отдельный публичный сервис на VPS, Backend как единый оркестратор |
-| 2026-07-29 | 2.0 (Approved) | Документ согласован куратором. Статус изменён на Approved. |
+| 2026-07-29 | 2.0 | Пересоздан IMPLEMENTATION_PLAN.md: Knowledge Base загружается через Admin Console, Web UI — отдельный публичный сервис на VPS, Backend как единый оркестратор. Согласовано куратором. |
 | 2026-07-29 | 1.0 | Первая версия IMPLEMENTATION_PLAN на 7 дней |
-| 2026-07-31 | 2.1 | Добавлен Sprint 6.1 «Configurable Orchestrator Routing»: вынесение интент-классификации, source routing, context limits, token budgets и fallback-сообщений в конфигурируемую подсистему `orchestrator_configs` с отдельной консолью Admin Console; обновлены диаграмма этапов, зависимости и критический путь |
-| 2026-08-01 | 2.2 | Добавлен развёрнутый Sprint 5 «Admin Console — операционные панели и консоли наблюдаемости» с подспринтами 5.1–5.9 и их статусами; обновлены диаграмма этапов, критический путь, зависимости, таблица документации и история изменений |
-| 2026-08-01 | 2.2a | Sprint 5.5 Operational Logs отмечен выполненным; обновлены артефакты, критерии завершения и статус в сводке |
-| 2026-08-01 | 2.2b | Sprint 5.6 Dialog Sessions отмечен выполненным; добавлен backend `dialog_sessions.py`, frontend `DialogSessions.jsx`, интеграция в `App.jsx`/`backend.js`; обновлён `API_CONTRACT.md` |
-| 2026-08-01 | 2.2c | Архитектурное совещание: принята структурная переделка Sprint 5.6 (выделение `chat_sessions`, `execution_sessions`, `execution_steps`) и доработка Sprint 5.8 Audit; план зафиксирован в task-файле и IMPLEMENTATION_PLAN.md |
-| 2026-08-01 | 2.2d | Реализован backend Sprint 5.6 Dialog Sessions (structural redesign) и Sprint 5.8 Audit: модели, миграция, `ExecutionTracerService`, интеграция в `orchestrator.py`, API, тесты; `pytest` 53 passed; документация обновлена |
-| 2026-08-02 | 2.5 | Спринт C «Кэширование запросов» выполнен: ResponseCache, интеграция в Orchestrator, инвалидация в admin endpoints, `cache_hit` в ChatLog/ExecutionSession/API, `tests/test_cache.py`; обновлены `OPERATIONS.md`, `API_CONTRACT.md`, `.env.example` |
-| 2026-08-02 | 2.3 | Добавлен раздел 10 «Спринты стабилизации и подготовки к аналитике» (A–E); Sprint 5.8 отмечен полностью выполненным (frontend + read-only audit cleanup); выполнен A1 — удалён `view_*` аудит из admin endpoints; обновлены `API_CONTRACT.md` и `OPERATIONS.md` |
-| 2026-08-04 | 2.6 | Актуализированы статусы: Sprint 5.8 frontend UI унифицировано (Operational Logs, Dialog Sessions, Audit Log); добавлен Спринт F «Безопасный demo-режим Web UI» с rate limiting, квотами, demo-флагом и UI-индикацией; обновлены PROJECT_STATE.md, Next Steps, критический путь A→B→C→D→E→F |
-| 2026-08-05 | 2.7 | Sprint A2/A3 «Read-only demo admin + RBAC» выполнен: backend auth с `ADMIN_CONSOLE_DEMO_TOKEN` и `require_admin`, UI disabled кнопки мутаций, бейдж demo-режима, тесты `tests/test_admin_auth.py`; `pytest` 97 passed; PH2-03 PASS; Admin Console redeployed |
-| 2026-08-05 | 2.8 | Sprint F «Safe demo mode Web UI» выполнен: `X-Demo-Token`, `DemoLimiterService`, `/api/v1/demo/*`, `demo_mode` флаг, Web UI DemoBadge + DemoContext, тесты `tests/test_demo_mode.py`; `pytest` 109 passed; PH2-04 PASS |
-| 2026-08-05 | 2.9 | Sprint G «Log export + retention policy» выполнен: CSV export operational logs / audit / dialog sessions, кнопки в Admin Console, явная retention policy, закрыт feedback урока PEcf09; `pytest` 109 passed; production smoke tests OK |
+| 2026-07-31 | 2.1 | Добавлен Sprint 6.1 «Configurable Orchestrator Routing» |
+| 2026-08-01 | 2.2 | Добавлен развёрнутый Sprint 5 «Admin Console — операционные панели и консоли наблюдаемости» |
+| 2026-08-02 | 2.3 | Добавлены спринты стабилизации A–E, ResponseCache (Sprint C), read-only audit |
+| 2026-08-04 | 2.4 | Добавлен Sprint F «Безопасный demo-режим Web UI», унификация frontend UI |
+| 2026-08-05 | 2.5 | Добавлены Sprint A2/A3 «Read-only demo admin + RBAC» и Sprint G «Log export + retention policy» |

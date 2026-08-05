@@ -6,18 +6,22 @@ AI Curator — самостоятельная подсистема образо�
 
 ---
 
-## Позиционирование
+## Live Demo
 
-AI Curator — цифровой наставник для студентов онлайн- и смешанного обучения. Он берёт на себя рутинные вопросы организации и содержания курса, чтобы преподаватели могли сосредоточиться на сложных случаях и развитии курса.
+🌐 **Web UI:** `https://curator.alex-n8n.site`
 
-Продукт ориентирован на:
-- образовательные платформы;
-- корпоративные учебные центры;
-- онлайн-школы и университеты с собственной LMS.
+Откройте, выберите demo-роль и задайте вопрос AI-куратору. Safe demo mode защищает API-лимиты: квота запросов, rate limit и таймер сессии.
 
-## Решаемая проблема
+![Пример диалога](docs/screenshots/AIC_web_chat_basic.png)
+
+Скриншоты и бизнес-сценарии — в [`docs/SYSTEM_DEMO.md`](docs/SYSTEM_DEMO.md) и [`docs/E2E_SCENARIOS.md`](docs/E2E_SCENARIOS.md).
+
+---
+
+## Зачем нужен AI Curator
 
 Студенты постоянно сталкиваются с вопросами:
+
 - «Когда дедлайн по заданию?»
 - «Где найти лекцию по теме X?»
 - «Объясни разницу между списком и словарём.»
@@ -26,18 +30,22 @@ AI Curator — цифровой наставник для студентов о�
 Преподаватели отвечают на однотипные вопросы многократно, а актуальная информация разрознена между LMS, мессенджерами и email.
 
 **AI Curator решает эту проблему**, предоставляя студенту единый публичный Web UI для персонализированных, подтверждённых источниками ответов на основе двух независимых источников:
-- **LMS** — данные учебного процесса (расписание, задания, дедлайны, прогресс);
-- **Knowledge Base AI Curator** — учебные материалы (лекции, методички, FAQ), управляемые через Admin Console.
 
-## Пользователи
+- **LMS** — Source of Truth учебного процесса (расписание, задания, дедлайны, прогресс);
+- **Knowledge Base AI Curator** — управляемая база учебных материалов (лекции, методички, FAQ).
 
-| Роль | Задача | Интерфейс |
-|------|--------|-----------|
-| **Студент** | Задавать вопросы, получать ответы с источниками, оценивать полезность | Web UI AI Curator |
-| **Преподаватель** | Управлять курсом, заданиями, оценками; при наличии прав — видеть агрегированную аналитику по курсу | LMS |
-| **Администратор LMS** | Управлять LMS, пользователями, ролями и интеграцией | LMS Admin |
-| **Администратор AI Curator** | Управлять Knowledge Base, конфигурацией AI, аналитикой, мониторингом | Admin Console AI Curator |
-| **Методист AI Curator** | Управлять учебными материалами, метаданными, публикациями, дополнять FAQ | Admin Console AI Curator |
+Больше о бизнес-ценности — в [`docs/BUSINESS_VALUE.md`](docs/BUSINESS_VALUE.md).
+
+---
+
+## Для кого
+
+- Образовательные платформы с LMS.
+- Корпоративные учебные центры.
+- Онлайн-школы и университеты.
+- Провайдеры LMS, желающие добавить AI-куратора в экосистему.
+
+---
 
 ## Ключевые возможности
 
@@ -48,31 +56,11 @@ AI Curator — цифровой наставник для студентов о�
 - **Ссылки на источники** — каждый содержательный ответ содержит ссылку на материал или явно сообщает, что источник не найден.
 - **Адаптация сложности** — ответы подстраиваются под уровень подготовки студента.
 - **Чёткие границы** — AI Curator не выставляет оценки, не переносит дедлайны и не изменяет учебный процесс.
+- **Safe demo mode** — защищённый публичный доступ с квотами и rate limit.
 
-## Пользовательские интерфейсы
+---
 
-### Web UI для студента
-
-- **Отдельный публичный Web UI AI Curator**, развёрнутый на VPS и доступный по собственному HTTPS-эндпоинту.
-- Чат с AI-куратором, история диалога, переключатель уровня сложности.
-- Источники ответа отображаются как ссылки на материалы Knowledge Base или задания в LMS.
-- **Safe demo mode** — токенизированные demo-сессии с квотами запросов, rate limit и UI-индикацией оставшихся запросов / таймером, чтобы защитить API-лимиты при публичном доступе.
-- Web UI не является частью Moodle и не встраивается в LMS-интерфейс.
-
-### Moodle LMS
-
-- Moodle остаётся единственным инструментом для управления курсами, заданиями, расписанием, оценками и пользователями.
-- AI Curator не дублирует административные функции Moodle.
-- Moodle и Web UI AI Curator — отдельные пользовательские интерфейсы, взаимодействующие с собственными Backend-системами.
-
-### Admin Console AI Curator
-
-- Загрузка и управление учебными материалами Knowledge Base.
-- Управление метаданными, версиями и публикацией документов.
-- Запуск обработки, индексации и переиндексации.
-- Конфигурация AI и маршрутизации запросов (Orchestrator), аналитика запросов, мониторинг системы.
-
-## Краткая архитектура
+## Быстрый обзор архитектуры
 
 ```mermaid
 flowchart TB
@@ -98,13 +86,13 @@ flowchart TB
     end
 
     subgraph "Источники данных"
-        LMS[(LMS — Source of Truth учебного процесса)]
+        LMS[(LMS)]
         KB[(Knowledge Base AI Curator)]
     end
 
     subgraph "Инфраструктура"
-        DB[(PostgreSQL — операционная база)]
-        VectorStore[(Chroma — векторный индекс)]
+        DB[(PostgreSQL)]
+        VectorStore[(Chroma)]
         DocStore[(Хранилище документов)]
         LLM[LLM Provider — OpenAI API]
     end
@@ -133,79 +121,81 @@ flowchart TB
     KB -.-> VectorStore
 ```
 
-- **LMS** — Source of Truth учебного процесса. AI Curator читает разрешённые данные через LMS Adapter.
-- **Knowledge Base AI Curator** — самостоятельный источник учебных материалов, управляемый через Admin Console. Не является частью LMS.
-- **Backend** — единый оркестратор системы. Принимает запросы, классифицирует их, получает данные из LMS и Knowledge Base, формирует промпт, вызывает LLM, проверяет ответ, логирует и отдаёт результат.
-- **LangChain** — внутренняя библиотека Backend для document loaders, chunking, embeddings, retrieval, prompt assembly и вызовов LLM.
-- **LMS Adapter** — внутренний компонент Backend, изолирующий AI Curator от деталей LMS API.
-- **Векторный индекс (Chroma)** — производное хранилище, восстанавливаемое из документов Knowledge Base.
+- **LMS** — Source of Truth учебного процесса.
+- **Knowledge Base** — самостоятельный источник учебных материалов.
+- **Backend** — единый оркестратор, который классифицирует запросы, объединяет контекст и вызывает LLM.
+- **LangChain** — внутренняя библиотека Backend для RAG.
 
-## Статус проекта
+Подробнее — в [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-**Текущая стадия:** Implementation In Progress — Sprint 6.1 In Progress: Configurable Orchestrator Routing.
+---
 
-- ✅ Проект согласован с куратором.
-- ✅ Подготовлены PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md, IMPLEMENTATION_PLAN.md, PROMPT_ARCHITECTURE.md, OPERATIONS.md, ADMIN_CONSOLE.md.
-- ✅ Moodle LMS развёрнута на VPS и доступна по `https://lms.alex-n8n.site`.
-- ✅ В Moodle создан демо-курс «Claude Code: от знакомства до автоматизации» (AI Skills Lab) с модулями, уроками, заданиями, дедлайнами и формами обратной связи.
-- ✅ Создан read-only API-токен для интеграции с Moodle.
-- ✅ Backend AI Curator развёрнут на `https://curator-api.alex-n8n.site`.
-- ✅ Реализован LMS Adapter: курсы, дедлайны, прогресс из Moodle.
-- ✅ Реализован Knowledge Base scaffold: загрузка документов, версии, публикация, статус через Admin API (`/api/v1/admin/kb/*`).
-- ✅ Реализован RAG pipeline: chunking, OpenAI embeddings, индексация в Chroma, семантический поиск через `/api/v1/rag/search`.
-- ✅ Реализован LLM Chat: `POST /api/v1/chat` с orchestrator, prompt builder, answer validator и logging.
-- ✅ Реализованы admin endpoints: AI-config, analytics, monitoring, audit, orchestrator-config.
-- ✅ Логирование, аналитика и аудит пишутся в PostgreSQL.
-- ✅ AI-конфигурация версионируется и применяется.
-- ✅ Конфигурация маршрутизации запросов (Orchestrator) вынесена из хардкода в Admin Console: модель, сервис, API, миграция, UI-конструктор, тесты.
-- ✅ Web UI: `https://curator.alex-n8n.site` — гостевой вход, чат через `POST /api/v1/chat`, markdown-рендеринг, история диалога, источники ответов, переключатель сложности.
-- ✅ Admin Console: `https://curator-admin.alex-n8n.site` — KB, AI-config, orchestrator-config, analytics, monitoring, audit, read-only demo-вход.
-- ✅ Административные endpoints защищены Bearer-токеном.
-- ✅ Alembic-миграции Knowledge Base, Дня 6 и `orchestrator_configs` подготовлены.
-- ✅ Тесты `pytest` обновлены и расширены; полный прогон — 43 passed.
-- ⏳ Следующий шаг — День 7 IMPLEMENTATION_PLAN: E2E-тестирование, DEPLOYMENT_GUIDE.md, материалы для портфолио.
-
-## Планируемые публичные точки входа
+## Публичные точки входа
 
 | Сервис | Домен | Назначение |
-|--------|-------|------------|
-| Web UI студента | `https://curator.alex-n8n.site` | Публичный интерфейс для диалога со студентами |
+|--------|-------|-----------|
+| Web UI студента | `https://curator.alex-n8n.site` | Диалог со студентами |
 | Admin Console | `https://curator-admin.alex-n8n.site` | Управление Knowledge Base, AI-конфигурацией, логами |
 | Backend API | `https://curator-api.alex-n8n.site` | API AI Curator |
 | Moodle LMS | `https://lms.alex-n8n.site` | Штатный интерфейс LMS |
 
-## Скриншоты и демонстрация
+---
 
-Раздел зарезервирован для будущих скриншотов и демонстрационных материалов:
+## Документация по слоям
 
-- **Web UI студента** — диалог с AI-куратором, источники ответа, переключатель уровня сложности.
-- **Admin Console** — панель состояния Knowledge Base, управление документами, аналитика запросов.
-- **LMS** — курс с заданиями и расписанием, на основе которых AI Curator даёт организационные ответы.
-- **Live Demo** — публичная демонстрация работы сервиса после деплоя.
+### Для заказчиков и менеджеров
 
-## Документация
+| Документ | Описание |
+|----------|----------|
+| [`docs/BUSINESS_VALUE.md`](docs/BUSINESS_VALUE.md) | Бизнес-проблема, решение, эффект, выгода |
+| [`docs/SYSTEM_DEMO.md`](docs/SYSTEM_DEMO.md) | Скриншоты, live demo, бизнес-сценарии |
+| [`docs/E2E_SCENARIOS.md`](docs/E2E_SCENARIOS.md) | Сквозные бизнес-сценарии без технических деталей |
 
-| Документ | Назначение |
-|----------|------------|
-| `docs/PROJECT_STATE.md` | Состояние проекта, решения, риски, следующий шаг |
-| `docs/SPEC.md` | Продуктовая спецификация, сценарии, требования |
-| `docs/ARCHITECTURE.md` | Архитектурные решения, компоненты, потоки данных, диаграммы |
-| `docs/IMPLEMENTATION_PLAN.md` | План реализации и развёртывания на VPS |
-| `docs/PROMPT_ARCHITECTURE.md` | Структура промптов и few-shot примеры |
-| `docs/OPERATIONS.md` | Эксплуатация: KB, AI-config, аналитика |
-| `docs/ADMIN_CONSOLE.md` | Описание Admin Console |
+### Для пользователей и операторов
+
+| Документ | Описание |
+|----------|----------|
+| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | Как пользоваться Web UI студенту |
+| [`docs/ADMIN_GUIDE.md`](docs/ADMIN_GUIDE.md) | Руководство администратора AI Curator |
+| [`docs/CURATOR_GUIDE.md`](docs/CURATOR_GUIDE.md) | Руководство методиста по Knowledge Base |
+| [`docs/FAQ.md`](docs/FAQ.md) | Частые вопросы |
+
+### Для инженеров и интеграторов
+
+| Документ | Описание |
+|----------|----------|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Архитектурные решения, C4, потоки данных |
+| [`docs/SPEC.md`](docs/SPEC.md) | Продуктовая спецификация |
+| [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) | План реализации и развёртывания |
+| [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) | API endpoints и payload |
+| [`docs/DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md) | Развёртывание с нуля |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Эксплуатация, KB, AI-config, аналитика |
+| [`docs/PROMPT_ARCHITECTURE.md`](docs/PROMPT_ARCHITECTURE.md) | Структура промптов |
+
+---
+
+## Статус проекта
+
+Реализованы все ключевые компоненты: LMS-интеграция, Knowledge Base, RAG, LLM Chat, Admin Console, Analytics, Audit, Response Cache, safe demo mode, log export и retention policy.
+
+`pytest`: 109 passed.
+
+Текущее состояние и следующий шаг — в [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
+
+---
 
 ## Технологии
 
-- **LMS** — Moodle или другая LMS с API.
-- **FastAPI** — backend AI Curator.
-- **LangChain** — AI / RAG библиотека внутри Backend.
-- **Chroma** — векторное хранилище.
-- **PostgreSQL** — операционная база (метаданные, логи, аналитика, аудит).
-- **Object Storage / файловое хранилище** — исходные документы Knowledge Base.
-- **OpenAI API** — LLM Provider.
-- **Docker + Docker Compose** — контейнеризация.
-- **nginx / Traefik** — reverse proxy и HTTPS на VPS.
+- **LMS** — Moodle (или другая LMS с API).
+- **Backend** — FastAPI.
+- **RAG / LLM Library** — LangChain внутри Backend.
+- **Vector Store** — Chroma.
+- **Database** — PostgreSQL.
+- **LLM Provider** — OpenAI API.
+- **Frontend** — React + Vite + Tailwind CSS.
+- **Infra** — Docker, Docker Compose, nginx, Traefik.
+
+---
 
 ## Лицензия
 

@@ -3,7 +3,7 @@
 **Проект:** ai-curator
 **Дата создания:** 2026-07-29
 **Последнее обновление:** 2026-08-05
-**Статус:** Implementation In Progress — Sprints A2/A3 (read-only demo admin) and Sprint F (Web UI safe demo mode) completed; full pytest suite green; DEPLOYMENT_GUIDE актуализирован; remaining: README/portfolio docs
+**Статус:** Implementation In Progress — все спринты завершены; публичная документация переработана по стандарту APL; ожидается подготовка скриншотов и GIF walkthrough
 
 ---
 
@@ -26,32 +26,18 @@ AI Curator не заменяет преподавателя, не выставл
 
 **Что уже реализовано и развёрнуто:**
 
-- Moodle LMS развёрнута на VPS и доступна по HTTPS: `https://lms.alex-n8n.site`.
-- Домены и Traefik-маршруты настроены для всех публичных сервисов AI Curator.
-- В Moodle создан демо-курс «Claude Code: от знакомства до автоматизации» (AI Skills Lab) с тремя модулями, уроками, обратной связью, заданиями и дедлайнами.
-- Созданы тестовые пользователи и роли (student, teacher, manager); включены Moodle Web Services; создан read-only API-токен для интеграции.
-- Backend AI Curator развёрнут на `https://curator-api.alex-n8n.site`.
-- LMS Adapter: курсы, дедлайны, прогресс из Moodle.
-- Knowledge Base: модели PostgreSQL, файловое хранилище, Admin API CRUD, версионирование, обработка, публикация, индексация, RAG через LangChain + OpenAI + Chroma.
-- Web UI студента на React + Vite + Tailwind CSS, развёрнут на `https://curator.alex-n8n.site`, с гостевым демо-входом и ролями (`active_student`, `late_student`, `new_student`).
-- Admin Console на React + Vite + Tailwind CSS (тёмная тема AI Portfolio), развёрнут на `https://curator-admin.alex-n8n.site`.
-- Admin Console panels: Dashboard, AI & Retrieval Configuration, Orchestrator Configuration, Knowledge Base Documents, Operational Logs, Dialog Sessions, Audit Log.
-- LLM Chat core: Prompt Builder, LLM Adapter, Answer Validator, Orchestrator с конфигурируемой интент-классификацией и source routing.
-- Execution tracing: `chat_sessions`, `execution_sessions`, `execution_steps`; timeline в консоли Dialog Sessions.
-- ResponseCache: кэширование запросов, инвалидация при мутациях KB/AI/retrieval/orchestrator, `cache_hit` в API и UI.
-- Logging & Analytics: `chat_requests`, `chat_logs`, `llm_calls`, `llm_call_traces`, `analytics_events`, `audit_logs`, `execution_sessions`, `execution_steps`.
-- Audit backend: фильтры по дате, действию, типу ресурса, пользователю; детальная карточка с `user_id`, `user_name`, `ip_address`, `details`.
-- Analytics Dashboard (Sprint E1): `/api/v1/admin/analytics/*` + `admin-console/src/components/Analytics.jsx` — KPI, фильтры по дате/курсу, latency histogram, источники, CSV export.
-- Business Reports / Quality Reports (Sprint E2): `/api/v1/admin/reports/*` + `admin-console/src/components/Reports.jsx` — качество ответов, вопросы без ответа, гэпы KB, популярные темы, покрытие KB, кандидаты на расширение KB, CSV export.
-- Operational Logs source filter: `source_type` (lms, rag, both, cache, fallback, error) в backend и UI.
-- E2E testing strategy: `docs/E2E_TEST_PLAN.md` + `docs/PRODUCT_E2E_CHECKLIST.md` для ручных сквозных прогонов.
-- Auth: Admin Console защищён Bearer-токеном `ADMIN_CONSOLE_TOKEN`.
-- TZ compliance report: `docs/TZ_COMPLIANCE_REPORT.md` — соответствие реализации исходному техническому заданию проекта (урок PEcf13).
-- Testing infrastructure: тестовая БД `ai_curator_test`, Alembic-миграции в тестах, маркеры pytest, `docs/TESTING_CONTRACT.md`.
-- `pytest` стабильно проходит (109 тестов, ~30 секунд).
-- Read-only demo admin + RBAC (Sprint A2/A3): `ADMIN_CONSOLE_DEMO_TOKEN`, `AdminIdentity` с ролью `demo`, `require_admin` на mutation endpoints, UI disabled кнопки мутаций и бейдж demo-режима.
-- Safe demo mode Web UI (Sprint F): токенизированные demo-сессии (`X-Demo-Token`), квоты 20 запросов / 30 мин, rate limit, IP-лимит сессий, backend-флаг `demo_mode`, UI-индикация оставшихся запросов и таймер.
-- Log export и retention policy: CSV-экспорт operational logs, audit, dialog sessions из Admin Console; фоновая архивация и ротация hot logs 30 дней / LLM traces 7 дней; явная политика в `OPERATIONS.md`. Закрыт feedback урока PEcf09.
+- **Инфраструктура и интеграция:** Moodle LMS, домены, Traefik-маршруты, read-only API-токен, Backend AI Curator на VPS.
+- **LMS Adapter:** чтение курсов, заданий, дедлайнов и прогресса из Moodle.
+- **Knowledge Base:** PostgreSQL-модели, файловое хранилище, Admin API CRUD, версионирование, обработка, публикация, индексация в Chroma через LangChain + OpenAI.
+- **Web UI студента:** публичный React-приложение с гостевым demo-входом, историей диалога, источниками ответа, переключателем сложности и safe demo mode.
+- **Admin Console:** React-приложение с панелями Dashboard, Knowledge Base, AI & Retrieval Config, Orchestrator Config, Analytics, Reports, Operational Logs, Dialog Sessions, Audit Log.
+- **LLM Chat core:** Orchestrator с конфигурируемой интент-классификацией и source routing, Prompt Builder, LLM Adapter, Answer Validator.
+- **Кэширование:** ResponseCache с инвалидацией при мутациях и индикацией `cache_hit`.
+- **Логирование и аналитика:** chat requests, LLM calls/traces, execution tracing, analytics events, audit log с фильтрами и детальной карточкой.
+- **Аналитика и отчёты:** Analytics Dashboard, Business Reports / Quality Reports с CSV export.
+- **Безопасность:** Bearer-auth в Admin Console, read-only demo admin RBAC, safe demo mode Web UI с квотами и rate limit.
+- **Эксплуатация:** CSV-экспорт operational logs / audit / dialog sessions, фоновая архивация и retention policy.
+- **Тестирование:** pytest 109 passed, Alembic-миграции в тестах, E2E-тест-план и чек-листы.
 
 **Оставшиеся ключевые работы:**
 
@@ -137,9 +123,11 @@ AI Curator не заменяет преподавателя, не выставл
 15. ✅ Реализовать Business Reports / Quality Reports (Sprint E2).
 16. ✅ Реализовать read-only demo login и RBAC в Admin Console (Sprint A2/A3).
 17. ✅ Реализовать безопасный API-лимитированный demo режим на Web UI.
-18. ✅ Актуализировать DEPLOYMENT_GUIDE.md для Sprint F и log export/retention. ⏳ README.md — финальная портфельная полировка.
-20. ✅ Закрыть feedback урока PEcf09: экспорт логов (CSV) и явная политика ротации.
-19. ✅ Настроить процедуру проверки БД перед тестами (pattern + мониторинг висящих процессов).
+18. ✅ Актуализировать DEPLOYMENT_GUIDE.md для Sprint F и log export/retention.
+19. ✅ Переработать пакет публичной документации: README.md, BUSINESS_VALUE.md, SYSTEM_DEMO.md, E2E_SCENARIOS.md, USER_GUIDE.md, ADMIN_GUIDE.md, CURATOR_GUIDE.md, FAQ.md, MEDIA_INDEX.md, examples/.
+20. ⏳ Подготовить скриншоты и GIF walkthrough по спецификации.
+21. ✅ Закрыть feedback урока PEcf09: экспорт логов (CSV) и явная политика ротации.
+22. ✅ Настроить процедуру проверки БД перед тестами (pattern + мониторинг висящих процессов).
 
 ## Open Questions
 

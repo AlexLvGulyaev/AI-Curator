@@ -685,10 +685,7 @@ Admin Console отображает:
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
-| 2026-07-29 | 2.0 | Пересоздан ARCHITECTURE.md: C4 Context/Container/Component диаграммы, Runtime Sequence, Data Flow, Deployment, разделение LMS и Knowledge Base, Backend как единый оркестратор |
-| 2026-07-29 | 2.0 (Approved) | Документ согласован куратором. Статус изменён на Approved. Исправлено архитектурное противоречие: RAG Pipeline не обращается к LLM напрямую, единственный вызов модели выполняется через LLM Adapter. |
 | 2026-07-29 | 1.0 | Первая версия ARCHITECTURE.md |
-| 2026-07-30 | 2.1 | Добавлены разделы retention и архивирования логов; параметризация промптов через `ai_configs`; детальная разбивка latency в analytics events |
-| 2026-07-30 | 2.2 | Добавлен раздел **Latency Architecture** (Sprint 4): embedding cache, parallel LMS+RAG, intent-based max_tokens, reduced top_k, prompt trimming; фактические результаты профилирования; NFR ≤ 5 сек подтверждён |
-| 2026-07-31 | 2.3 | Добавлен раздел 5.1.1 «LMS-KB Linking Contract»: course_id/module_id/topic_id в KB — advisory retrieval-фильтры, не foreign keys; course-aware RAG через мягкий приоритет |
-| 2026-07-31 | 2.4 | Добавлен архитектурный принцип конфигурируемой маршрутизации запросов; параметры интент-классификации, source routing, context limits, token budgets и fallback-сообщений управляются через таблицу `orchestrator_configs` |
+| 2026-07-29 | 2.0 | Пересоздана архитектура: C4 Context/Container/Component, Runtime Sequence, Data Flow, Deployment, LMS + Knowledge Base, Backend как единый оркестратор. Согласовано куратором. |
+| 2026-07-30 | 2.1 | Добавлены retention, параметризация промптов, latency-разбивка |
+| 2026-07-31 | 2.2 | Добавлены LMS-KB Linking Contract и конфигурируемая маршрутизация запросов через `orchestrator_configs` |

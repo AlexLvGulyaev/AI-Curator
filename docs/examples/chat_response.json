@@ -1,0 +1,15 @@
+{
+  "response": "Дедлайн по заданию PE07. Chain-of-thought — 15 августа 2026 года, 23:59. Ссылка на задание доступна в LMS.",
+  "sources": [
+    {
+      "type": "lms",
+      "title": "PE07. Chain-of-thought",
+      "url": "https://lms.alex-n8n.site/mod/assign/view.php?id=123"
+    }
+  ],
+  "source_used": "lms",
+  "log_id": 1847,
+  "cache_hit": false,
+  "demo_mode": false,
+  "difficulty": "beginner"
+}

@@ -3,7 +3,7 @@
 **Проект:** ai-curator  
 **Версия:** 1.0  
 **Дата:** 2026-07-30  
-**Статус:** Актуален для Дня 6
+**Статус:** Актуален — компонент Admin Console AI Curator
 
 ---
 
@@ -117,4 +117,4 @@ docker compose up -d --build ai-curator-admin-console
 | Дата | Версия | Изменения |
 |------|--------|-----------|
 | 2026-07-30 | 1.0 | Создан документ |
-| 2026-07-30 | 1.1 | Добавлено описание расширенной AI Configuration и latency traces в Analytics |
+| 2026-08-05 | 1.1 | Актуализировано под текущий состав панелей (Analytics, Reports, Logs, Dialog Sessions, Audit, export) |
