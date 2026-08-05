@@ -1,12 +1,13 @@
-# AI Curator — Testing Cost Contract
+# 🧪 AI Curator — Testing Cost Contract
 
-**Версия:** 1.0  
-**Дата:** 2026-08-02  
-**Статус:** Active
+**Проект:** ai-curator  
+**Версия:** 1.1  
+**Дата:** 2026-08-05  
+**Статус:** Active — 109 тестов, маркеры `unit` / `integration` / `expensive`
 
 ---
 
-## 1. Назначение
+## 🎯 1. Назначение
 
 Этот документ фиксирует контракт тестирования backend AI Curator:
 
@@ -20,7 +21,7 @@
 
 ---
 
-## 2. Требования к окружению
+## 🛠️ 2. Требования к окружению
 
 | Переменная | Назначение | Пример |
 |---|---|---|
@@ -35,12 +36,12 @@
 
 ---
 
-## 3. Номенклатура тестов
+## 🏷️ 3. Номенклатура тестов
 
 | Маркер | Что тестирует | Внешние вызовы | Количество (≈) | Время прогона |
 |---|---|---|---|---|
-| `unit` | Быстрые тесты без сетевых вызовов: health, AI-config, analytics, prompt builder, orchestrator config, audit, KB CRUD без embeddings, execution tracer unit | Нет | 27 | < 30 сек |
-| `integration` | Интеграционные тесты с LMS, LLM/RAG-mocks, Chroma embeddings, chat endpoint | LMS API, OpenAI embeddings, Chroma | 28 | 2–5 мин |
+| `unit` | Быстрые тесты без внешних сетевых вызовов: health, AI-config, analytics, prompt builder, orchestrator config, audit, KB CRUD без embeddings, execution tracer, admin auth, demo mode, cache, monitoring, reports | Нет | 81 | < 60 сек |
+| `integration` | Интеграционные тесты с LMS, LLM/RAG-mocks, Chroma embeddings, chat endpoint, KB processing, dialog sessions | LMS API, OpenAI embeddings, Chroma | 28 | 2–5 мин |
 | `expensive` | Дорогие тесты, потребляющие значительное количество токенов LLM | OpenAI chat completions | 0 | — |
 
 ### 3.1. `unit` — дешёвые тесты
@@ -54,6 +55,8 @@
 - `test_courses.py`, `test_deadlines.py` — реальные запросы к Moodle API.
 - `test_chat.py`, `test_dialog_sessions.py` — сквозные HTTP-сценарии с моками LMS и/или LLM.
 - `test_rag.py`, часть `test_kb.py` — создание embeddings в Chroma через OpenAI `text-embedding-3-small`.
+- `test_admin_auth.py` — аутентификация и RBAC в Admin Console (unit-маркер отсутствует, но тесты не используют внешние сервисы; рекомендуется запускать вместе с unit).
+- `test_demo_mode.py` — safe Web UI demo mode: токены, квоты, rate limit, защита чата (unit-маркер отсутствует, но все внешние вызовы замоканы; рекомендуется запускать вместе с unit).
 - Запускаются на тестовой БД и тестовой Chroma-коллекции.
 
 ### 3.3. `expensive` — дорогие LLM-тесты
@@ -63,7 +66,7 @@
 
 ---
 
-## 4. Команды запуска
+## ▶️ 4. Команды запуска
 
 ```bash
 # 1. Дешёвые unit-тесты (pre-commit / CI на каждый PR)
@@ -78,13 +81,16 @@ pytest tests/ -m expensive -q
 # 4. Все тесты (явный полный прогон)
 pytest tests/ -q
 
-# 5. Исключить интеграционные и дорогие (эквивалент unit)
+# 5. Исключить интеграционные и дорогие (эквивалент unit + admin_auth/demo_mode)
 pytest tests/ -m "not integration and not expensive" -q
+
+# 6. Запуск admin_auth и demo_mode (нет module-level маркера unit/integration)
+pytest tests/test_admin_auth.py tests/test_demo_mode.py -q
 ```
 
 ---
 
-## 5. Стоимость и цель каждого набора
+## 💰 5. Стоимость и цель каждого набора
 
 | Набор | Цель | Ресурсы | Когда запускать |
 |---|---|---|---|
@@ -94,7 +100,7 @@ pytest tests/ -m "not integration and not expensive" -q
 
 ---
 
-## 6. Изоляция тестов
+## 🔒 6. Изоляция тестов
 
 ### 6.1. PostgreSQL
 
@@ -116,7 +122,7 @@ pytest tests/ -m "not integration and not expensive" -q
 
 ---
 
-## 7. CI/CD рекомендации
+## 🚀 7. CI/CD рекомендации
 
 | Стадия | Команда | Условие успеха |
 |---|---|---|
@@ -127,7 +133,7 @@ pytest tests/ -m "not integration and not expensive" -q
 
 ---
 
-## 8. Smoke-testing политика
+## 🚭 8. Smoke-testing политика
 
 - **Smoke-тесты не пишут в боевую БД.** Все автоматические тесты работают на `ai_curator_test`.
 - **Smoke-тесты не пишут в продакшен Chroma.** Все embeddings-создания идут в `ai_curator_kb_test`.
@@ -136,15 +142,25 @@ pytest tests/ -m "not integration and not expensive" -q
 
 ---
 
-## 9. Связанные документы
+## 📚 9. Связанные документы
 
-- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — компоненты Backend, подлежащие тестированию.
-- [📋 `docs/E2E_TEST_PLAN.md`](E2E_TEST_PLAN.md) — план сквозного тестирования.
-- [📋 `docs/PRODUCT_E2E_CHECKLIST.md`](PRODUCT_E2E_CHECKLIST.md) — чек-лист E2E-прогонов.
-- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание тестового и production-окружения.
+- [🏗️ ARCHITECTURE.md](ARCHITECTURE.md) — компоненты Backend, подлежащие тестированию.
+- [🧪 E2E_TEST_PLAN.md](E2E_TEST_PLAN.md) — план сквозного тестирования.
+- [📋 PRODUCT_E2E_CHECKLIST.md](PRODUCT_E2E_CHECKLIST.md) — чек-лист E2E-прогонов.
+- [🚀 DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) — развёртывание тестового и production-окружения.
+- [📍 PROJECT_STATE.md](PROJECT_STATE.md) — актуальный статус проекта.
 
 ---
 
-## 10. Изменение контракта
+## 📝 10. Изменение контракта
 
 Любое добавление/удаление маркера, изменение команд или стоимости требует обновления этого документа.
+
+---
+
+## 📜 История изменений
+
+| Дата | Версия | Изменение |
+|---|---|---|
+| 2026-08-02 | 1.0 | Начальная версия: маркеры, окружение, изоляция, CI-рекомендации |
+| 2026-08-05 | 1.1 | Актуализация: 109 тестов, уточнены состав unit/integration, добавлены admin_auth и demo_mode, применён emoji-контракт, единый стиль ссылок |
