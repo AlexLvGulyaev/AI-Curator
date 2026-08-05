@@ -207,6 +207,7 @@ Moodle: **Site administration → Server → Web services → Manage tokens**.
 
 ## 📚 Связанные документы
 
+- [🏠 `README.md`](../README.md) — главная страница проекта и live demo.
 - [🎛️ `docs/ADMIN_CONSOLE.md`](ADMIN_CONSOLE.md) — component reference Консоль администратора.
 - [⚙️ `docs/OPERATIONS.md`](OPERATIONS.md) — эксплуатация, retention, KB workflow.
 - [🎼 `docs/ORCHESTRATOR_USER_GUIDE.md`](ORCHESTRATOR_USER_GUIDE.md) — настройка Orchestrator.
