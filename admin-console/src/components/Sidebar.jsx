@@ -29,7 +29,7 @@ const MENU_GROUPS = [
     label: 'Отчёты',
     items: [
       { id: 'analytics', label: 'Аналитика', icon: '📈' },
-      { id: 'reports', label: 'Business Reports', icon: '📉' },
+      { id: 'reports', label: 'Бизнес-отчёты', icon: '📉' },
     ],
   },
 ];

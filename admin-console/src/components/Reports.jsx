@@ -32,11 +32,34 @@ const INTENT_LABELS = {
 const TABS = [
   { id: 'quality', label: 'Качество' },
   { id: 'unanswered', label: 'Без ответа' },
-  { id: 'kb-gaps', label: 'Гэпы KB' },
+  { id: 'kb-gaps', label: 'Гэпы базы знаний' },
   { id: 'popular-topics', label: 'Популярные темы' },
-  { id: 'kb-coverage', label: 'Покрытие KB' },
+  { id: 'kb-coverage', label: 'Покрытие базы знаний' },
   { id: 'expansion', label: 'Кандидаты' },
 ];
+
+const KPI_TOOLTIPS = {
+  'Всего запросов': 'Общее количество сообщений студентов за выбранный период.',
+  'Отвечено': 'Запросы, по которым система сформировала ответ.',
+  'Ошибки': 'Доля запросов, завершившихся технической ошибкой в ChatLog.',
+  'Fallback бэкенда': 'Доля отвеченных запросов, для которых сработал fallback бэкенда (например, вопрос вне области базы знаний).',
+  'Кэш': 'Доля запросов, отвеченных из кэша без вызова LLM.',
+  'Средняя оценка': 'Среднее значение feedback_score по отвеченным запросам. Пусто, если студенты ещё не ставили оценки.',
+  'RAG eligible': 'Учебные и смешанные запросы, по которым был сформирован ответ — то есть запросы, где RAG мог бы применяться.',
+  'RAG covered': 'Из RAG eligible запросов те, где в источниках есть чанки базы знаний.',
+  'RAG coverage': 'Доля RAG covered среди RAG eligible — показатель покрытия учебных тем материалами базы знаний.',
+  'Без ответа': 'Запросы, по которым система не смогла сформировать ответ.',
+  'Всего документов': 'Общее число документов в базе знаний.',
+  'Типов документов': 'Число различных document_type в базе знаний.',
+  'Курсов в сводке': 'Число курсов, к которым привязаны документы базы знаний.',
+  'Всего чанков': 'Общее число проиндексированных фрагментов по всем курсам.',
+};
+
+const CHART_TOOLTIPS = {
+  'Популярные темы': 'Распределение запросов студентов по intent-классификации.',
+  'Покрытие по курсам': 'Сколько документов и чанков базы знаний привязано к каждому курсу.',
+  'Документы по типам': 'Распределение документов базы знаний по типам.',
+};
 
 function formatDateInput(d) {
   const tzOffset = d.getTimezoneOffset() * 60000;
@@ -44,15 +67,32 @@ function formatDateInput(d) {
   return local.toISOString().split('T')[0];
 }
 
-function MetricCard({ label, value, variant = 'default', compact = false, suffix = '' }) {
+function Tooltip({ children, text, placement = 'top' }) {
+  const placementClasses =
+    placement === 'bottom'
+      ? 'left-1/2 top-full mt-2 -translate-x-1/2'
+      : 'left-1/2 bottom-full mb-2 -translate-x-1/2';
+  return (
+    <div className="group relative inline-flex items-center gap-1">
+      {children}
+      <span
+        className={`pointer-events-none absolute z-50 hidden max-w-xs whitespace-normal rounded-ai border border-ai-border bg-ai-surface p-2 text-xs text-ai-text shadow-lg ${placementClasses} group-hover:block`}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, variant = 'default', compact = false, suffix = '', tooltip = '' }) {
   const valueClass =
     variant === 'error'
       ? 'text-ai-error'
       : variant === 'success'
       ? 'text-ai-success'
       : 'text-ai-text';
-  return (
-    <div className={`ai-card flex w-full flex-col justify-between ${compact ? 'p-3' : 'p-5'}`}>
+  const card = (
+    <div className={`ai-card flex w-full cursor-help flex-col justify-between ${compact ? 'p-3' : 'p-5'}`}>
       <p className={`text-ai-text-muted ${compact ? 'text-[0.65rem] uppercase tracking-wide' : 'text-xs'}`}>
         {label}
       </p>
@@ -60,6 +100,37 @@ function MetricCard({ label, value, variant = 'default', compact = false, suffix
         {value}
         {suffix && <span className="ml-1 text-sm font-normal text-ai-text-muted">{suffix}</span>}
       </p>
+    </div>
+  );
+  const tip = tooltip || KPI_TOOLTIPS[label] || '';
+  if (!tip) return card;
+  return <Tooltip text={tip}>{card}</Tooltip>;
+}
+
+function ChartCard({ title, children, className = '' }) {
+  return (
+    <div className={`ai-card p-3 ${className}`.trim()}>
+      <div className="mb-1 flex items-center gap-1">
+        <h3 className="font-display text-sm font-semibold text-ai-text">{title}</h3>
+        {CHART_TOOLTIPS[title] && (
+          <Tooltip text={CHART_TOOLTIPS[title]} placement="top">
+            <svg
+              className="h-3.5 w-3.5 cursor-help text-ai-text-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </Tooltip>
+        )}
+      </div>
+      {children}
     </div>
   );
 }
@@ -330,10 +401,10 @@ function Reports() {
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
           <MetricCard label="Всего запросов" value={quality.total_requests} />
-          <MetricCard label="Отвеченно" value={`${quality.answered_rate}%`} variant={quality.answered_rate >= 90 ? 'success' : 'default'} />
+          <MetricCard label="Отвечено" value={`${quality.answered_rate}%`} variant={quality.answered_rate >= 90 ? 'success' : 'default'} />
           <MetricCard label="Ошибки" value={`${quality.error_rate}%`} variant={quality.error_rate > 5 ? 'error' : 'default'} />
-          <MetricCard label="Fallback" value={`${quality.fallback_rate}%`} variant={quality.fallback_rate > 5 ? 'error' : 'default'} />
-          <MetricCard label="Cache hit" value={`${quality.cache_hit_rate}%`} variant={quality.cache_hit_rate > 30 ? 'success' : 'default'} />
+          <MetricCard label="Fallback бэкенда" value={`${quality.fallback_rate}%`} variant={quality.fallback_rate > 5 ? 'error' : 'default'} />
+          <MetricCard label="Кэш" value={`${quality.cache_hit_rate}%`} variant={quality.cache_hit_rate > 30 ? 'success' : 'default'} />
           <MetricCard
             label="Средняя оценка"
             value={quality.average_feedback_score ?? '—'}
@@ -346,10 +417,9 @@ function Reports() {
           <MetricCard compact label="RAG coverage" value={`${quality.rag_coverage_rate ?? 0}%`} suffix="" />
           <MetricCard compact label="Без ответа" value={quality.total_requests - quality.answered_count} />
         </div>
-        <div className="ai-card p-3">
-          <h3 className="mb-2 font-display text-sm font-semibold text-ai-text">Последние вопросы без ответа</h3>
+        <ChartCard title="Последние вопросы без ответа" className="flex flex-col">
           <RequestList items={unanswered.items.slice(0, 10)} emptyText="Нет данных." />
-        </div>
+        </ChartCard>
       </div>
     );
   };
@@ -367,19 +437,18 @@ function Reports() {
   const renderKbGaps = () => (
     <div className="ai-card flex flex-col p-3">
       <h3 className="mb-2 font-display text-sm font-semibold text-ai-text">
-        Гэпы Knowledge Base <span className="text-xs font-normal text-ai-text-muted">({kbGaps.total})</span>
+        Гэпы базы знаний <span className="text-xs font-normal text-ai-text-muted">({kbGaps.total})</span>
       </h3>
       <p className="mb-2 text-xs text-ai-text-muted">
-        Вопросы по учебным темам (study/mixed), где AI не смогла привести источник из KB.
+        Вопросы по учебным темам (учёба / смешанный), где AI не смогла привести источник из базы знаний.
       </p>
-      <RequestList items={kbGaps.items} emptyText="Гэпов KB не найдено." />
+      <RequestList items={kbGaps.items} emptyText="Гэпов базы знаний не найдено." />
       <Paginator total={kbGaps.total} limit={50} offset={offset} onChange={setOffset} />
     </div>
   );
 
   const renderPopularTopics = () => (
-    <div className="ai-card p-3">
-      <h3 className="mb-2 font-display text-sm font-semibold text-ai-text">Популярные темы</h3>
+    <ChartCard title="Популярные темы">
       {popularTopics.length > 0 ? (
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
@@ -395,7 +464,7 @@ function Reports() {
       ) : (
         <p className="text-sm text-ai-text-muted">Нет данных.</p>
       )}
-    </div>
+    </ChartCard>
   );
 
   const renderKbCoverage = () => {
@@ -408,8 +477,7 @@ function Reports() {
           <MetricCard label="Курсов в сводке" value={kbCoverage.coverage_by_course.length} />
           <MetricCard label="Всего чанков" value={kbCoverage.coverage_by_course.reduce((s, c) => s + c.chunk_count, 0)} />
         </div>
-        <div className="ai-card overflow-x-auto p-3">
-          <h3 className="mb-2 font-display text-sm font-semibold text-ai-text">Покрытие по курсам</h3>
+        <ChartCard title="Покрытие по курсам" className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="text-ai-text-muted uppercase">
               <tr>
@@ -437,9 +505,8 @@ function Reports() {
               )}
             </tbody>
           </table>
-        </div>
-        <div className="ai-card overflow-x-auto p-3">
-          <h3 className="mb-2 font-display text-sm font-semibold text-ai-text">Документы по типам</h3>
+        </ChartCard>
+        <ChartCard title="Документы по типам" className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="text-ai-text-muted uppercase">
               <tr>
@@ -456,16 +523,16 @@ function Reports() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ChartCard>
       </div>
     );
   };
 
   const renderExpansion = () => (
     <div className="ai-card overflow-x-auto p-3">
-      <h3 className="mb-2 font-display text-sm font-semibold text-ai-text">Кандидаты на расширение KB</h3>
+      <h3 className="mb-2 font-display text-sm font-semibold text-ai-text">Кандидаты на расширение базы знаний</h3>
       <p className="mb-2 text-xs text-ai-text-muted">
-        Темы с наибольшим числом гэпов Knowledge Base — приоритет для добавления материалов.
+        Темы с наибольшим числом гэпов базы знаний — приоритет для добавления материалов.
       </p>
       <table className="w-full text-left text-xs">
         <thead className="text-ai-text-muted uppercase">
@@ -526,8 +593,8 @@ function Reports() {
     <div className="ai-config-page flex h-full flex-col">
       <div className="ai-page__header border-b border-ai-border">
         <div>
-          <h1 className="ai-page__title">Business Reports</h1>
-          <p className="ai-page__subtitle">Управленческая сводка по качеству и покрытию Knowledge Base</p>
+          <h1 className="ai-page__title">Бизнес-отчёты</h1>
+          <p className="ai-page__subtitle">Управленческая сводка по качеству ответов и покрытию базы знаний</p>
         </div>
         <button
           type="button"

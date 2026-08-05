@@ -345,7 +345,7 @@
 | ID | Сценарий | Блокирующая фича | Статус |
 |---|---|---|---|
 | PH2-01 | Просмотр Analytics Dashboard: total_requests, intent_distribution, latency | Sprint E1 | PASS — реализован и развёрнут |
-| PH2-02 | Просмотр и экспорт Business Report: quality, unanswered, KB gaps, popular topics, KB coverage, expansion candidates, CSV export | Sprint E2 | PASS — backend, frontend и тесты завершены; ручная UI-верификация рекомендуется |
+| PH2-02 | Просмотр и экспорт Business Report: quality, unanswered, KB gaps, popular topics, KB coverage, expansion candidates, CSV export | Sprint E2 | PASS — backend, frontend, тесты и production-деплой завершены; UI локализован и содержит tooltip'ы; ручная визуальная проверка в браузере рекомендуется |
 | PH2-03 | Read-only demo-вход в Admin Console без возможности изменений | Sprint A2/A3 | NOT RUN |
 | PH2-04 | Safe demo mode на Web UI: rate limit, квота сессии, капча | Sprint F | NOT RUN |
 | PH2-05 | Автоматизированный Playwright-прогон всех сценариев Phase 1 | Инфраструктура | NOT RUN |
