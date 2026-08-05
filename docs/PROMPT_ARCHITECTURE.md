@@ -1,19 +1,19 @@
-# PROMPT_ARCHITECTURE.md — AI Curator
+# 📝 PROMPT_ARCHITECTURE.md — AI Curator
 
 **Проект:** ai-curator  
-**Версия:** 1.0  
-**Дата:** 2026-07-30  
-**Статус:** Актуален для Дня 6
+**Версия:** 1.2  
+**Дата:** 2026-08-05  
+**Статус:** Актуален — as-built конфигурация промптов и валидации ответов
 
 ---
 
-## 1. Назначение
+## 🎯 1. Назначение
 
 Этот документ фиксирует структуру промптов, используемых LLM-оркестратором AI Curator. Промпт собирается в `src/services/prompt_builder.py` на основе активной AI-конфигурации (`AiConfig`) и контекста запроса.
 
 ---
 
-## 2. Состав промпта
+## 🧩 2. Состав промпта
 
 | Часть | Источник | Назначение |
 |-------|----------|------------|
@@ -29,7 +29,7 @@
 
 ---
 
-## 3. System Prompt
+## 🧠 3. System Prompt
 
 Активная AI-конфигурация хранит `system_prompt`. По умолчанию используется следующий:
 
@@ -54,7 +54,7 @@
 
 ---
 
-## 4. User Context
+## 👤 4. User Context
 
 ```text
 Контекст студента:
@@ -81,7 +81,7 @@
 
 ---
 
-## 5. LMS Data
+## 🏫 5. LMS Data
 
 ```text
 Данные из LMS:
@@ -93,7 +93,7 @@
 
 ---
 
-## 6. RAG Context
+## 📚 6. RAG Context
 
 ```text
 Релевантные фрагменты из Knowledge Base:
@@ -103,7 +103,7 @@
 
 ---
 
-## 7. Few-shot примеры
+## 🎓 7. Few-shot примеры
 
 ```text
 Вопрос: Когда дедлайн по заданию Claude Code Setup?
@@ -117,7 +117,7 @@
 
 ---
 
-## 8. Output Rules
+## 📜 8. Output Rules
 
 ```text
 Правила оформления ответа:
@@ -130,7 +130,7 @@
 
 ---
 
-## 9. Параметры LLM и Retrieval
+## ⚙️ 9. Параметры LLM и Retrieval
 
 Активная конфигурация определяет:
 
@@ -139,9 +139,12 @@
 | `model` | `gpt-4o-mini` | строка | Модель LLM |
 | `temperature` | `0.3` | 0.0–2.0 | Творческая вариативность |
 | `max_tokens` | `1024` | 1–4096 | Максимальная длина ответа |
-| `top_k_retrieval` | `5` | 1–20 | Количество фрагментов KB для RAG |
-| `rag_distance_threshold` | `1.35` | 0.0–10.0 | Порог cosine distance для отсечения нерелевантных чанков |
 | `max_history_messages` | `6` | 0–50 | Сколько сообщений истории включать в промпт |
+| `active_provider` | `openai` | `openai` / `gigachat` | Основной LLM-провайдер |
+| `fallback_provider` | `gigachat` | `openai` / `gigachat` | Резервный LLM-провайдер |
+| `openai_enabled` | `true` | bool | Включён ли OpenAI |
+| `gigachat_enabled` | `true` | bool | Включён ли GigaChat |
+| `provider_settings` | объект | — | Провайдер-специфичные `model`, `temperature`, `max_tokens` |
 | `beginner_instructions` | (default text) | строка | Инструкции для ответа начинающему |
 | `advanced_instructions` | (default text) | строка | Инструкции для углублённого ответа |
 | `few_shot_examples` | (default text) | строка | Few-shot примеры |
@@ -150,29 +153,33 @@
 
 ---
 
-## 10. Answer Validation
+## 🛡️ 10. Answer Validation
 
 После получения ответа от LLM выполняется проверка в `src/services/answer_validator.py`:
 
 - ответ не пустой;
 - нет запрещённых действий (выставление оценок, изменение дедлайнов);
+- детерминированный отказ на запросы об изменении учебного процесса (оценки, дедлайны);
 - наличие источников, если запрос требует фактов;
-- fallback-ответ при недостатке данных.
+- обнаружение и нормализация самодельных markdown-ссылок на KB (`[text](number)`);
+- fallback-ответ при недостатке данных или нарушении правил.
 
 ---
 
-## 11. Связанные документы
+## 📚 11. Связанные документы
 
-- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — место Prompt Builder в архитектуре Backend.
-- [⚙️ `docs/OPERATIONS.md`](OPERATIONS.md) — управление AI Configuration и Retrieval параметрами в Admin Console.
-- [🧭 `docs/ORCHESTRATOR_USER_GUIDE.md`](ORCHESTRATOR_USER_GUIDE.md) — настройка интентов и token-бюджетов.
-- [📋 `docs/SPEC.md`](SPEC.md) — требования к поведению AI и границы ответа.
+- [🏗️ ARCHITECTURE.md](ARCHITECTURE.md) — место Prompt Builder в архитектуре Backend.
+- [⚙️ OPERATIONS.md](OPERATIONS.md) — управление AI Configuration и Retrieval параметрами в Admin Console.
+- [🧭 ORCHESTRATOR_USER_GUIDE.md](ORCHESTRATOR_USER_GUIDE.md) — настройка интентов и token-бюджетов.
+- [📋 SPEC.md](SPEC.md) — требования к поведению AI и границы ответа.
+- [📍 PROJECT_STATE.md](PROJECT_STATE.md) — актуальный статус проекта.
 
 ---
 
-## 12. История изменений
+## 📜 12. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
 | 2026-07-30 | 1.0 | Создан документ: структура промпта, system prompt, few-shot, output rules, параметры LLM |
 | 2026-07-30 | 1.1 | Все части промпта, кроме форматирования LMS/RAG данных, параметризованы через `AiConfig` |
+| 2026-08-05 | 1.2 | Актуализация: убраны `top_k_retrieval`/`rag_distance_threshold` (переехали в Retrieval Tuning), добавлены LLM-провайдеры, расширен Answer Validation, применён emoji-контракт и единый стиль ссылок |
