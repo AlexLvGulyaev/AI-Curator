@@ -714,7 +714,7 @@ A → B → C → D → E → F
 - [x] E1 — Analytics Dashboard завершён.
 - [x] E2 — Business Reports: backend, frontend, тесты завершены; ручная E2E в процессе.
 - [x] F1–F4 — Web UI safe demo mode (API-лимитированный публичный демо-доступ).
-- [x] G1–G4 — экспорт логов (CSV) и retention policy (feedback урока PEcf09).
+- [x] G1–G4 — экспорт логов (CSV) и retention policy.
 
 ---
 
@@ -827,7 +827,7 @@ A → B → C → D → E → F
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
-| 2026-07-29 | 2.0 | Пересоздан IMPLEMENTATION_PLAN.md: Knowledge Base загружается через Admin Console, Web UI — отдельный публичный сервис на VPS, Backend как единый оркестратор. Согласовано куратором. |
+| 2026-07-29 | 2.0 | Пересоздан IMPLEMENTATION_PLAN.md: Knowledge Base загружается через Admin Console, Web UI — отдельный публичный сервис на VPS, Backend как единый оркестратор. |
 | 2026-07-29 | 1.0 | Первая версия IMPLEMENTATION_PLAN на 7 дней |
 | 2026-07-31 | 2.1 | Добавлен Sprint 6.1 «Configurable Orchestrator Routing» |
 | 2026-08-01 | 2.2 | Добавлен развёрнутый Sprint 5 «Admin Console — операционные панели и консоли наблюдаемости» |

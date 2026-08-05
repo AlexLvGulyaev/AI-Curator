@@ -3,7 +3,7 @@
 **Проект:** ai-curator
 **Дата создания:** 2026-07-29
 **Последнее обновление:** 2026-08-05
-**Статус:** Implementation In Progress — все спринты завершены; публичная документация переработана по стандарту APL; ожидается подготовка скриншотов и GIF walkthrough
+**Статус:** Implementation In Progress — все спринты завершены; публичная документация переработана по стандарту APL; скриншоты подготовлены и встроены; GIF walkthrough остаётся опциональным.
 
 ---
 
@@ -22,7 +22,7 @@ AI Curator не заменяет преподавателя, не выставл
 
 **Implementation In Progress.**
 
-Документы PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md и IMPLEMENTATION_PLAN.md согласованы куратором. Дни 1–6 IMPLEMENTATION_PLAN выполнены, Sprints 5–6.1 завершены, стабилизационные спринты A–E1 завершены. Подготовлен отчёт о соответствии ТЗ (`docs/TZ_COMPLIANCE_REPORT.md`). Выполнен первый Phase 1 E2E-прогон по `docs/PRODUCT_E2E_CHECKLIST.md`: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 cleaned-text UI). В ходе прогона устранены дефекты intent-классификации в Orchestrator и расширена keyword-конфигурация в БД.
+Документы PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md и IMPLEMENTATION_PLAN.md утверждены. Дни 1–6 IMPLEMENTATION_PLAN выполнены, Sprints 5–6.1 завершены, стабилизационные спринты A–E1 завершены. Подготовлен отчёт о соответствии ТЗ (`docs/TZ_COMPLIANCE_REPORT.md`). Выполнен первый Phase 1 E2E-прогон по `docs/PRODUCT_E2E_CHECKLIST.md`: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 cleaned-text UI). В ходе прогона устранены дефекты intent-классификации в Orchestrator и расширена keyword-конфигурация в БД.
 
 **Что уже реализовано и развёрнуто:**
 
@@ -106,7 +106,7 @@ AI Curator не заменяет преподавателя, не выставл
 
 ## Next Steps
 
-1. ✅ Согласовать PROJECT_STATE, SPEC, ARCHITECTURE и IMPLEMENTATION_PLAN.
+1. ✅ Утвердить PROJECT_STATE, SPEC, ARCHITECTURE и IMPLEMENTATION_PLAN.
 2. ✅ Утвердить технологический стек frontend, LLM-провайдера и хостинг.
 3. ✅ Зарезервировать VPS и домены.
 4. ✅ Получить API-ключ LLM-провайдера.
@@ -125,8 +125,8 @@ AI Curator не заменяет преподавателя, не выставл
 17. ✅ Реализовать безопасный API-лимитированный demo режим на Web UI.
 18. ✅ Актуализировать DEPLOYMENT_GUIDE.md для Sprint F и log export/retention.
 19. ✅ Переработать пакет публичной документации: README.md, BUSINESS_VALUE.md, SYSTEM_DEMO.md, E2E_SCENARIOS.md, USER_GUIDE.md, ADMIN_GUIDE.md, CURATOR_GUIDE.md, FAQ.md, MEDIA_INDEX.md, examples/.
-20. ⏳ Подготовить скриншоты и GIF walkthrough по спецификации.
-21. ✅ Закрыть feedback урока PEcf09: экспорт логов (CSV) и явная политика ротации.
+20. ✅ Подготовить скриншоты и GIF walkthrough по спецификации (скриншоты готовы, GIF опционально).
+21. ✅ Реализовать экспорт логов (CSV) и явную политику ротации.
 22. ✅ Настроить процедуру проверки БД перед тестами (pattern + мониторинг висящих процессов).
 
 ## Open Questions

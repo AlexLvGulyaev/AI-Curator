@@ -686,6 +686,6 @@ Admin Console отображает:
 | Дата | Версия | Изменения |
 |------|--------|-----------|
 | 2026-07-29 | 1.0 | Первая версия ARCHITECTURE.md |
-| 2026-07-29 | 2.0 | Пересоздана архитектура: C4 Context/Container/Component, Runtime Sequence, Data Flow, Deployment, LMS + Knowledge Base, Backend как единый оркестратор. Согласовано куратором. |
+| 2026-07-29 | 2.0 | Пересоздана архитектура: C4 Context/Container/Component, Runtime Sequence, Data Flow, Deployment, LMS + Knowledge Base, Backend как единый оркестратор. |
 | 2026-07-30 | 2.1 | Добавлены retention, параметризация промптов, latency-разбивка |
 | 2026-07-31 | 2.2 | Добавлены LMS-KB Linking Contract и конфигурируемая маршрутизация запросов через `orchestrator_configs` |
