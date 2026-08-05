@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.5
+**Версия:** 1.6
 **Дата:** 2026-08-05
-**Статус:** Актуален: chat, admin KB/AI/orchestrator, analytics, reports, audit, logs, demo mode, CSV export
+**Статус:** Актуален: chat, admin KB/AI/retrieval/orchestrator, analytics, monitoring, reports, audit, logs, demo mode, CSV export, LLM providers
 
 ---
 
@@ -686,6 +686,7 @@
 | `course_id` | int | Фильтр по курсу (опционально) |
 | `module_id` | int | Фильтр по модулю (опционально) |
 | `topic_id` | int | Фильтр по теме (опционально) |
+| `difficulty` | string | Уровень сложности: `beginner`, `intermediate`, `advanced` (опционально) |
 | `k` | int | Количество результатов, по умолчанию 5, макс. 20 |
 
 **Ответ 200 OK:**
@@ -786,6 +787,12 @@
 - `cache_hit: true` означает, что ответ был возвращён из кэша без вызова LMS/RAG/LLM.
 - Кэш инвалидируется при изменении KB, AI-config, retrieval tuning и orchestrator config.
 
+**Возможные ошибки:**
+
+- `403 Forbidden` — отсутствует или недействительный `X-Demo-Token` при включённом demo-режиме (`DEMO_ENABLED=true`).
+- `429 Too Many Requests` — превышен min-интервал между запросами в демо-сессии.
+- `500 Internal Server Error` — внутренняя ошибка обработки запроса (детали в `error`).
+
 ---
 
 ### 3.26. `POST /api/v1/chat/{log_id}/feedback`
@@ -842,6 +849,7 @@
 
 - `403 Forbidden` — demo-режим не включён (`DEMO_ENABLED=false`).
 - `429 Too Many Requests` — превышен лимит сессий с одного IP-адреса.
+- `400 Bad Request` — `session_id` превышает 255 символов.
 
 ---
 
@@ -896,16 +904,59 @@
 | `model` | string | — | Модель LLM, по умолчанию `gpt-4o-mini` |
 | `temperature` | float | — | 0.0–2.0, по умолчанию 0.3 |
 | `max_tokens` | int | — | 1–4096, по умолчанию 1024 |
-| `top_k_retrieval` | int | — | 1–20, по умолчанию 5 |
-| `rag_distance_threshold` | float | — | 0.0–10.0, по умолчанию 1.35 |
 | `beginner_instructions` | string | — | Инструкции для уровня beginner |
 | `advanced_instructions` | string | — | Инструкции для уровня advanced |
 | `few_shot_examples` | string | — | Few-shot примеры |
 | `output_rules` | string | — | Правила оформления ответа |
 | `refusal_answer_text` | string | — | Текст стандартного отказа |
 | `max_history_messages` | int | — | 0–50, по умолчанию 6 |
+| `active_provider` | string | — | Основной LLM-провайдер: `openai` или `gigachat`, по умолчанию `openai` |
+| `fallback_provider` | string | — | Резервный LLM-провайдер: `openai` или `gigachat`, по умолчанию `gigachat` |
+| `openai_enabled` | bool | — | Включён ли OpenAI, по умолчанию `true` |
+| `gigachat_enabled` | bool | — | Включён ли GigaChat, по умолчанию `true` |
+| `provider_settings` | object | — | Провайдер-специфичные настройки (`model`, `temperature`, `max_tokens` для `openai` / `gigachat`) |
 
-### 4.2. Analytics
+### 4.2. Retrieval Tuning
+
+Настройки RAG-ретривала и кэширования ответов. Изменения инвалидируют `response_cache`.
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| `GET` | `/api/v1/admin/retrieval/tuning` | Текущие настройки retrieval |
+| `PUT` | `/api/v1/admin/retrieval/tuning` | Обновить настройки retrieval |
+| `GET` | `/api/v1/admin/retrieval/backends` | Список доступных retrieval-бэкендов |
+| `POST` | `/api/v1/admin/retrieval/reindex` | Массовая переиндексация всех опубликованных документов |
+
+**Поля конфигурации (`PUT /api/v1/admin/retrieval/tuning`):**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `top_k` | int | 1–20, количество извлекаемых чанков |
+| `rag_distance_threshold` | float | 0.0–10.0, порог косинусного расстояния для RAG |
+| `chunk_size` | int | 128–8192, размер чанка в токенах |
+| `chunk_overlap` | int | 0–4096, перекрытие чанков; должно быть меньше `chunk_size` |
+| `cache_enabled` | bool | Включено ли кэширование ответов |
+| `cache_ttl_seconds` | int | 30–86400, TTL кэша в секундах |
+| `retrieval_timeout_ms` | int | 500–60000, таймаут ретривала |
+| `embedding_timeout_ms` | int | 1000–300000, таймаут генерации embeddings |
+| `course_boost_enabled` | bool | Включен ли буст результатов по `course_id` |
+| `course_boost_factor` | float | 0.0–1.0, коэффициент буста по курсу |
+
+**Ответ `GET /api/v1/admin/retrieval/backends`:**
+
+```json
+[
+  {"key": "chroma", "display_name": "Chroma", "type": "vector_store", "status": "ready"}
+]
+```
+
+**Ответ `POST /api/v1/admin/retrieval/reindex`:**
+
+```json
+{"status": "ok", "message": "Reindex started"}
+```
+
+### 4.3. Analytics
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
@@ -913,13 +964,17 @@
 | `GET` | `/api/v1/admin/analytics/topics` | Распределение по темам |
 | `GET` | `/api/v1/admin/analytics/unanswered` | Вопросы без ответа |
 | `GET` | `/api/v1/admin/analytics/feedback` | Распределение оценок |
+| `GET` | `/api/v1/admin/analytics/latency` | Гистограмма и перцентили latency |
+| `GET` | `/api/v1/admin/analytics/sources` | Распределение по источникам ответов |
+| `GET` | `/api/v1/admin/analytics/errors` | Сводка и список ошибок |
 | `GET` | `/api/v1/admin/analytics/events` | Сырые аналитические события |
+| `GET` | `/api/v1/admin/analytics/export` | CSV-экспорт аналитики |
 
-### 4.3. Monitoring
+### 4.4. Monitoring
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
-| `GET` | `/api/v1/admin/monitoring/status` | Состояние компонентов с задержками, AI-активностью, KB-статусом и последними ошибками |
+| `GET` | `/api/v1/admin/monitoring/status` | Состояние всех компонентов (`overall`, `components`, `ai_activity`, `kb_status`, `llm_providers`, `recent_errors`) |
 | `GET` | `/api/v1/admin/monitoring/health` | Агрегированный health check |
 | `GET` | `/api/v1/admin/monitoring/errors` | Последние ошибки и предупреждения обработки запросов |
 
@@ -947,7 +1002,7 @@
 2. `execution_sessions.status IN ('error', 'warning')` — статус всего pipeline.
 3. `execution_steps.status IN ('error', 'warning')` — ошибки отдельных стадий (`lms_fetch`, `rag_search` и др.), включая частичные сбои, которые были замаскированы fallback-ответом.
 
-### 4.4. Operational Logs
+### 4.5. Operational Logs
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
@@ -964,6 +1019,7 @@
 | `course_id` | int | Фильтр по курсу |
 | `intent` | string | Фильтр по intent |
 | `status` | string | `ok`, `error`, `pending` |
+| `source_type` | string | Источник ответа: `lms`, `rag`, `both`, `cache`, `fallback`, `error` |
 | `has_error` | bool | Только записи с ошибкой |
 | `date_from` | string | ISO date YYYY-MM-DD |
 | `date_to` | string | ISO date YYYY-MM-DD |
@@ -1014,7 +1070,7 @@
 | `llm_calls` | array | Метаданные вызовов LLM + trace preview |
 | `analytics_events` | array | Связанные analytics events |
 
-### 4.5. Dialog Sessions
+### 4.6. Dialog Sessions
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
@@ -1125,7 +1181,7 @@
 | `finished_at` | string \| null | ISO timestamp |
 | `step_metadata` | object | JSON-метаданные шага |
 
-### 4.6. Audit
+### 4.7. Audit
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
@@ -1178,7 +1234,7 @@
 | `created_at` | string | ISO timestamp |
 | `updated_at` | string \| null | ISO timestamp |
 
-### 4.7. Reports (Business Reports / Quality Reports)
+### 4.8. Reports (Business Reports / Quality Reports)
 
 Управленческая сводка для анализа качества ответов и покрытия Knowledge Base. Все endpoints read-only и не пишут в `audit_logs`.
 
@@ -1301,7 +1357,31 @@
 - Возвращает `text/csv; charset=utf-8` с BOM (`utf-8-sig`) для корректного открытия в Excel.
 - Колонки: `report_section`, `request_id`, `session_id`, `created_at`, `role`, `course_id`, `intent`, `difficulty`, `message`, `answer_preview`, `feedback_score`, `latency_ms`, `cache_hit`, `error`.
 
-### 4.8. Авторизация
+### 4.9. LLM Providers
+
+Проверка доступности и тестирование сконфигурированных LLM-провайдеров.
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| `POST` | `/api/v1/admin/llm-providers/{provider_key}/test` | Отправить тестовый запрос к провайдеру (`openai` или `gigachat`) |
+
+**Ответ `POST /api/v1/admin/llm-providers/{provider_key}/test`:**
+
+```json
+{
+  "ok": true,
+  "message": "Провайдер доступен",
+  "model": "gpt-4o-mini",
+  "latency_ms": 420.5
+}
+```
+
+**Возможные ошибки:**
+
+- `400 Bad Request` — неизвестный `provider_key`.
+- `403 Forbidden` — демо-пользователь не имеет доступа к мутациям.
+
+### 4.10. Авторизация
 
 Административные endpoints защищены Bearer-токеном. Используются два токена:
 
@@ -1320,7 +1400,7 @@
 }
 ```
 
-### 4.9. Orchestrator Configuration
+### 4.11. Orchestrator Configuration
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
@@ -1645,3 +1725,4 @@
 | 2026-08-01 | 1.3 | Добавлены operational logs, dialog sessions, execution tracing, расширенный audit |
 | 2026-08-02 | 1.4 | Добавлен Response Cache; аудит ограничен изменяющими действиями и chat_request |
 | 2026-08-05 | 1.5 | Добавлены business reports, demo mode Web UI, feedback endpoint, CSV export logs |
+| 2026-08-05 | 1.6 | Актуализация: добавлены Retrieval Tuning, LLM Providers, дополнены AI Config, Analytics, Operational Logs, Monitoring, RAG search; уточнены demo-ошибки чата |
