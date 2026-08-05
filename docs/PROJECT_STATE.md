@@ -47,6 +47,7 @@ AI Curator не заменяет преподавателя, не выставл
 5. **Phase 2 E2E:** дополнить чек-лист сценариями Analytics, Business Reports, read-only demo admin / RBAC и safe Web UI demo mode по мере реализации фич.
 6. **Актуализация DEPLOYMENT_GUIDE.md и README.md:** DEPLOYMENT_GUIDE.md обновлён для Sprint F (DEMO_* переменные, verification curl). README.md остаётся для финальной портфельной полировки.
 7. ✅ **Инфраструктурная безопасность:** зафиксирован инцидент с `TRUNCATE` deadlock; добавлен engineering pattern `shared/patterns/pytest-transactional-fixture-deadlock.md`; процедура проверки висящих backend-процессов перед прогоном pytest.
+8. **Roadmap UI Knowledge Base:** публикация / снятие с публикации документов KB, удаление / архивирование документов KB, отображение Git-метаданных версий (`git_commit_hash`, `git_blob_hash`, `git_author`) в паспорте документа. Функции реализованы в Admin API, но не вынесены в UI Admin Console текущей версии.
 
 ## Market Validation
 
