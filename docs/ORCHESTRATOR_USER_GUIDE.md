@@ -24,6 +24,10 @@ Orchestrator определяет, как AI Curator обрабатывает в
 2. Войдите с Bearer-токеном (`ADMIN_CONSOLE_TOKEN`).
 3. В Sidebar выберите раздел **Оркестратор**.
 
+![Панель Orchestrator: классификация интентов, маршрутизация источников, лимиты и fallback](screenshots/AIC_admin_orchestrator.png)
+
+*Панель Orchestrator в Admin Console. На скриншоте показаны примеры keywords, source routing и fallback-сообщений. Актуальные дефолтные числовые значения token budgets приведены в разделе 3.3.*
+
 ---
 
 ## 🧩 3. Секции консоли
