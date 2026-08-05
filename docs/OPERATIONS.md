@@ -1,9 +1,9 @@
 # OPERATIONS.md — AI Curator
 
 **Проект:** ai-curator  
-**Версия:** 2.4  
-**Дата:** 2026-08-02  
-**Статус:** Актуален для Sprint 5.6 Dialog Sessions (structural redesign) + Sprint 5.8 Audit + Sprint C Response Cache
+**Версия:** 2.5  
+**Дата:** 2026-08-05  
+**Статус:** Актуален для Sprint 5.6 Dialog Sessions + Sprint 5.8 Audit + Sprint C Response Cache + log export
 
 ---
 
@@ -518,7 +518,31 @@ asyncio.run(main())
 
 ## 9. Retention и архивы
 
-Старые логи автоматически архивируются и удаляются из PostgreSQL фоновым процессом Backend.
+### 9.1. Политика хранения
+
+AI Curator разделяет эксплуатационные данные на две категории с разными сроками хранения:
+
+| Категория | Таблицы | Срок хранения | Переменная |
+|-----------|---------|---------------|------------|
+| **Hot logs** | `chat_requests`, `chat_logs`, `analytics_events`, `audit_logs`, `llm_calls` | 30 дней | `HOT_RETENTION_DAYS` |
+| **LLM traces** | `llm_call_traces` (полные prompt/response) | 7 дней | `TRACE_RETENTION_DAYS` |
+
+По достижении срока записи архивируются в `ARCHIVE_DIR` как gzip-сжатые JSON Lines и удаляются из PostgreSQL.
+
+### 9.2. Архивы
+
+Файлы архивов именуются по шаблону:
+
+```text
+{table_name}_{cutoff_iso_timestamp}.jsonl.gz
+```
+
+Примеры:
+
+```text
+chat_requests_2026-07-06T00:00:00+00:00.jsonl.gz
+llm_call_traces_2026-07-29T00:00:00+00:00.jsonl.gz
+```
 
 Проверить последний cleanup:
 
@@ -541,6 +565,32 @@ async def main():
 asyncio.run(main())
 "
 ```
+
+### 9.3. Расписание cleanup
+
+Cleanup запускается фоновой задачей `main.py::_retention_cleanup_loop()`:
+
+- Интервал: раз в 24 часа.
+- При ошибке: повторная попытка через 1 час.
+- Задача не должна падать основное приложение.
+- Сам cleanup фиксируется в `audit_logs` как `action=retention_cleanup`, `resource_type=system`.
+
+### 9.4. Экспорт логов
+
+Помимо автоматической ротации, администратор может выгрузить логи в CSV из Admin Console:
+
+| Раздел | Endpoint | Описание |
+|--------|----------|----------|
+| Логи | `POST /api/v1/admin/operational-logs/export` | Запросы студентов, intent, latency, source_type |
+| Журнал аудита | `POST /api/v1/admin/audit/export` | Административные действия и chat-запросы |
+| Диалоги | `POST /api/v1/admin/dialog-sessions/export` | Сводка по диалоговым сессиям |
+
+Особенности:
+
+- Export endpoints **read-only**, они не изменяют данные и не пишут в audit log.
+- Export доступен как с полным admin-токеном, так и с **demo-токеном** Admin Console. Это осознанное решение: демо-пользователь может просматривать и выгружать логи, но не может выполнять мутации.
+- CSV-файл генерируется на лету и скачивается в браузере; на сервере не сохраняется.
+- Лимит записей в одном файле: до 10 000 для operational logs / audit, до 10 000 для dialog sessions.
 
 ## 10. Тестирование
 
@@ -586,6 +636,7 @@ or set PYTEST_ALLOW_PROD_DB=true to intentionally use the production database fo
 | 2026-08-01 | 2.1 | `GET /api/v1/admin/audit` возвращает `{items, total, limit, offset}`; `POST /api/v1/chat` фиксирует `client_ip` и `user_agent` в `ExecutionSession`; в консоли Dialog Sessions отображается visitor IP и source |
 | 2026-08-01 | 2.2 | `POST /api/v1/chat` создаёт audit-запись `chat_request` с `session_id`, ролью студента и `ip_address`; в Журнале аудита можно отфильтровать запросы студентов по `action=chat_request` |
 | 2026-08-02 | 2.4 | Добавлен раздел 3.5 «Response Cache»: ключ кэша, инвалидация, наблюдаемость; добавлены переменные `CACHE_FILE_PATH` и `CACHE_TTL_SECONDS` |
+| 2026-08-05 | 2.5 | Расширен раздел 9 «Retention и архивы»: явная политика hot logs 30 дней / traces 7 дней, расписание cleanup, архивы JSONL.GZ; добавлен раздел 9.4 «Экспорт логов» с CSV export endpoints и правилом доступа в demo-режиме |
 | 2026-08-02 | 2.3 | Убран аудит read-only действий; раздел 7 Аудит описывает новую политику: только изменяющие действия и `chat_request` |
 | 2026-07-30 | 1.0 | Создан документ |
  | 2026-07-30 | 1.1 | Добавлены расширенные параметры AI Config, retention и архивирование логов |

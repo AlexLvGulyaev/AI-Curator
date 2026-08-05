@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getAuditEntry, getAuditLog } from '../api/backend';
+import { exportAuditLog, getAuditEntry, getAuditLog } from '../api/backend';
 import SessionJsonSnapshot from './SessionJsonSnapshot';
 import { formatDetailsJson } from '../utils/operationalConsoleUi';
 import { formatTimestampMsk, shortId } from '../utils/operationalLabels';
@@ -106,6 +106,7 @@ export default function AuditLog() {
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const listRef = useRef(null);
   const pendingListFocusRef = useRef(false);
@@ -289,6 +290,32 @@ export default function AuditLog() {
     if (first) setSelectedId(first);
   };
 
+  async function handleExport() {
+    if (exporting) return;
+    setExporting(true);
+    setError(null);
+    try {
+      const blob = await exportAuditLog({
+        date_from: dateFrom || undefined,
+        action: actionFilter.trim() || undefined,
+        resource_type: resourceTypeFilter.trim() || undefined,
+        user_id: userFilter.trim() || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ai_curator_audit_${windowLabel}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const pageEntries = entries;
 
   function renderList() {
@@ -390,14 +417,24 @@ export default function AuditLog() {
           <h1 className="ai-page__title">Журнал аудита</h1>
           <p className="ai-page__subtitle">Административные действия и изменения</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setRefreshNonce((n) => n + 1)}
-          className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm"
-          disabled={loading}
-        >
-          {loading ? '…' : 'Обновить'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting || loading}
+            className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm disabled:opacity-60"
+          >
+            {exporting ? 'Экспорт…' : 'Экспорт CSV'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setRefreshNonce((n) => n + 1)}
+            className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm"
+            disabled={loading}
+          >
+            {loading ? '…' : 'Обновить'}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">

@@ -1,9 +1,12 @@
 """Admin endpoint for audit log."""
 
+import csv
+import io
 from datetime import datetime, time
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,7 +73,9 @@ async def list_audit(
             start = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=None)
             base_stmt = base_stmt.where(AuditLog.created_at >= start)
         except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid date_from: {date_from}")
+            raise HTTPException(
+                status_code=400, detail=f"Invalid date_from: {date_from}"
+            )
     if date_to:
         try:
             end = datetime.combine(datetime.strptime(date_to, "%Y-%m-%d"), time.max)
@@ -133,3 +138,69 @@ async def get_audit_entry(
         "created_at": entry.created_at.isoformat() if entry.created_at else None,
         "updated_at": entry.updated_at.isoformat() if entry.updated_at else None,
     }
+
+
+@router.post("/export")
+async def export_audit(
+    request: Request,
+    action: Optional[str] = None,
+    resource_type: Optional[str] = None,
+    user_id_param: Optional[str] = Query(None, alias="user_id"),
+    date_from: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
+    limit: int = Query(10000, ge=1, le=50000),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export audit log entries as CSV matching the current list filters."""
+    result = await list_audit(
+        request=request,
+        action=action,
+        resource_type=resource_type,
+        user_id_param=user_id_param,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+        offset=0,
+        db=db,
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "id",
+            "created_at",
+            "user_id",
+            "user_name",
+            "user_role",
+            "action",
+            "resource_type",
+            "resource_id",
+            "ip_address",
+            "details",
+        ]
+    )
+
+    for item in result["items"]:
+        writer.writerow(
+            [
+                item["id"],
+                item["created_at"] or "",
+                item["user_id"] or "",
+                item["user_name"] or "",
+                item["user_role"] or "",
+                item["action"],
+                item["resource_type"],
+                item["resource_id"] or "",
+                item["ip_address"] or "",
+                str(item["details"]).replace("\n", " ")[:1000],
+            ]
+        )
+
+    output.seek(0)
+    filename = f"ai_curator_audit_{date_from or 'all'}_{date_to or 'all'}.csv"
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

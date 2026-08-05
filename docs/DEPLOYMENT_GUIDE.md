@@ -54,6 +54,11 @@ ARCHIVE_DIR=/app/storage/archives
 HOT_RETENTION_DAYS=30
 TRACE_RETENTION_DAYS=7
 
+# Hot logs (chat_requests, chat_logs, analytics_events, audit_logs, llm_calls)
+# are archived after HOT_RETENTION_DAYS and removed from PostgreSQL.
+# Full LLM prompt/response traces (llm_call_traces) are archived after TRACE_RETENTION_DAYS.
+# Cleanup runs once per day; archives are gzip-compressed JSON Lines in ARCHIVE_DIR.
+
 # KB Content Git repository
 KB_CONTENT_GIT_ENABLED=true
 KB_CONTENT_REPO_PATH=/app/kb-content
@@ -105,6 +110,28 @@ curl -s https://curator-api.alex-n8n.site/health
 ```
 
 Expected result: `{"status":"ok","service":"ai-curator-backend"}`.
+
+### Verify log export and retention
+
+Trigger an operational logs export:
+
+```bash
+curl -s -X POST "https://curator-api.alex-n8n.site/api/v1/admin/operational-logs/export?date_from=2026-08-01" \
+  -H "Authorization: Bearer $ADMIN_CONSOLE_TOKEN" \
+  -o /tmp/ai_curator_operational_logs.csv
+
+head /tmp/ai_curator_operational_logs.csv
+```
+
+Expected result: a CSV file with headers `id,session_id,role,course_id,...`.
+
+Check the retention archive directory:
+
+```bash
+docker exec ai-curator-backend ls -la /app/storage/archives/
+```
+
+Expected result: directory exists; after the first cleanup (within 24 hours of startup), gzip archives appear for tables older than retention.
 
 ### Verify safe demo mode (when `DEMO_ENABLED=true`)
 

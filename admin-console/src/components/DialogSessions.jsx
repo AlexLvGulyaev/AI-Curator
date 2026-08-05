@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getDialogSession, getDialogSessions } from '../api/backend';
+import { exportDialogSessions, getDialogSession, getDialogSessions } from '../api/backend';
 import OperationalModalityBadge from './OperationalModalityBadge';
 import OperationalPipelineStageIcon from './OperationalPipelineStageIcon';
 import SessionJsonSnapshot from './SessionJsonSnapshot';
@@ -362,6 +362,7 @@ export default function DialogSessions() {
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const listRef = useRef(null);
   const pendingListFocusRef = useRef(false);
@@ -537,6 +538,33 @@ export default function DialogSessions() {
     if (first) setSelectedId(first);
   }
 
+  async function handleExport() {
+    if (exporting) return;
+    setExporting(true);
+    setError(null);
+    try {
+      const params = {};
+      if (hours != null) params.hours = hours;
+      if (modeFilter !== 'all') params.mode = modeFilter;
+      if (activeFilter === 'active') params.active_only = true;
+      if (activeFilter === 'inactive') params.active_only = false;
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+      const blob = await exportDialogSessions(params);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ai_curator_dialog_sessions_${windowLabel}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function renderList() {
     if (loading && list.items.length === 0) {
       return (
@@ -639,14 +667,24 @@ export default function DialogSessions() {
           <h1 className="ai-page__title">Диалоги</h1>
           <p className="ai-page__subtitle">Операционная консоль диалоговых сессий</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setRefreshNonce((n) => n + 1)}
-          className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm"
-          disabled={loading}
-        >
-          {loading ? '…' : 'Обновить'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting || loading}
+            className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm disabled:opacity-60"
+          >
+            {exporting ? 'Экспорт…' : 'Экспорт CSV'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setRefreshNonce((n) => n + 1)}
+            className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm"
+            disabled={loading}
+          >
+            {loading ? '…' : 'Обновить'}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">

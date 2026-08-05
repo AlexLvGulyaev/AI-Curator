@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.18  
+**Версия:** 1.19  
 **Дата:** 2026-08-05  
-**Статус:** Актуален для Sprint F safe demo mode Web UI
+**Статус:** Актуален для Sprint F safe demo mode Web UI + log export
 
 ---
 
@@ -937,8 +937,9 @@
 |-------|----------|----------|
 | `GET` | `/api/v1/admin/operational-logs` | Список operational log entries (запросы студентов) |
 | `GET` | `/api/v1/admin/operational-logs/{id}` | Деталь operational log entry |
+| `POST` | `/api/v1/admin/operational-logs/export` | CSV-экспорт operational logs по текущим фильтрам |
 
-**Параметры фильтрации `GET /api/v1/admin/operational-logs`:**
+**Параметры фильтрации `GET /api/v1/admin/operational-logs` и `POST /api/v1/admin/operational-logs/export`:**
 
 | Параметр | Тип | Описание |
 |----------|-----|----------|
@@ -1003,8 +1004,9 @@
 |-------|----------|----------|
 | `GET` | `/api/v1/admin/dialog-sessions` | Список канонических диалоговых сессий из `chat_sessions` |
 | `GET` | `/api/v1/admin/dialog-sessions/{session_id}` | Деталь сессии: turns, execution timeline, budget, JSON snapshot |
+| `POST` | `/api/v1/admin/dialog-sessions/export` | CSV-экспорт списка диалоговых сессий |
 
-**Параметры фильтрации `GET /api/v1/admin/dialog-sessions`:**
+**Параметры фильтрации `GET /api/v1/admin/dialog-sessions` и `POST /api/v1/admin/dialog-sessions/export`:**
 
 | Параметр | Тип | Описание |
 |----------|-----|----------|
@@ -1113,6 +1115,9 @@
 |-------|----------|----------|
 | `GET` | `/api/v1/admin/audit` | Журнал аудита с фильтрами |
 | `GET` | `/api/v1/admin/audit/{id}` | Деталь audit-записи |
+| `POST` | `/api/v1/admin/audit/export` | CSV-экспорт журнала аудита по текущим фильтрам |
+
+**Примечание:** export endpoints являются read-only и доступны как с полным admin-токеном, так и с demo-токеном Admin Console. Это осознанное решение: демо-пользователь может просматривать и выгружать логи, но не может выполнять mutating-операции.
 
 В аудит записываются только **изменяющие административные действия** и публичные `chat_request`. Read-only просмотры (`GET /api/v1/admin/audit`, `GET /api/v1/admin/dialog-sessions`, `GET /api/v1/admin/operational-logs`, `GET /api/v1/admin/monitoring/*`, `GET /api/v1/admin/analytics/*`, `GET /api/v1/admin/kb/documents/*/detail`, `GET /api/v1/admin/kb/documents/*/versions/*/text`, `GET /api/v1/admin/kb/documents/*/versions/*/chunks`) намеренно **не аудитируются**, чтобы журнал не порождал сам себя.
 
@@ -1626,3 +1631,4 @@
 | 2026-08-05 | 1.16 | Добавлен раздел 4.7 «Reports (Business Reports / Quality Reports)» с endpoints `/api/v1/admin/reports/*`, параметрами фильтрации, примерами ответов и CSV-экспортом |
 | 2026-08-05 | 1.17 | Добавлено поле `log_id` в ответ `POST /api/v1/chat`; добавлен endpoint `POST /api/v1/chat/{log_id}/feedback` для сбора оценок студентов; обновлены модели `ChatResponse` и `ChatFeedbackPayload` |
 | 2026-08-05 | 1.18 | Sprint F: добавлены endpoints `POST /api/v1/demo/start` и `GET /api/v1/demo/status`; `POST /api/v1/chat` требует `X-Demo-Token` в production; в `ChatResponse` добавлено `demo_mode` |
+| 2026-08-05 | 1.19 | Добавлены CSV export endpoints: `POST /api/v1/admin/operational-logs/export`, `POST /api/v1/admin/audit/export`, `POST /api/v1/admin/dialog-sessions/export`; экспорт доступен в demo-режиме Admin Console |

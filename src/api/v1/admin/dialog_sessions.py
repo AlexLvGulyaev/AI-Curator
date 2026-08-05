@@ -5,10 +5,13 @@ execution_steps schema introduced in Sprint 5.6. Legacy chat_requests are
 linked via chat_session_id and session_id.
 """
 
+import csv
+import io
 from datetime import datetime, time, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -42,9 +45,13 @@ def _status_from_execution_session(exec_session: Optional[ExecutionSession]) -> 
 
 @router.get("")
 async def list_dialog_sessions(
-    hours: Optional[int] = Query(None, ge=1, le=720, description="Filter sessions updated within last N hours"),
+    hours: Optional[int] = Query(
+        None, ge=1, le=720, description="Filter sessions updated within last N hours"
+    ),
     mode: Optional[str] = Query(None, description="Source mode: text, lms, rag, mixed"),
-    active_only: Optional[bool] = Query(None, description="Filter only active sessions"),
+    active_only: Optional[bool] = Query(
+        None, description="Filter only active sessions"
+    ),
     search: Optional[str] = Query(None, description="Search by session_id or role"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
@@ -66,7 +73,12 @@ async def list_dialog_sessions(
     )
 
     stmt = (
-        select(ChatSession, req_agg.c.message_count, req_agg.c.first_message_at, req_agg.c.last_message_at)
+        select(
+            ChatSession,
+            req_agg.c.message_count,
+            req_agg.c.first_message_at,
+            req_agg.c.last_message_at,
+        )
         .outerjoin(req_agg, req_agg.c.chat_session_id == ChatSession.id)
         .order_by(ChatSession.updated_at.desc())
     )
@@ -106,8 +118,9 @@ async def list_dialog_sessions(
             .subquery()
         )
         exec_result = await db.execute(
-            select(ExecutionSession.chat_session_id, ExecutionSession.status)
-            .join(last_exec, ExecutionSession.id == last_exec.c.last_id)
+            select(ExecutionSession.chat_session_id, ExecutionSession.status).join(
+                last_exec, ExecutionSession.id == last_exec.c.last_id
+            )
         )
         for sid, status in exec_result.all():
             last_exec_status[sid] = status
@@ -120,8 +133,12 @@ async def list_dialog_sessions(
                 "id": session.id,
                 "session_id": session.session_id,
                 "message_count": message_count or 0,
-                "first_message_at": first_message_at.isoformat() if first_message_at else None,
-                "last_message_at": last_message_at.isoformat() if last_message_at else None,
+                "first_message_at": (
+                    first_message_at.isoformat() if first_message_at else None
+                ),
+                "last_message_at": (
+                    last_message_at.isoformat() if last_message_at else None
+                ),
                 "role": session.role,
                 "course_id": session.course_id,
                 "difficulty": session.difficulty,
@@ -170,12 +187,9 @@ async def get_dialog_session(
     )
     requests = req_result.unique().scalars().all()
 
-    count_stmt = (
-        select(func.count())
-        .where(
-            (ChatRequest.chat_session_id == session.id)
-            | (ChatRequest.session_id == session_id)
-        )
+    count_stmt = select(func.count()).where(
+        (ChatRequest.chat_session_id == session.id)
+        | (ChatRequest.session_id == session_id)
     )
     total_messages = await db.scalar(count_stmt) or 0
 
@@ -236,8 +250,12 @@ async def get_dialog_session(
                         "step_order": step.step_order,
                         "status": step.status,
                         "duration_ms": step.duration_ms,
-                        "started_at": step.started_at.isoformat() if step.started_at else None,
-                        "finished_at": step.finished_at.isoformat() if step.finished_at else None,
+                        "started_at": (
+                            step.started_at.isoformat() if step.started_at else None
+                        ),
+                        "finished_at": (
+                            step.finished_at.isoformat() if step.finished_at else None
+                        ),
                         "step_metadata": step.step_metadata,
                     }
                     for step in es.steps
@@ -263,8 +281,12 @@ async def get_dialog_session(
         "mode": session.mode,
         "is_active": session.is_active,
         "message_count": total_messages,
-        "first_message_at": session.created_at.isoformat() if session.created_at else None,
-        "last_message_at": session.updated_at.isoformat() if session.updated_at else None,
+        "first_message_at": (
+            session.created_at.isoformat() if session.created_at else None
+        ),
+        "last_message_at": (
+            session.updated_at.isoformat() if session.updated_at else None
+        ),
         "turns": turns,
         "execution_sessions": execution_sessions_payload,
         "budget": budget,
@@ -272,3 +294,73 @@ async def get_dialog_session(
         "limit": limit,
         "offset": offset,
     }
+
+
+@router.post("/export")
+async def export_dialog_sessions(
+    hours: Optional[int] = Query(
+        None, ge=1, le=720, description="Filter sessions updated within last N hours"
+    ),
+    mode: Optional[str] = Query(None, description="Source mode: text, lms, rag, mixed"),
+    active_only: Optional[bool] = Query(
+        None, description="Filter only active sessions"
+    ),
+    search: Optional[str] = Query(None, description="Search by session_id or role"),
+    limit: int = Query(10000, ge=1, le=50000),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export dialog session summaries as CSV."""
+    result = await list_dialog_sessions(
+        hours=hours,
+        mode=mode,
+        active_only=active_only,
+        search=search,
+        limit=limit,
+        offset=0,
+        db=db,
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "id",
+            "session_id",
+            "role",
+            "course_id",
+            "difficulty",
+            "mode",
+            "is_active",
+            "message_count",
+            "first_message_at",
+            "last_message_at",
+            "status",
+        ]
+    )
+
+    for item in result["items"]:
+        writer.writerow(
+            [
+                item["id"],
+                item["session_id"] or "",
+                item["role"] or "",
+                item["course_id"] if item["course_id"] is not None else "",
+                item["difficulty"] or "",
+                item["mode"] or "",
+                "yes" if item["is_active"] else "no",
+                item["message_count"],
+                item["first_message_at"] or "",
+                item["last_message_at"] or "",
+                item["status"],
+            ]
+        )
+
+    output.seek(0)
+    filename = (
+        f"ai_curator_dialog_sessions_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+    )
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

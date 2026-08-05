@@ -402,6 +402,30 @@ export async function getOperationalLog(id) {
   return apiRequest(`/api/v1/admin/operational-logs/${id}`);
 }
 
+export async function exportOperationalLogs(params = {}) {
+  const qs = buildQueryString(params, [
+    'session_id',
+    'role',
+    'course_id',
+    'intent',
+    'status',
+    'source_type',
+    'date_from',
+    'date_to',
+  ]);
+  const url = `${API_BASE_URL}/api/v1/admin/operational-logs/export?${qs}`;
+  const token = getToken();
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Ошибка ${response.status}: ${text}`);
+  }
+  return response.blob();
+}
+
 // Dialog Sessions
 export async function getDialogSessions(params = {}) {
   const qs = new URLSearchParams();
@@ -416,6 +440,21 @@ export async function getDialogSessions(params = {}) {
 
 export async function getDialogSession(sessionId) {
   return apiRequest(`/api/v1/admin/dialog-sessions/${encodeURIComponent(sessionId)}`);
+}
+
+export async function exportDialogSessions(params = {}) {
+  const qs = buildQueryString(params, ['hours', 'mode', 'active_only', 'search']);
+  const url = `${API_BASE_URL}/api/v1/admin/dialog-sessions/export?${qs}`;
+  const token = getToken();
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Ошибка ${response.status}: ${text}`);
+  }
+  return response.blob();
 }
 
 // Audit
@@ -433,4 +472,25 @@ export async function getAuditLog(params = {}) {
 
 export async function getAuditEntry(id) {
   return apiRequest(`/api/v1/admin/audit/${id}`);
+}
+
+export async function exportAuditLog(params = {}) {
+  const qs = buildQueryString(params, [
+    'action',
+    'resource_type',
+    'user_id',
+    'date_from',
+    'date_to',
+  ]);
+  const url = `${API_BASE_URL}/api/v1/admin/audit/export?${qs}`;
+  const token = getToken();
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Ошибка ${response.status}: ${text}`);
+  }
+  return response.blob();
 }

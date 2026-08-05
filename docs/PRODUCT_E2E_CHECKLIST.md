@@ -349,6 +349,7 @@
 | PH2-03 | Read-only demo-вход в Admin Console без возможности изменений | Sprint A2/A3 | PASS — backend: `ADMIN_CONSOLE_DEMO_TOKEN`, `AdminIdentity` с ролью `demo`, `require_admin` dependency на всех mutation endpoints; frontend: кнопка демо-входа, бейдж «только просмотр», disabled кнопки мутаций; тесты `tests/test_admin_auth.py`; ручная UI-верификация рекомендуется |
 | PH2-04 | Safe demo mode на Web UI: `X-Demo-Token`, квота 20 запросов / 30 мин, rate limit, UI-индикация лимитов и таймер | Sprint F | PASS — backend/frontend/tests завершены; ручная UI-верификация рекомендуется |
 | PH2-05 | Автоматизированный Playwright-прогон всех сценариев Phase 1 | Инфраструктура | NOT RUN |
+| PH2-06 | Экспорт логов: operational logs, audit, dialog sessions в CSV из Admin Console; доступен в demo-режиме | Sprint G | PASS — backend/frontend завершены; production smoke tests OK; ручная UI-верификация рекомендуется |
 
 ---
 
@@ -396,3 +397,4 @@
 | 2026-08-04 | 1.1 | Результаты первого прогона Phase 1: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 UI). Добавлена сводка и найденные дефекты. |
 | 2026-08-05 | 1.2 | Sprint E2 Business Reports завершён: backend, frontend, тесты. PH2-02 отмечен PASS на уровне backend/тестов; ручная UI-верификация рекомендуется. |
 | 2026-08-05 | 1.3 | Sprint F safe demo mode Web UI завершён: `X-Demo-Token`, квоты, rate limit, UI-индикация. PH2-04 PASS; ручная UI-верификация рекомендуется. |
+| 2026-08-05 | 1.4 | Sprint G log export + retention policy завершён: CSV export operational logs / audit / dialog sessions, кнопки в Admin Console, retention policy. PH2-06 PASS; feedback Антона Хапинского (PEcf09) закрыт. |

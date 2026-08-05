@@ -681,7 +681,16 @@ Backend и frontend завершены и задеплоены (2026-08-01). Д�
 | F3 | UI-индикация demo-режима | `web-ui/src/contexts/DemoContext.jsx`, `DemoBadge.jsx`, `RoleSelector.jsx`, `Chat.jsx` | Кнопка "Начать демо", бейдж с оставшимися запросами и таймером, обработка 429 | ✅ |
 | F4 | Кэширование + защита от повторов | `src/services/cache/response_cache.py` | Для demo-запросов повышен TTL кэша до 7 дней | ✅ |
 
-### 10.8. Критический путь
+### 10.8. Спринт G — Экспорт логов и retention policy
+
+| # | Задача | Артефакты | Критерий готовности | Статус |
+|---|--------|-----------|---------------------|--------|
+| G1 | CSV export operational logs | `src/api/v1/admin/operational_logs.py`, `admin-console/src/components/OperationalLogs.jsx` | `POST /api/v1/admin/operational-logs/export` возвращает CSV с фильтрами | ✅ |
+| G2 | CSV export audit log | `src/api/v1/admin/audit.py`, `admin-console/src/components/AuditLog.jsx` | `POST /api/v1/admin/audit/export` возвращает CSV с фильтрами | ✅ |
+| G3 | CSV export dialog sessions | `src/api/v1/admin/dialog_sessions.py`, `admin-console/src/components/DialogSessions.jsx` | `POST /api/v1/admin/dialog-sessions/export` возвращает CSV | ✅ |
+| G4 | Retention policy и документация | `docs/OPERATIONS.md`, `docs/DEPLOYMENT_GUIDE.md`, `docs/API_CONTRACT.md` | Hot logs 30 дней / traces 7 дней, cleanup раз в сутки, архивы JSONL.GZ, export доступен в demo-режиме | ✅ |
+
+### 10.9. Критический путь
 
 ```
 A → B → C → D → E → F
@@ -706,6 +715,7 @@ A → B → C → D → E → F
 - [x] E1 — Analytics Dashboard завершён.
 - [x] E2 — Business Reports: backend, frontend, тесты завершены; ручная E2E в процессе.
 - [x] F1–F4 — Web UI safe demo mode (API-лимитированный публичный демо-доступ).
+- [x] G1–G4 — экспорт логов (CSV) и retention policy (PEcf09 feedback).
 
 ---
 
@@ -832,3 +842,4 @@ A → B → C → D → E → F
 | 2026-08-04 | 2.6 | Актуализированы статусы: Sprint 5.8 frontend UI унифицировано (Operational Logs, Dialog Sessions, Audit Log); добавлен Спринт F «Безопасный demo-режим Web UI» с rate limiting, квотами, demo-флагом и UI-индикацией; обновлены PROJECT_STATE.md, Next Steps, критический путь A→B→C→D→E→F |
 | 2026-08-05 | 2.7 | Sprint A2/A3 «Read-only demo admin + RBAC» выполнен: backend auth с `ADMIN_CONSOLE_DEMO_TOKEN` и `require_admin`, UI disabled кнопки мутаций, бейдж demo-режима, тесты `tests/test_admin_auth.py`; `pytest` 97 passed; PH2-03 PASS; Admin Console redeployed |
 | 2026-08-05 | 2.8 | Sprint F «Safe demo mode Web UI» выполнен: `X-Demo-Token`, `DemoLimiterService`, `/api/v1/demo/*`, `demo_mode` флаг, Web UI DemoBadge + DemoContext, тесты `tests/test_demo_mode.py`; `pytest` 109 passed; PH2-04 PASS |
+| 2026-08-05 | 2.9 | Sprint G «Log export + retention policy» выполнен: CSV export operational logs / audit / dialog sessions, кнопки в Admin Console, явная retention policy, закрыт feedback Антона Хапинского (PEcf09); `pytest` 109 passed; production smoke tests OK |

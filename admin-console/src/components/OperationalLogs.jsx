@@ -1,5 +1,10 @@
+
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getOperationalLog, getOperationalLogs } from '../api/backend';
+import {
+  exportOperationalLogs,
+  getOperationalLog,
+  getOperationalLogs,
+} from '../api/backend';
 import {
   formatDetailsJson,
   statusBadgeClass,
@@ -266,6 +271,7 @@ export default function OperationalLogs() {
   const [sourceFilter, setSourceFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
+  const [exporting, setExporting] = useState(false);
 
   const listRef = useRef(null);
   const pendingListFocusRef = useRef(false);
@@ -424,6 +430,33 @@ export default function OperationalLogs() {
     setSourceFilter('all');
     setSearch('');
     setPage(0);
+  }
+
+  async function handleExport() {
+    if (exporting) return;
+    setExporting(true);
+    setError(null);
+    try {
+      const blob = await exportOperationalLogs({
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        intent: intentFilter === 'all' ? undefined : intentFilter,
+        source_type: sourceFilter === 'all' ? undefined : sourceFilter,
+        session_id: search.trim() || undefined,
+        date_from: isoDate(windowDays),
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ai_curator_operational_logs_${windowDays ? `${windowDays}d` : 'all'}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setExporting(false);
+    }
   }
 
   function renderList() {
@@ -684,13 +717,23 @@ export default function OperationalLogs() {
           <h1 className="ai-page__title">Логи</h1>
           <p className="ai-page__subtitle">Операционная консоль запросов и исполнений</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setRefreshNonce((n) => n + 1)}
-          className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm"
-        >
-          Обновить
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm disabled:opacity-60"
+          >
+            {exporting ? 'Экспорт…' : 'Экспорт CSV'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setRefreshNonce((n) => n + 1)}
+            className="ai-btn-outline rounded-ai px-3 py-1.5 text-sm"
+          >
+            Обновить
+          </button>
+        </div>
       </div>
 
       <RagChunksModal

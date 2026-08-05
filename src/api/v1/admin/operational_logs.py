@@ -1,15 +1,26 @@
 """Admin endpoints for operational logs (chat execution records)."""
 
+import csv
+import io
 from datetime import datetime, time
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from db import get_db
-from models.chat import AnalyticsEvent, ChatLog, ChatRequest, ExecutionSession, ExecutionStep, LlmCall, LlmCallTrace
+from models.chat import (
+    AnalyticsEvent,
+    ChatLog,
+    ChatRequest,
+    ExecutionSession,
+    ExecutionStep,
+    LlmCall,
+    LlmCallTrace,
+)
 
 
 def _sources_have_rag(sources):
@@ -23,7 +34,10 @@ def _sources_have_rag(sources):
             continue
         if item.get("document_id") is not None or item.get("chunk_index") is not None:
             return True
-        if item.get("metadata", {}).get("document_id") is not None or item.get("metadata", {}).get("chunk_index") is not None:
+        if (
+            item.get("metadata", {}).get("document_id") is not None
+            or item.get("metadata", {}).get("chunk_index") is not None
+        ):
             return True
         if "distance" in item and "metadata" in item:
             return True
@@ -44,6 +58,7 @@ def _classify_source(lms_calls, sources, cache_hit, error):
     if error:
         return "error"
     return "fallback"
+
 
 router = APIRouter(prefix="/operational-logs", tags=["admin-operational-logs"])
 
@@ -83,7 +98,9 @@ async def list_operational_logs(
     course_id: Optional[int] = None,
     intent: Optional[str] = None,
     status: Optional[str] = None,
-    source_type: Optional[str] = Query(None, description="lms, rag, both, cache, model"),
+    source_type: Optional[str] = Query(
+        None, description="lms, rag, both, cache, model"
+    ),
     has_error: Optional[bool] = None,
     date_from: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
     date_to: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
@@ -121,16 +138,29 @@ async def list_operational_logs(
         elif source_type == "fallback":
             stmt = stmt.where(
                 ((ChatLog.cache_hit == False) | (ChatLog.cache_hit == None))
-                & ((ChatLog.sources == None) | (func.json_array_length(ChatLog.sources) == 0))
-                & ((ChatRequest.lms_calls == None) | (func.json_array_length(ChatRequest.lms_calls) == 0))
+                & (
+                    (ChatLog.sources == None)
+                    | (func.json_array_length(ChatLog.sources) == 0)
+                )
+                & (
+                    (ChatRequest.lms_calls == None)
+                    | (func.json_array_length(ChatRequest.lms_calls) == 0)
+                )
                 & ((ChatLog.error == None) | (ChatLog.error == ""))
             )
         elif source_type == "error":
             stmt = stmt.where(
                 ((ChatLog.cache_hit == False) | (ChatLog.cache_hit == None))
-                & ((ChatLog.sources == None) | (func.json_array_length(ChatLog.sources) == 0))
-                & ((ChatRequest.lms_calls == None) | (func.json_array_length(ChatRequest.lms_calls) == 0))
-                & (ChatLog.error != None) & (ChatLog.error != "")
+                & (
+                    (ChatLog.sources == None)
+                    | (func.json_array_length(ChatLog.sources) == 0)
+                )
+                & (
+                    (ChatRequest.lms_calls == None)
+                    | (func.json_array_length(ChatRequest.lms_calls) == 0)
+                )
+                & (ChatLog.error != None)
+                & (ChatLog.error != "")
             )
         elif source_type == "lms":
             stmt = stmt.where(
@@ -143,7 +173,10 @@ async def list_operational_logs(
                 ((ChatLog.cache_hit == False) | (ChatLog.cache_hit == None))
                 & (ChatLog.sources != None)
                 & (func.json_array_length(ChatLog.sources) > 0)
-                & ((ChatRequest.lms_calls == None) | (func.json_array_length(ChatRequest.lms_calls) == 0))
+                & (
+                    (ChatRequest.lms_calls == None)
+                    | (func.json_array_length(ChatRequest.lms_calls) == 0)
+                )
             )
         elif source_type == "both":
             stmt = stmt.where(
@@ -162,7 +195,9 @@ async def list_operational_logs(
             start = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=None)
             stmt = stmt.where(ChatRequest.created_at >= start)
         except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid date_from: {date_from}")
+            raise HTTPException(
+                status_code=400, detail=f"Invalid date_from: {date_from}"
+            )
     if date_to:
         try:
             end = datetime.combine(datetime.strptime(date_to, "%Y-%m-%d"), time.max)
@@ -215,21 +250,29 @@ async def get_operational_log(
     )
     llm_calls = []
     for call, trace in llm_calls_result.all():
-        llm_calls.append({
-            "id": call.id,
-            "model": call.model,
-            "status": call.status,
-            "error": call.error,
-            "prompt_tokens": call.prompt_tokens,
-            "completion_tokens": call.completion_tokens,
-            "total_tokens": call.total_tokens,
-            "latency_ms": call.latency_ms,
-            "trace": {
-                "id": trace.id,
-                "prompt_preview": (trace.prompt or "")[:500] if trace else None,
-                "response_preview": (trace.response or "")[:500] if trace else None,
-            } if trace else None,
-        })
+        llm_calls.append(
+            {
+                "id": call.id,
+                "model": call.model,
+                "status": call.status,
+                "error": call.error,
+                "prompt_tokens": call.prompt_tokens,
+                "completion_tokens": call.completion_tokens,
+                "total_tokens": call.total_tokens,
+                "latency_ms": call.latency_ms,
+                "trace": (
+                    {
+                        "id": trace.id,
+                        "prompt_preview": (trace.prompt or "")[:500] if trace else None,
+                        "response_preview": (
+                            (trace.response or "")[:500] if trace else None
+                        ),
+                    }
+                    if trace
+                    else None
+                ),
+            }
+        )
 
     analytics_result = await db.execute(
         select(AnalyticsEvent)
@@ -263,8 +306,14 @@ async def get_operational_log(
             "status": exec_session.status,
             "route": exec_session.route,
             "duration_ms": exec_session.duration_ms,
-            "started_at": exec_session.started_at.isoformat() if exec_session.started_at else None,
-            "finished_at": exec_session.finished_at.isoformat() if exec_session.finished_at else None,
+            "started_at": (
+                exec_session.started_at.isoformat() if exec_session.started_at else None
+            ),
+            "finished_at": (
+                exec_session.finished_at.isoformat()
+                if exec_session.finished_at
+                else None
+            ),
             "execution_metadata": exec_session.execution_metadata,
             "steps": [
                 {
@@ -274,8 +323,12 @@ async def get_operational_log(
                     "status": step.status,
                     "duration_ms": step.duration_ms,
                     "step_metadata": step.step_metadata,
-                    "started_at": step.started_at.isoformat() if step.started_at else None,
-                    "finished_at": step.finished_at.isoformat() if step.finished_at else None,
+                    "started_at": (
+                        step.started_at.isoformat() if step.started_at else None
+                    ),
+                    "finished_at": (
+                        step.finished_at.isoformat() if step.finished_at else None
+                    ),
                 }
                 for step in exec_session.steps
             ],
@@ -305,3 +358,84 @@ async def get_operational_log(
         "analytics_events": analytics_events,
         "execution_session": execution_session,
     }
+
+
+@router.post("/export")
+async def export_operational_logs(
+    session_id: Optional[str] = None,
+    role: Optional[str] = None,
+    course_id: Optional[int] = None,
+    intent: Optional[str] = None,
+    status: Optional[str] = None,
+    source_type: Optional[str] = Query(
+        None, description="lms, rag, both, cache, fallback, error"
+    ),
+    date_from: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export operational logs as CSV matching the current list filters."""
+    result = await list_operational_logs(
+        session_id=session_id,
+        role=role,
+        course_id=course_id,
+        intent=intent,
+        status=status,
+        source_type=source_type,
+        date_from=date_from,
+        date_to=date_to,
+        limit=10000,
+        offset=0,
+        db=db,
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "id",
+            "session_id",
+            "role",
+            "course_id",
+            "difficulty",
+            "intent",
+            "message_preview",
+            "status",
+            "latency_ms",
+            "total_tokens",
+            "llm_model",
+            "cache_hit",
+            "source_type",
+            "created_at",
+        ]
+    )
+
+    for item in result["items"]:
+        writer.writerow(
+            [
+                item["id"],
+                item["session_id"] or "",
+                item["role"] or "",
+                item["course_id"] if item["course_id"] is not None else "",
+                item["difficulty"] or "",
+                item["intent"] or "",
+                (item["message_preview"] or "").replace("\n", " ")[:500],
+                item["status"],
+                round(item["latency_ms"]) if item["latency_ms"] is not None else "",
+                item["total_tokens"] if item["total_tokens"] is not None else "",
+                item["llm_model"] or "",
+                "yes" if item["cache_hit"] else "no",
+                source_type or "",
+                item["created_at"] or "",
+            ]
+        )
+
+    output.seek(0)
+    filename = (
+        f"ai_curator_operational_logs_{date_from or 'all'}_{date_to or 'all'}.csv"
+    )
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8-sig")),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
