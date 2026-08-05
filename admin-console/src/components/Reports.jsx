@@ -105,7 +105,7 @@ function MetricCard({ label, value, variant = 'default', compact = false, suffix
         {suffix && <span className="ml-1 text-sm font-normal text-ai-text-muted">{suffix}</span>}
       </p>
       {tip && (
-        <span className="pointer-events-none absolute left-1/2 bottom-full z-50 mb-2 hidden max-w-xs -translate-x-1/2 whitespace-normal rounded-ai border border-ai-border bg-ai-surface p-2 text-xs text-ai-text shadow-lg group-hover:block">
+        <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 hidden max-w-xs -translate-x-1/2 whitespace-normal rounded-ai border border-ai-border bg-ai-surface p-2 text-xs text-ai-text shadow-lg group-hover:block">
           {tip}
         </span>
       )}
@@ -120,7 +120,7 @@ function ChartCard({ title, children, className = '' }) {
       <div className="mb-1 flex items-center gap-1">
         <h3 className="font-display text-sm font-semibold text-ai-text">{title}</h3>
         {tip && (
-          <Tooltip text={tip} placement="top">
+          <Tooltip text={tip} placement="bottom">
             <svg
               className="h-3.5 w-3.5 cursor-help text-ai-text-muted"
               fill="none"
