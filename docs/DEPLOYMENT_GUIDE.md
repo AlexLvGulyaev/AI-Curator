@@ -2,291 +2,375 @@
 
 ## Назначение
 
-Этот документ — единый Source of Truth для воспроизведения полностью работоспособного экземпляра AI Curator. Следуйте инструкциям по порядку; если после выполнения система не работает, документ устарел.
+Единый Source of Truth для воспроизведения работоспособного экземпляра AI Curator в чистом окружении. Если после выполнения руководства система не работает, руководство устарело.
 
-## Требования
+Руководство рассчитано на технически подготовленного пользователя, знакомого с Docker, Linux и базовой работой DNS.
 
-- Сервер на Linux с установленными Docker Engine и плагином Docker Compose.
-- Публичные DNS-записи, направленные на сервер (для production с Traefik):
-  - `curator.alex-n8n.site` → Веб-интерфейс
-  - `curator-admin.alex-n8n.site` → Консоль администратора
-  - `curator-api.alex-n8n.site` → Backend API
-  - `lms.alex-n8n.site` → Moodle LMS
-- Обратный прокси Traefik в Docker-сети `n8n_default` (только для production). Для локального развёртывания сервисы используют внутренние порты.
+## Варианты развёртывания
 
-## Обязательные переменные окружения
+| Вариант | Когда использовать | Публичные домены | Требования |
+|---|---|---|---|
+| **Локальный запуск** | Первое знакомство, разработка, локальное тестирование | Не нужны | Docker + Docker Compose |
+| **Production на VPS** | Публичный demo, пилот, production | Нужны 4 домена | VPS, DNS, Traefik, SSL |
 
-Создайте `.env` в корне репозитория как минимум со следующими переменными:
+> **Важно:** все примеры доменов, токенов и паролей в этом документе — плейсхолдеры. Никогда не используйте значения из примеров в production.
+
+---
+
+## Общие требования
+
+- Linux, macOS или Windows с WSL2.
+- Установленные Docker Engine и Docker Compose plugin.
+- Клонированный репозиторий:
+
+```bash
+git clone https://github.com/AlexLvGulyaev/AI-Curator.git
+cd AI-Curator
+```
+
+---
+
+## Вариант 1. Локальный запуск
+
+Локальный запуск не требует публичных доменов, DNS и Traefik. Сервисы доступны по портам на `localhost`.
+
+### 1.1. Подготовка `.env`
+
+Создайте файл `.env` в корне репозитория:
 
 ```bash
 # Backend
-DATABASE_URL=postgresql+asyncpg://ai_curator:AICPG3hfpf2100@ai-curator-postgres:5432/ai_curator
+DATABASE_URL=postgresql+asyncpg://ai_curator:YOUR_DB_PASSWORD@ai-curator-postgres:5432/ai_curator
 OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_CHAT_MODEL=gpt-4o-mini-2024-07-18
 CHROMA_HOST=ai-curator-chroma
 CHROMA_PORT=8000
 
-# Интеграция с LMS
-LMS_BASE_URL=https://lms.alex-n8n.site
+# LMS integration
+LMS_BASE_URL=http://localhost:8080
 LMS_API_TOKEN=YOUR_MOODLE_WEBSERVICE_TOKEN
 
-# Аутентификация в Консоли администратора
-ADMIN_CONSOLE_URL=https://curator-admin.alex-n8n.site
+# Admin Console auth
+ADMIN_CONSOLE_URL=http://localhost:3001
 ADMIN_CONSOLE_TOKEN=YOUR_RANDOM_HEX_TOKEN_64_CHARS
-# Опционально: отдельный read-only demo-токен для Консоли администратора.
 ADMIN_CONSOLE_DEMO_TOKEN=YOUR_DEMO_READONLY_TOKEN_64_CHARS
 
-# Веб-интерфейс
-WEB_UI_URL=https://curator.alex-n8n.site
+# Web UI
+WEB_UI_URL=http://localhost:3000
 
-# Безопасный demo-режим веб-интерфейса (Sprint F)
-# В production установите DEMO_ENABLED=true, чтобы публичный чат требовал X-Demo-Token.
-DEMO_ENABLED=false
+# Demo mode
+DEMO_ENABLED=true
 DEMO_MAX_REQUESTS_PER_SESSION=20
 DEMO_SESSION_TTL_MINUTES=30
 DEMO_RATE_LIMIT_PER_MINUTE=12
 DEMO_MAX_SESSIONS_PER_IP_PER_HOUR=5
 DEMO_CACHE_TTL_SECONDS=604800
 
-# Ротация и архивирование логов
+# Log retention
 ARCHIVE_DIR=/app/storage/archives
 HOT_RETENTION_DAYS=30
 TRACE_RETENTION_DAYS=7
 
-# Горячие логи (chat_requests, chat_logs, analytics_events, audit_logs, llm_calls)
-# архивируются после HOT_RETENTION_DAYS и удаляются из PostgreSQL.
-# Полные трейсы LLM-вызовов (llm_call_traces) архивируются после TRACE_RETENTION_DAYS.
-# Очистка запускается раз в сутки; архивы — gzip-сжатые JSON Lines в ARCHIVE_DIR.
-
-# Git-репозиторий контента Базы знаний
+# KB Content Git
 KB_CONTENT_GIT_ENABLED=true
 KB_CONTENT_REPO_PATH=/app/kb-content
-# Оставьте пустым для локального режима или укажите SSH-URL для production-синхронизации:
 KB_CONTENT_REPO_URL=
 KB_CONTENT_SSH_KEY_PATH=
 KB_CONTENT_DEFAULT_BRANCH=main
 
-# Moodle (только если используется встроенный LMS-стек)
+# Moodle (embedded stack)
 MOODLE_DB_USER=moodle
 MOODLE_DB_PASSWORD=YOUR_MOODLE_DB_PASSWORD
 MOODLE_DB_NAME=moodle
 MOODLE_ADMIN_USER=admin
 MOODLE_ADMIN_PASSWORD=YOUR_MOODLE_ADMIN_PASSWORD
 MOODLE_ADMIN_EMAIL=admin@example.com
-MOODLE_SITE_NAME=AI Curator Demo LMS
+MOODLE_SITE_NAME="AI Curator Demo LMS"
 ```
 
-Никогда не коммитьте `.env` в репозиторий. Он уже добавлен в `.gitignore`.
+### 1.2. Создание `docker-compose.override.yml`
 
-## Сборка и запуск
+Для локального запуска создайте `docker-compose.override.yml` в корне репозитория:
 
-Из корня репозитория:
+```yaml
+services:
+  ai-curator-lms:
+    environment:
+      MOODLE_WWWROOT: http://localhost:8080
+    labels: []
+    ports:
+      - "8080:80"
+    networks:
+      - ai-curator-network
+
+  ai-curator-backend:
+    ports:
+      - "8000:8000"
+
+  ai-curator-web-ui:
+    ports:
+      - "3000:80"
+
+  ai-curator-admin-console:
+    ports:
+      - "3001:80"
+```
+
+Этот файл переопределяет production-метки Traefik и открывает порты локально.
+
+### 1.3. Запуск
 
 ```bash
 docker compose up --build -d
 ```
 
-Команда собирает образы backend, веб-интерфейса, консоли администратора и запускает:
-- PostgreSQL для backend (`ai-curator-postgres`)
-- Векторное хранилище Chroma (`ai-curator-chroma`)
-- Moodle LMS + его PostgreSQL (`ai-curator-lms`, `ai-curator-lms-db`)
-- Backend API (`ai-curator-backend`)
-- Веб-интерфейс (`ai-curator-web-ui`)
-- Консоль администратора (`ai-curator-admin-console`)
-
-## Проверка развёртывания
-
-Дождитесь, пока все контейнеры перейдут в статус `healthy`:
+### 1.4. Проверка локального развёртывания
 
 ```bash
+# Health backend
+curl -s http://localhost:8000/health
+# Expected: {"status":"ok","service":"ai-curator-backend"}
+
+# Moodle доступен на http://localhost:8080
+# Web UI на http://localhost:3000
+# Admin Console на http://localhost:3001
+```
+
+---
+
+## Вариант 2. Production на VPS
+
+### 2.1. Подготовка инфраструктуры
+
+1. Арендуйте VPS с Docker и Docker Compose.
+2. Зарегистрируйте 4 домена (или поддомена) и направьте A-записи на IP сервера:
+
+```text
+ai-curator.example.com      → Веб-интерфейс
+ai-curator-admin.example.com → Консоль администратора
+ai-curator-api.example.com    → Backend API
+lms.example.com               → Moodle LMS
+```
+
+3. Установите и настройте Traefik с Let's Encrypt. Пример минимальной конфигурации Traefik:
+
+```yaml
+# traefik/traefik.yml
+global:
+  sendAnonymousUsage: false
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  myresolver:
+    acme:
+      email: admin@example.com
+      storage: /letsencrypt/acme.json
+      tlsChallenge: {}
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: n8n_default
+```
+
+Создайте сеть `n8n_default`:
+
+```bash
+docker network create n8n_default
+```
+
+### 2.2. Подготовка `.env`
+
+Замените `example.com` на ваши реальные домены и заполните секреты:
+
+```bash
+# Backend
+DATABASE_URL=postgresql+asyncpg://ai_curator:YOUR_DB_PASSWORD@ai-curator-postgres:5432/ai_curator
+OPENAI_API_KEY=YOUR_OPENAI_API_KEY
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_CHAT_MODEL=gpt-4o-mini-2024-07-18
+CHROMA_HOST=ai-curator-chroma
+CHROMA_PORT=8000
+
+# LMS integration
+LMS_BASE_URL=https://lms.example.com
+LMS_API_TOKEN=YOUR_MOODLE_WEBSERVICE_TOKEN
+
+# Admin Console auth
+ADMIN_CONSOLE_URL=https://ai-curator-admin.example.com
+ADMIN_CONSOLE_TOKEN=YOUR_RANDOM_HEX_TOKEN_64_CHARS
+ADMIN_CONSOLE_DEMO_TOKEN=YOUR_DEMO_READONLY_TOKEN_64_CHARS
+
+# Web UI
+WEB_UI_URL=https://ai-curator.example.com
+
+# Demo mode
+DEMO_ENABLED=true
+DEMO_MAX_REQUESTS_PER_SESSION=20
+DEMO_SESSION_TTL_MINUTES=30
+DEMO_RATE_LIMIT_PER_MINUTE=12
+DEMO_MAX_SESSIONS_PER_IP_PER_HOUR=5
+DEMO_CACHE_TTL_SECONDS=604800
+
+# Log retention
+ARCHIVE_DIR=/app/storage/archives
+HOT_RETENTION_DAYS=30
+TRACE_RETENTION_DAYS=7
+
+# KB Content Git
+KB_CONTENT_GIT_ENABLED=true
+KB_CONTENT_REPO_PATH=/app/kb-content
+KB_CONTENT_REPO_URL=
+KB_CONTENT_SSH_KEY_PATH=
+KB_CONTENT_DEFAULT_BRANCH=main
+
+# Moodle
+MOODLE_DB_USER=moodle
+MOODLE_DB_PASSWORD=YOUR_MOODLE_DB_PASSWORD
+MOODLE_DB_NAME=moodle
+MOODLE_ADMIN_USER=admin
+MOODLE_ADMIN_PASSWORD=YOUR_MOODLE_ADMIN_PASSWORD
+MOODLE_ADMIN_EMAIL=admin@example.com
+MOODLE_SITE_NAME="AI Curator Demo LMS"
+```
+
+### 2.3. Замена доменов в `docker-compose.yml`
+
+В production нужно заменить домены в `docker-compose.yml` на ваши. Найдите все строки с `alex-n8n.site` и замените на ваш домен. Например:
+
+```yaml
+# было
+MOODLE_WWWROOT: https://lms.alex-n8n.site
+- "traefik.http.routers.ai-curator-lms.rule=Host(`lms.alex-n8n.site`)"
+
+# стало
+MOODLE_WWWROOT: https://lms.example.com
+- "traefik.http.routers.ai-curator-lms.rule=Host(`lms.example.com`)"
+```
+
+Аналогично замените домены для backend, web-ui и admin-console.
+
+### 2.4. Запуск
+
+```bash
+docker compose up --build -d
+```
+
+### 2.5. Проверка production-развёртывания
+
+```bash
+# Health backend
+curl -s https://ai-curator-api.example.com/health
+# Expected: {"status":"ok","service":"ai-curator-backend"}
+
+# Проверьте, что все сервисы Up и healthy
 docker compose ps
 ```
 
-Проверьте health backend:
+---
 
-```bash
-curl -s https://curator-api.alex-n8n.site/health
-```
+## Первоначальная настройка после развёртывания
 
-Ожидаемый результат: `{"status":"ok","service":"ai-curator-backend"}`.
+### Создание LMS API-токена
 
-### Проверка экспорта логов и ротации
-
-Запустите экспорт операционных логов:
-
-```bash
-curl -s -X POST "https://curator-api.alex-n8n.site/api/v1/admin/operational-logs/export?date_from=2026-08-01" \
-  -H "Authorization: Bearer $ADMIN_CONSOLE_TOKEN" \
-  -o /tmp/ai_curator_operational_logs.csv
-
-head /tmp/ai_curator_operational_logs.csv
-```
-
-Ожидаемый результат: CSV-файл с заголовками `id,session_id,role,course_id,...`.
-
-Проверьте директорию архивов:
-
-```bash
-docker exec ai-curator-backend ls -la /app/storage/archives/
-```
-
-Ожидаемый результат: директория существует; после первой очистки (в течение 24 часов после запуска) в ней появятся gzip-архивы для таблиц старше срока retention.
-
-### Проверка безопасного demo-режима (при `DEMO_ENABLED=true`)
-
-Создайте demo-сессию:
-
-```bash
-curl -s -X POST https://curator-api.alex-n8n.site/api/v1/demo/start \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-
-Ожидаемый результат: JSON-объект с полями `token`, `requests_limit`, `requests_remaining` и `expires_at`.
-
-Используйте токен для чата:
-
-```bash
-export DEMO_TOKEN=<token-from-above>
-curl -s -X POST https://curator-api.alex-n8n.site/api/v1/chat \
-  -H 'Content-Type: application/json' \
-  -H "X-Demo-Token: $DEMO_TOKEN" \
-  -d '{"message":"Какие дедлайны?","role":"active_student","difficulty":"beginner","course_id":3}'
-```
-
-Ожидаемый результат: `200 OK` и `demo_mode: true` в ответе.
-
-Проверьте оставшуюся квоту:
-
-```bash
-curl -s https://curator-api.alex-n8n.site/api/v1/demo/status \
-  -H "X-Demo-Token: $DEMO_TOKEN"
-```
-
-Ожидаемый результат: `requests_used` увеличен, `requests_remaining` уменьшен.
-
-## Первоначальная настройка
-
-### 1. Заполнение Moodle демо-данными (опционально, для E2E-тестирования)
-
-```bash
-docker exec ai-curator-backend python3 /app/scripts/seed-lms-demo-data.py
-```
-
-Команда создаёт три demo-роли студентов с разными профилями прогресса и пересоздаёт структуру курса «Промпт-инжиниринг».
-
-### 2. Создание LMS API-токена
-
-В Moodle:
-1. Site Administration → Server → Web services → Manage tokens.
-2. Создайте токен для пользователя, зачисленного или имеющего право управления во всех курсах, которые должен обслуживать чат.
-3. Поместите токен в `.env` как `LMS_API_TOKEN` и перезапустите backend.
-
-### 3. Индексация документов Базы знаний
-
-1. Откройте Консоль администратора: `https://curator-admin.alex-n8n.site`.
-2. Войдите, используя значение `ADMIN_CONSOLE_TOKEN`.
-3. Загрузите учебные материалы в разделе Базы знаний.
-4. Опубликуйте документы, чтобы они стали доступны для поиска.
-
-Без опубликованных документов Базы знаний учебные вопросы будут возвращать отказ из-за отсутствия контекста.
-
-### 4. Git-репозиторий контента Базы знаний (опционально, но рекомендуется)
-
-По умолчанию директория `kb-content/` монтируется в backend-контейнер по пути `/app/kb-content` и отслеживается как локальный Git-репозиторий. Backend фиксирует каждый загруженный или отредактированный исходный файл KB и сохраняет `git_commit_hash` / `git_blob_hash` в версии документа.
-
-#### Локальный режим (development / demo)
-
-При `KB_CONTENT_REPO_URL=` (пусто) backend инициализирует локальный репозиторий внутри контейнера и коммитит локально. Ничего не отправляется на удалённый сервер. Рабочая копия сохраняется на хосте Docker через bind mount, поэтому коммиты переживают пересоздание контейнера.
-
-Проверьте локальный репозиторий:
-
-```bash
-docker exec ai-curator-backend git -C /app/kb-content log --oneline -3
-```
-
-Ожидаемый результат: недавние коммиты от загрузки документов, например:
-
-```text
-a1b2c3d feat(kb): upload "CC01. Установка и первый запуск Claude Code"
-01f72e9 init(kb-content): course materials for Claude Code training
-```
-
-#### Production-режим с удалённым репозиторием
-
-1. Создайте выделенный репозиторий, например `git@github.com:your-org/ai-curator-kb-content.git`.
-2. Сгенерируйте SSH deploy key с правами **read/write** и сохраните приватный ключ на сервере, например `/opt/ai-curator-kb-content-deploy.key`.
-3. Укажите в `.env`:
-
-```bash
-KB_CONTENT_REPO_URL=git@github.com:your-org/ai-curator-kb-content.git
-KB_CONTENT_SSH_KEY_PATH=/app/secrets/kb-content-deploy.key
-KB_CONTENT_GIT_ENABLED=true
-```
-
-4. Смонтируйте deploy key в backend-контейнер, добавив в `docker-compose.yml` в раздел `ai-curator-backend.volumes`:
-
-```yaml
-- ./secrets/kb-content-deploy.key:/app/secrets/kb-content-deploy.key:ro
-```
-
-5. Убедитесь, что ключ не попал в репозиторий (добавьте `secrets/` в `.gitignore`).
-6. Перезапустите backend:
+1. Откройте Moodle по адресу `http://localhost:8080` (локально) или `https://lms.example.com` (production).
+2. Войдите как администратор.
+3. Перейдите: **Администрирование сайта → Сервер → Web services → Управление токенами**.
+4. Создайте токен для пользователя, зачисленного в курсы, которые должен обслуживать AI Curator.
+5. Запишите токен в `.env` как `LMS_API_TOKEN` и перезапустите backend:
 
 ```bash
 docker compose up -d ai-curator-backend
 ```
 
-7. Загрузите или отредактируйте документ в Консоли администратора. Backend выполнит clone/push в удалённый репозиторий и заполнит Git-метаданные версии.
+### Подготовка курса в Moodle
 
-#### Проверка удалённой синхронизации
+1. Создайте курс с модулями и заданиями.
+2. Установите дедлайны заданий.
+3. Зачислите студентов.
 
-```bash
-docker exec ai-curator-backend git -C /app/kb-content log --oneline --decorate -3
-```
+### Заполнение Базы знаний
 
-Если удалённый репозиторий настроен, на последнем коммите должна быть метка `(origin/main)`.
+1. Откройте Консоль администратора.
+2. Войдите с `ADMIN_CONSOLE_TOKEN`.
+3. Перейдите в **База знаний → Документы**.
+4. Загрузите учебные материалы (Markdown, TXT, PDF).
+5. Заполните метаданные: название, тип, course_id, module_id, topic_id, сложность, язык.
+6. Нажмите **Переиндексировать**.
+7. После успешной индексации опубликуйте документ.
 
-## Важные замечания по развёртыванию
+Без опубликованных документов Базы знаний учебные вопросы будут возвращать отказ.
 
-### Персистентность Chroma
+### Demo-режим
 
-Chroma 0.5.x хранит SQLite-базу в `/data` внутри контейнера. Docker Compose volume смонтирован именно туда. В production **не используйте** `latest` для Chroma — образ зафиксирован конкретным digest в `docker-compose.yml`.
+Для публичного demo-входа в веб-интерфейсе убедитесь, что `DEMO_ENABLED=true`. Пользователь получает квоту запросов, rate limit и таймер сессии.
 
-### Доступ к курсам в LMS
+---
 
-Если курс виден студентам, но сервисный токен не может прочитать его задания, backend автоматически переходит к парсингу дедлайнов из `core_course_get_contents`. Это прозрачно для пользователя.
+## Важные замечания
 
-### Traefik
+### Безопасность
 
-Production-маршрутизация зависит от внешней Docker-сети `n8n_default`. Убедитесь, что Traefik подключён к этой сети и DNS-записи разрешаются на сервер до выпуска сертификатов.
+- `.env` содержит секреты. Не коммитьте его.
+- `ADMIN_CONSOLE_TOKEN` и `ADMIN_CONSOLE_DEMO_TOKEN` должны быть длинными случайными строками.
+- Используйте read-only Moodle Web Service token.
+- Для production настройте firewall: откройте только 80, 443 и SSH.
 
-## Перезапуск после изменения кода
+### Chroma
 
-```bash
-docker compose build ai-curator-backend
-docker compose up -d ai-curator-backend
-```
+Chroma 0.5.x хранит SQLite-базу в `/data` внутри контейнера. Volume смонтирован именно туда. Не используйте `latest` для Chroma — образ зафиксирован в `docker-compose.yml`.
+
+### Персистентность данных
+
+Для production убедитесь, что volumes PostgreSQL, Chroma и `kb-content` сохраняются на хосте. По умолчанию Docker Compose создаёт named volumes.
+
+### Traefik и SSL
+
+Перед выпуском сертификатов убедитесь, что DNS-записи разрешаются на сервер. Let's Encrypt имеет rate limits.
+
+---
 
 ## Устранение неполадок
 
 | Симптом | Причина | Решение |
-|---------|---------|---------|
-| `ai-curator-chroma` unhealthy | Отсутствует утилита healthcheck или неверный mount | Образ и healthcheck зафиксированы в `docker-compose.yml`. Если видите `wget: not found`, обновите до последней закоммиченной версии. |
-| Учебные вопросы возвращают отказ после перезапуска | Volume Chroma смонтирован не в `/data`, данные потеряны при пересоздании контейнера | Убедитесь в монтировании `/data`. При необходимости повторно загрузите и проиндексируйте документы. |
-| Отсутствуют дедлайны курсов 4+ | У сервисного токена нет capability `mod_assign_get_assignments` | Используйте fallback-поведение или зачислите пользователя токена на курс. |
-| Консоль администратора возвращает 401 | Несовпадение `ADMIN_CONSOLE_TOKEN` | Проверьте `.env` и перезапустите backend. |
-| `/app/storage/archives` неограниченно растёт | Логи архивируются, но не удаляются с диска | Настройте logrotate или регулярную очистку на Docker-хосте. |
+|---|---|---|
+| `ai-curator-chroma` unhealthy | Отсутствует утилита healthcheck или неверный mount | Проверьте `docker-compose.yml`. Убедитесь, что используется закоммиченная версия. |
+| Backend не видит LMS | Неверный `LMS_API_TOKEN` или недостаточно прав | Пересоздайте токен в Moodle с правами чтения курсов, заданий, прогресса. |
+| 401 в Консоли администратора | Несовпадение `ADMIN_CONSOLE_TOKEN` | Проверьте `.env` и перезапустите backend. |
+| Учебные вопросы возвращают отказ | Документы не опубликованы / не проиндексированы | Проверьте статус документов в Консоли администратора. |
+| Директория архивов растёт | Архивы не удаляются с диска | Настройте `logrotate` или cron для очистки `/app/storage/archives` на хосте. |
+| SSL-сертификат не выпускается | DNS ещё не обновился или Traefik не видит сеть | Проверьте DNS, убедитесь, что Traefik в сети `n8n_default`. |
 
-## Чек-лист валидации
+---
 
-После свежего развёртывания проверьте:
+## Чек-лист Deployment Validation
 
+Развёртывание считается валидным, если в чистом окружении выполнены все пункты:
+
+- [ ] Репозиторий склонирован, `.env` создан с собственными секретами.
+- [ ] Для production: DNS-записи настроены, Traefik и сеть `n8n_default` созданы.
+- [ ] `docker compose up --build -d` завершается без ошибок.
 - [ ] `docker compose ps` показывает все сервисы `Up` и `healthy`.
 - [ ] Health endpoint backend возвращает `{"status":"ok"}`.
-- [ ] Запрос-отказ (`Выставь мне зачёт...`) возвращает `intent: refusal` и `latency_ms: 0`.
-- [ ] Вопрос про дедлайн возвращает корректную дату из LMS.
-- [ ] Учебный вопрос возвращает ответ на основе Базы знаний с источниками.
-- [ ] После загрузки документа `docker exec ai-curator-backend git -C /app/kb-content log --oneline -3` показывает новый коммит.
-- [ ] Версия загруженного документа в Консоли администратора отображает непустые `git_commit_hash` и `git_blob_hash`.
+- [ ] Moodle открывается по своему URL и доступен вход администратора.
+[ ] Создан Moodle Web Service token и записан в `.env`.
+- [ ] Backend перезапущен с новым `LMS_API_TOKEN`.
+- [ ] В Moodle создан курс с заданиями и дедлайнами.
+- [ ] В Консоль администратора выполнен вход с `ADMIN_CONSOLE_TOKEN`.
+- [ ] Загружен, проиндексирован и опубликован документ в Базе знаний.
+- [ ] Чат в веб-интерфейсе отвечает на организационный вопрос с дедлайном из LMS.
+- [ ] Чат отвечает на учебный вопрос с источниками из Базы знаний.
+- [ ] Запрос `POST /api/v1/demo/start` возвращает токен (при `DEMO_ENABLED=true`).
+- [ ] Demo-чат с заголовком `X-Demo-Token` возвращает `demo_mode: true`.
+- [ ] После загрузки KB-документа в `kb-content` появляется новый Git-коммит.
