@@ -1,12 +1,12 @@
-# AI Curator — Руководство по развёртыванию
+# 🚀 AI Curator — Руководство по развёртыванию
 
-## Назначение
+## 🎯 Назначение
 
 Единый Source of Truth для воспроизведения работоспособного экземпляра AI Curator в чистом окружении. Если после выполнения руководства система не работает, руководство устарело.
 
 Руководство рассчитано на технически подготовленного пользователя, знакомого с Docker, Linux и базовой работой DNS.
 
-## Варианты развёртывания
+## 🛠️ Варианты развёртывания
 
 | Вариант | Когда использовать | Публичные домены | Требования |
 |---|---|---|---|
@@ -14,10 +14,12 @@
 | **Production на VPS** | Публичный demo, пилот, production | Нужны 4 домена | VPS, DNS, Traefik, SSL |
 
 > **Важно:** все примеры доменов, токенов и паролей в этом документе — плейсхолдеры. Никогда не используйте значения из примеров в production.
+>
+> Все боевые домены заменены на `example.com`. Перед запуском замените домены в `.env` **и** в переменных `LMS_HOST`, `BACKEND_HOST`, `WEB_UI_HOST`, `ADMIN_CONSOLE_HOST`, если они используются для Traefik-правил в `docker-compose.yml`.
 
 ---
 
-## Общие требования
+## 📋 Общие требования
 
 - Linux, macOS или Windows с WSL2.
 - Установленные Docker Engine и Docker Compose plugin.
@@ -30,34 +32,60 @@ cd AI-Curator
 
 ---
 
-## Вариант 1. Локальный запуск
+## ▶️ Вариант 1. Локальный запуск
 
 Локальный запуск не требует публичных доменов, DNS и Traefik. Сервисы доступны по портам на `localhost`.
 
-### 1.1. Подготовка `.env`
+### 🔧 1.1. Подготовка `.env`
 
 Создайте файл `.env` в корне репозитория:
 
 ```bash
 # Backend
-DATABASE_URL=postgresql+asyncpg://ai_curator:YOUR_DB_PASSWORD@ai-curator-postgres:5432/ai_curator
+APP_ENV=production
+DEBUG=false
+SECRET_KEY=YOUR_SECRET_KEY
+AIC_DB_USER=ai_curator
+AIC_DB_PASSWORD=YOUR_AIC_DB_PASSWORD
+AIC_DB_NAME=ai_curator
+DATABASE_URL=postgresql+asyncpg://ai_curator:YOUR_AIC_DB_PASSWORD@ai-curator-postgres:5432/ai_curator
+TEST_DATABASE_URL=postgresql+asyncpg://ai_curator:YOUR_AIC_DB_PASSWORD@ai-curator-postgres:5432/ai_curator_test
+PYTEST_ALLOW_PROD_DB=false
 OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-OPENAI_CHAT_MODEL=gpt-4o-mini-2024-07-18
+# Fallback chat model. Active model is configured in Admin Console → AI & Retrieval.
+OPENAI_MODEL=gpt-4o-mini
+
+# Optional fallback provider: GigaChat (Sber)
+# GIGACHAT_AUTH_KEY=YOUR_GIGACHAT_AUTHORIZATION_KEY
+# GIGACHAT_BASE_URL=https://gigachat.devices.sberbank.ru/api/v1
+# GIGACHAT_TOKEN_URL=https://ngw.devices.sberbank.ru:9443/api/v2/oauth
+# GIGACHAT_MODEL=GigaChat-Max
+
 CHROMA_HOST=ai-curator-chroma
 CHROMA_PORT=8000
+CHROMA_COLLECTION_NAME=ai_curator_kb
+CHROMA_TEST_COLLECTION_NAME=ai_curator_kb_test
+CACHE_FILE_PATH=/app/storage/cache/response_cache.json
+CACHE_TTL_SECONDS=86400
+DOC_STORE_PATH=/app/storage/documents
 
-# LMS integration
-LMS_BASE_URL=http://localhost:8080
+# LMS integration (use service name inside Docker network, not localhost)
+LMS_BASE_URL=http://ai-curator-lms
+LMS_HOST=lms.example.com
 LMS_API_TOKEN=YOUR_MOODLE_WEBSERVICE_TOKEN
 
 # Admin Console auth
 ADMIN_CONSOLE_URL=http://localhost:3001
+ADMIN_CONSOLE_HOST=ai-curator-admin.example.com
 ADMIN_CONSOLE_TOKEN=YOUR_RANDOM_HEX_TOKEN_64_CHARS
 ADMIN_CONSOLE_DEMO_TOKEN=YOUR_DEMO_READONLY_TOKEN_64_CHARS
 
 # Web UI
 WEB_UI_URL=http://localhost:3000
+BACKEND_API_URL=http://localhost:8000
+WEB_UI_HOST=ai-curator.example.com
+BACKEND_HOST=ai-curator-api.example.com
 
 # Demo mode
 DEMO_ENABLED=true
@@ -87,9 +115,10 @@ MOODLE_ADMIN_USER=admin
 MOODLE_ADMIN_PASSWORD=YOUR_MOODLE_ADMIN_PASSWORD
 MOODLE_ADMIN_EMAIL=admin@example.com
 MOODLE_SITE_NAME="AI Curator Demo LMS"
+MOODLE_VERSION=MOODLE_404_STABLE
 ```
 
-### 1.2. Создание `docker-compose.override.yml`
+### 🔧 1.2. Создание `docker-compose.override.yml`
 
 Для локального запуска создайте `docker-compose.override.yml` в корне репозитория:
 
@@ -119,13 +148,21 @@ services:
 
 Этот файл переопределяет production-метки Traefik и открывает порты локально.
 
-### 1.3. Запуск
+### 🌐 1.3. Подготовка Docker-сети
+
+Локальный стек использует ту же внешнюю сеть `n8n_default`, что и production-вариант. Создайте её перед первым запуском:
+
+```bash
+docker network create n8n_default
+```
+
+### ▶️ 1.4. Запуск
 
 ```bash
 docker compose up --build -d
 ```
 
-### 1.4. Проверка локального развёртывания
+### ✅ 1.5. Проверка локального развёртывания
 
 ```bash
 # Health backend
@@ -139,9 +176,9 @@ curl -s http://localhost:8000/health
 
 ---
 
-## Вариант 2. Production на VPS
+## ▶️ Вариант 2. Production на VPS
 
-### 2.1. Подготовка инфраструктуры
+### 🧰 2.1. Подготовка инфраструктуры
 
 1. Арендуйте VPS с Docker и Docker Compose.
 2. Зарегистрируйте 4 домена (или поддомена) и направьте A-записи на IP сервера:
@@ -190,18 +227,39 @@ providers:
 docker network create n8n_default
 ```
 
-### 2.2. Подготовка `.env`
+### 🔧 2.2. Подготовка `.env`
 
 Замените `example.com` на ваши реальные домены и заполните секреты:
 
 ```bash
 # Backend
-DATABASE_URL=postgresql+asyncpg://ai_curator:YOUR_DB_PASSWORD@ai-curator-postgres:5432/ai_curator
+APP_ENV=production
+DEBUG=false
+SECRET_KEY=YOUR_SECRET_KEY
+AIC_DB_USER=ai_curator
+AIC_DB_PASSWORD=YOUR_AIC_DB_PASSWORD
+AIC_DB_NAME=ai_curator
+DATABASE_URL=postgresql+asyncpg://ai_curator:YOUR_AIC_DB_PASSWORD@ai-curator-postgres:5432/ai_curator
+TEST_DATABASE_URL=postgresql+asyncpg://ai_curator:YOUR_AIC_DB_PASSWORD@ai-curator-postgres:5432/ai_curator_test
+PYTEST_ALLOW_PROD_DB=false
 OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-OPENAI_CHAT_MODEL=gpt-4o-mini-2024-07-18
+# Fallback chat model. Active model is configured in Admin Console → AI & Retrieval.
+OPENAI_MODEL=gpt-4o-mini
+
+# Optional fallback provider: GigaChat (Sber)
+# GIGACHAT_AUTH_KEY=YOUR_GIGACHAT_AUTHORIZATION_KEY
+# GIGACHAT_BASE_URL=https://gigachat.devices.sberbank.ru/api/v1
+# GIGACHAT_TOKEN_URL=https://ngw.devices.sberbank.ru:9443/api/v2/oauth
+# GIGACHAT_MODEL=GigaChat-Max
+
 CHROMA_HOST=ai-curator-chroma
 CHROMA_PORT=8000
+CHROMA_COLLECTION_NAME=ai_curator_kb
+CHROMA_TEST_COLLECTION_NAME=ai_curator_kb_test
+CACHE_FILE_PATH=/app/storage/cache/response_cache.json
+CACHE_TTL_SECONDS=86400
+DOC_STORE_PATH=/app/storage/documents
 
 # LMS integration
 LMS_BASE_URL=https://lms.example.com
@@ -214,6 +272,9 @@ ADMIN_CONSOLE_DEMO_TOKEN=YOUR_DEMO_READONLY_TOKEN_64_CHARS
 
 # Web UI
 WEB_UI_URL=https://ai-curator.example.com
+BACKEND_API_URL=https://ai-curator-api.example.com
+WEB_UI_HOST=ai-curator.example.com
+BACKEND_HOST=ai-curator-api.example.com
 
 # Demo mode
 DEMO_ENABLED=true
@@ -243,31 +304,36 @@ MOODLE_ADMIN_USER=admin
 MOODLE_ADMIN_PASSWORD=YOUR_MOODLE_ADMIN_PASSWORD
 MOODLE_ADMIN_EMAIL=admin@example.com
 MOODLE_SITE_NAME="AI Curator Demo LMS"
+MOODLE_VERSION=MOODLE_404_STABLE
 ```
 
-### 2.3. Замена доменов в `docker-compose.yml`
+### 🌐 2.3. Замена доменов
 
-В production нужно заменить домены в `docker-compose.yml` на ваши. Найдите все строки с `alex-n8n.site` и замените на ваш домен. Например:
+В `docker-compose.yml` домены Traefik-правил и `VITE_API_BASE_URL` уже параметризованы через переменные окружения. Замените домены в `.env`:
 
-```yaml
-# было
-MOODLE_WWWROOT: https://lms.alex-n8n.site
-- "traefik.http.routers.ai-curator-lms.rule=Host(`lms.alex-n8n.site`)"
+```bash
+LMS_BASE_URL=https://lms.yourdomain.com
+LMS_HOST=lms.yourdomain.com
 
-# стало
-MOODLE_WWWROOT: https://lms.example.com
-- "traefik.http.routers.ai-curator-lms.rule=Host(`lms.example.com`)"
+WEB_UI_URL=https://ai-curator.yourdomain.com
+WEB_UI_HOST=ai-curator.yourdomain.com
+
+BACKEND_API_URL=https://ai-curator-api.yourdomain.com
+BACKEND_HOST=ai-curator-api.yourdomain.com
+
+ADMIN_CONSOLE_URL=https://ai-curator-admin.yourdomain.com
+ADMIN_CONSOLE_HOST=ai-curator-admin.yourdomain.com
 ```
 
-Аналогично замените домены для backend, web-ui и admin-console.
+Переменные `*_HOST` используются в labels Traefik-роутеров, а `*_URL` — внутри приложений и для `MOODLE_WWWROOT`.
 
-### 2.4. Запуск
+### ▶️ 2.4. Запуск
 
 ```bash
 docker compose up --build -d
 ```
 
-### 2.5. Проверка production-развёртывания
+### ✅ 2.5. Проверка production-развёртывания
 
 ```bash
 # Health backend
@@ -280,27 +346,40 @@ docker compose ps
 
 ---
 
-## Первоначальная настройка после развёртывания
+## 🔧 Первоначальная настройка после развёртывания
 
-### Создание LMS API-токена
+### 🔌 Включение Moodle Web Services
 
 1. Откройте Moodle по адресу `http://localhost:8080` (локально) или `https://lms.example.com` (production).
 2. Войдите как администратор.
-3. Перейдите: **Администрирование сайта → Сервер → Web services → Управление токенами**.
-4. Создайте токен для пользователя, зачисленного в курсы, которые должен обслуживать AI Curator.
-5. Запишите токен в `.env` как `LMS_API_TOKEN` и перезапустите backend:
+3. Перейдите: **Администрирование сайта → Сервер → Web services → Обзор**.
+4. Включите внешние службы: переведите переключатель **Включить веб-службы** в положение **Да**.
+5. Перейдите в **Управление протоколами** и включите протокол **REST**.
+6. Перейдите в **Управление службами**, создайте службу (например, `ai_curator_service`) и добавьте в неё функции:
+   - `core_course_get_courses`
+   - `core_course_get_contents`
+   - `mod_assign_get_assignments`
+   - `core_completion_get_activities_completion_status`
+   - `core_user_get_users_by_field` (если нужно разрешать пользователей)
+7. Включите службу и разрешите её для авторизованных пользователей.
+
+### 🔑 Создание LMS API-токена
+
+1. Перейдите: **Администрирование сайта → Сервер → Web services → Управление токенами**.
+2. Создайте токен для пользователя, зачисленного в курсы, которые должен обслуживать AI Curator, и привяжите его к службе `ai_curator_service`.
+3. Запишите токен в `.env` как `LMS_API_TOKEN` и перезапустите backend:
 
 ```bash
 docker compose up -d ai-curator-backend
 ```
 
-### Подготовка курса в Moodle
+### 📚 Подготовка курса в Moodle
 
 1. Создайте курс с модулями и заданиями.
 2. Установите дедлайны заданий.
 3. Зачислите студентов.
 
-### Заполнение Базы знаний
+### 📚 Заполнение Базы знаний
 
 1. Откройте Консоль администратора.
 2. Войдите с `ADMIN_CONSOLE_TOKEN`.
@@ -312,36 +391,38 @@ docker compose up -d ai-curator-backend
 
 Без опубликованных документов Базы знаний учебные вопросы будут возвращать отказ.
 
-### Demo-режим
+### 🔓 Demo-режим
 
 Для публичного demo-входа в веб-интерфейсе убедитесь, что `DEMO_ENABLED=true`. Пользователь получает квоту запросов, rate limit и таймер сессии.
 
+> **Примечание:** `DEMO_ENABLED=true` позволяет открывать Web UI без аутентификации студента. Для закрытого портала, где вход должен происходить только через LMS/SSO, установите `DEMO_ENABLED=false`.
+
 ---
 
-## Важные замечания
+## 🛡️ Важные замечания
 
-### Безопасность
+### 🛡️ Безопасность
 
 - `.env` содержит секреты. Не коммитьте его.
 - `ADMIN_CONSOLE_TOKEN` и `ADMIN_CONSOLE_DEMO_TOKEN` должны быть длинными случайными строками.
 - Используйте read-only Moodle Web Service token.
 - Для production настройте firewall: откройте только 80, 443 и SSH.
 
-### Chroma
+### 🗄️ Chroma
 
 Chroma 0.5.x хранит SQLite-базу в `/data` внутри контейнера. Volume смонтирован именно туда. Не используйте `latest` для Chroma — образ зафиксирован в `docker-compose.yml`.
 
-### Персистентность данных
+### 💾 Персистентность данных
 
 Для production убедитесь, что volumes PostgreSQL, Chroma и `kb-content` сохраняются на хосте. По умолчанию Docker Compose создаёт named volumes.
 
-### Traefik и SSL
+### 🔒 Traefik и SSL
 
 Перед выпуском сертификатов убедитесь, что DNS-записи разрешаются на сервер. Let's Encrypt имеет rate limits.
 
 ---
 
-## Устранение неполадок
+## 🛠️ Устранение неполадок
 
 | Симптом | Причина | Решение |
 |---|---|---|
@@ -354,7 +435,16 @@ Chroma 0.5.x хранит SQLite-базу в `/data` внутри контейн
 
 ---
 
-## Чек-лист Deployment Validation
+## 📝 История изменений
+
+| Дата | Версия | Изменения |
+|------|--------|-----------|
+| 2026-08-05 | 1.1 | Параметризация БД (`AIC_DB_*`), замена боевых доменов на placeholder-переменные (`*_HOST`, `*_URL`), исправлен `OPENAI_CHAT_MODEL` → `OPENAI_MODEL`, исправлен локальный `LMS_BASE_URL`, добавлена подготовка `n8n_default`, расширены `.env` примеры, добавлена настройка Moodle Web Services |
+| 2026-08-05 | 1.0 | Актуализация под Sprint F: demo mode, log retention, KB Content Git, CSV export |
+
+---
+
+## ✅ Чек-лист Deployment Validation
 
 Развёртывание считается валидным, если в чистом окружении выполнены все пункты:
 
@@ -364,7 +454,7 @@ Chroma 0.5.x хранит SQLite-базу в `/data` внутри контейн
 - [ ] `docker compose ps` показывает все сервисы `Up` и `healthy`.
 - [ ] Health endpoint backend возвращает `{"status":"ok"}`.
 - [ ] Moodle открывается по своему URL и доступен вход администратора.
-[ ] Создан Moodle Web Service token и записан в `.env`.
+- [ ] Создан Moodle Web Service token и записан в `.env`.
 - [ ] Backend перезапущен с новым `LMS_API_TOKEN`.
 - [ ] В Moodle создан курс с заданиями и дедлайнами.
 - [ ] В Консоль администратора выполнен вход с `ADMIN_CONSOLE_TOKEN`.

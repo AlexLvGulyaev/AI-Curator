@@ -60,7 +60,7 @@ services:
       MOODLE_ADMIN_PASSWORD: ${MOODLE_ADMIN_PASSWORD:?MOODLE_ADMIN_PASSWORD is required}
       MOODLE_ADMIN_EMAIL: ${MOODLE_ADMIN_EMAIL:-admin@example.com}
       MOODLE_SITE_NAME: ${MOODLE_SITE_NAME:-AI Curator Demo LMS}
-      MOODLE_WWWROOT: https://lms.alex-n8n.site
+      MOODLE_WWWROOT: ${LMS_BASE_URL:-https://lms.example.com}
     volumes:
       - ai-curator-lms-data:/var/www/html
       - ai-curator-lms-moodledata:/var/www/moodledata
@@ -74,7 +74,7 @@ services:
         condition: service_completed_successfully
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ai-curator-lms.rule=Host(`lms.alex-n8n.site`)"
+      - "traefik.http.routers.ai-curator-lms.rule=Host(`${LMS_HOST:-lms.example.com}`)"
       - "traefik.http.routers.ai-curator-lms.entrypoints=websecure"
       - "traefik.http.routers.ai-curator-lms.tls.certresolver=myresolver"
       - "traefik.http.services.ai-curator-lms.loadbalancer.server.port=80"
@@ -87,15 +87,15 @@ services:
     container_name: ai-curator-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ai_curator
-      POSTGRES_PASSWORD: AICPG3hfpf2100
-      POSTGRES_DB: ai_curator
+      POSTGRES_USER: ${AIC_DB_USER:-ai_curator}
+      POSTGRES_PASSWORD: ${AIC_DB_PASSWORD:?AIC_DB_PASSWORD is required}
+      POSTGRES_DB: ${AIC_DB_NAME:-ai_curator}
     volumes:
       - ai-curator-postgres-data:/var/lib/postgresql/data
     networks:
       - ai-curator-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ai_curator -d ai_curator"]
+      test: ["CMD-SHELL", "pg_isready -U ${AIC_DB_USER:-ai_curator} -d ${AIC_DB_NAME:-ai_curator}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -134,7 +134,7 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://ai_curator:AICPG3hfpf2100@ai-curator-postgres:5432/ai_curator
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://${AIC_DB_USER:-ai_curator}:${AIC_DB_PASSWORD}@ai-curator-postgres:5432/${AIC_DB_NAME:-ai_curator}}
     volumes:
       - ./storage/documents:/app/storage/documents
       - ./kb-content:/app/kb-content
@@ -148,7 +148,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ai-curator-backend.rule=Host(`curator-api.alex-n8n.site`)"
+      - "traefik.http.routers.ai-curator-backend.rule=Host(`${BACKEND_HOST:-ai-curator-api.example.com}`)"
       - "traefik.http.routers.ai-curator-backend.entrypoints=websecure"
       - "traefik.http.routers.ai-curator-backend.tls.certresolver=myresolver"
       - "traefik.http.services.ai-curator-backend.loadbalancer.server.port=8000"
@@ -158,7 +158,7 @@ services:
       context: ./web-ui
       dockerfile: Dockerfile
       args:
-        - VITE_API_BASE_URL=${BACKEND_API_URL:-https://curator-api.alex-n8n.site}
+        - VITE_API_BASE_URL=${BACKEND_API_URL:-https://ai-curator-api.example.com}
     container_name: ai-curator-web-ui
     restart: unless-stopped
     networks:
@@ -168,7 +168,7 @@ services:
       - ai-curator-backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ai-curator-web-ui.rule=Host(`curator.alex-n8n.site`)"
+      - "traefik.http.routers.ai-curator-web-ui.rule=Host(`${WEB_UI_HOST:-ai-curator.example.com}`)"
       - "traefik.http.routers.ai-curator-web-ui.entrypoints=websecure"
       - "traefik.http.routers.ai-curator-web-ui.tls.certresolver=myresolver"
       - "traefik.http.services.ai-curator-web-ui.loadbalancer.server.port=80"
@@ -179,7 +179,7 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_ADMIN_DEMO_TOKEN=${ADMIN_CONSOLE_DEMO_TOKEN}
-        - VITE_API_BASE_URL=${BACKEND_API_URL:-https://curator-api.alex-n8n.site}
+        - VITE_API_BASE_URL=${BACKEND_API_URL:-https://ai-curator-api.example.com}
     container_name: ai-curator-admin-console
     restart: unless-stopped
     networks:
@@ -189,7 +189,7 @@ services:
       - ai-curator-backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.ai-curator-admin-console.rule=Host(`curator-admin.alex-n8n.site`)"
+      - "traefik.http.routers.ai-curator-admin-console.rule=Host(`${ADMIN_CONSOLE_HOST:-ai-curator-admin.example.com}`)"
       - "traefik.http.routers.ai-curator-admin-console.entrypoints=websecure"
       - "traefik.http.routers.ai-curator-admin-console.tls.certresolver=myresolver"
       - "traefik.http.services.ai-curator-admin-console.loadbalancer.server.port=80"
@@ -200,7 +200,6 @@ volumes:
   ai-curator-lms-moodledata:
   ai-curator-postgres-data:
   ai-curator-chroma-data:
-  ai-curator-doc-store:
 
 networks:
   ai-curator-network:
