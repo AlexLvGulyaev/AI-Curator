@@ -1,12 +1,13 @@
-# AI Curator — Product E2E Checklist
+# 📋 AI Curator — Product E2E Checklist
 
+**Проект:** ai-curator  
 **Версия:** 1.2  
 **Дата:** 2026-08-05  
-**Статус:** Phase 1 + Sprint F — прогон backend/tests выполнен 2026-08-05  
+**Статус:** Phase 1 выполнен (26 PASS / 0 FAIL / 1 NOT RUN); Phase 2 реализован и отражён ниже  
 
 ---
 
-## Как пользоваться этим чек-листом
+## 📖 Как пользоваться этим чек-листом
 
 Каждая строка — это сквозной сценарий. Выполняйте шаги в UI, сверяйте с *Ожидаемым результатом*, отмечайте статус и фиксируйте дефекты. Сценарий считается `PASS` только если совпадают UI, API-ответ, данные в БД и audit/observability.
 
@@ -16,7 +17,7 @@
 
 ---
 
-## Сокращения
+## 🔤 Сокращения
 
 | Сокращение | Расшифровка |
 |---|---|
@@ -28,7 +29,7 @@
 
 ---
 
-## Предусловия для всего чек-листа
+## ✅ Предусловия для всего чек-листа
 
 - [x] Все контейнеры AI Curator запущены и healthy (`docker compose ps`).
 - [x] Backend health возвращает `{"status":"ok"}` (`curl https://ai-curator-api.example.com/health`).
@@ -40,7 +41,7 @@
 
 ---
 
-## Раздел 1. Студент — Web UI
+## 🎓 Раздел 1. Студент — Web UI
 
 ### 1.1 Гостевой вход и выбор роли
 
@@ -148,7 +149,7 @@
 
 ---
 
-## Раздел 2. Администратор — Admin Console
+## 🛡️ Раздел 2. Администратор — Admin Console
 
 ### 2.1 Вход по токену
 
@@ -269,7 +270,7 @@
 
 ---
 
-## Раздел 3. Cross-cutting и негативные сценарии
+## 🔀 Раздел 3. Cross-cutting и негативные сценарии
 
 ### 3.1 Кэш инвалидации после изменения конфигурации
 
@@ -325,7 +326,7 @@
 
 ---
 
-## Раздел 4. Deployment Validation
+## 🚀 Раздел 4. Deployment Validation
 
 | ID | Проверка | Ожидаемый результат | Статус |
 |---|---|---|---|
@@ -338,7 +339,7 @@
 
 ---
 
-## Раздел 5. Phase 2 — запланированные сценарии
+## 📦 Раздел 5. Phase 2 — реализованные сценарии
 
 После реализации соответствующих фич добавить сюда:
 
@@ -353,7 +354,7 @@
 
 ---
 
-## Раздел 6. Результаты Phase 1 (сводка)
+## 📊 Раздел 6. Результаты Phase 1 (сводка)
 
 | Категория | PASS | FAIL | NOT RUN |
 |---|---|---|---|
@@ -380,20 +381,21 @@
 
 ---
 
-## Связанные документы
+## 📚 Связанные документы
 
-- [📋 `docs/ORCHESTRATOR_E2E_CHECKLIST.md`](ORCHESTRATOR_E2E_CHECKLIST.md) — детальные проверки оркестратора.
-- [🧪 `docs/TESTING_CONTRACT.md`](TESTING_CONTRACT.md) — автоматизированные backend-тесты.
-- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — инструкции для Deployment Validation.
-- [📋 `docs/E2E_TEST_PLAN.md`](E2E_TEST_PLAN.md) — стратегия, частота, инструменты, критерии приёмки.
-- [🎬 `docs/E2E_SCENARIOS.md`](E2E_SCENARIOS.md) — бизнес-сценарии.
+- [🧭 ORCHESTRATOR_E2E_CHECKLIST.md](ORCHESTRATOR_E2E_CHECKLIST.md) — детальные проверки оркестратора.
+- [🧪 TESTING_CONTRACT.md](TESTING_CONTRACT.md) — автоматизированные backend-тесты.
+- [🚀 DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) — инструкции для Deployment Validation.
+- [🧪 E2E_TEST_PLAN.md](E2E_TEST_PLAN.md) — стратегия, частота, инструменты, критерии приёмки.
+- [🎬 E2E_SCENARIOS.md](E2E_SCENARIOS.md) — бизнес-сценарии.
+- [📍 PROJECT_STATE.md](PROJECT_STATE.md) — актуальный статус проекта.
 
 ---
 
-## История изменений
+## 📝 История изменений
 
 | Дата | Версия | Изменение |
 |---|---|---|
 | 2026-08-04 | 1.0 | Начальная версия Phase 1 |
 | 2026-08-04 | 1.1 | Результаты первого прогона Phase 1: 26 PASS, 0 FAIL, 1 NOT RUN |
-| 2026-08-05 | 1.2 | Добавлены результаты Phase 2: Business Reports, safe demo mode, log export + retention policy |
+| 2026-08-05 | 1.2 | Добавлены результаты Phase 2: Business Reports, safe demo mode, log export + retention policy; применён emoji-контракт и единый стиль ссылок |
