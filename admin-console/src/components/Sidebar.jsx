@@ -1,3 +1,5 @@
+import { useDemo } from '../contexts/DemoContext';
+
 const MENU_GROUPS = [
   {
     id: 'system',
@@ -35,12 +37,20 @@ const MENU_GROUPS = [
 ];
 
 function Sidebar({ active, onChange, onLogout }) {
+  const { isDemo } = useDemo();
+
   return (
     <aside className="ai-sidebar">
       <div className="ai-sidebar__brand">
         <span className="ai-sidebar__brand-icon">🤖</span>
         <span>AI Curator</span>
       </div>
+
+      {isDemo && (
+        <div className="mx-3 mb-3 rounded-ai border border-ai-warning/30 bg-ai-warning/10 px-3 py-2 text-xs text-ai-warning">
+          🔒 Демо-режим: только просмотр
+        </div>
+      )}
 
       <nav className="ai-nav">
         {MENU_GROUPS.map((group) => (

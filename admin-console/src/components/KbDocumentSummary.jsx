@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDemo } from '../contexts/DemoContext';
 import {
   getKbDocumentDetail,
   getKbVersionText,
@@ -61,6 +62,7 @@ function CompactRow({ label, value, mono = false }) {
 }
 
 function KbDocumentSummary({ documentId, onAction, onOpenTextEditor }) {
+  const { isDemo } = useDemo();
   const [bundle, setBundle] = useState(null);
   const [textStage, setTextStage] = useState('cleaned');
   const [textPreview, setTextPreview] = useState(null);
@@ -266,7 +268,8 @@ function KbDocumentSummary({ documentId, onAction, onOpenTextEditor }) {
                                 reindexKbVersion(document.id, version.id)
                               )
                             }
-                            disabled={actionLoading === `reindex-${version.id}`}
+                            disabled={isDemo || actionLoading === `reindex-${version.id}`}
+                            title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
                             className="ai-btn-outline px-2 py-0.5 text-xs"
                             type="button"
                           >
@@ -279,7 +282,8 @@ function KbDocumentSummary({ documentId, onAction, onOpenTextEditor }) {
                                 activateKbVersion(document.id, version.id)
                               )
                             }
-                            disabled={actionLoading === `activate-${version.id}`}
+                            disabled={isDemo || actionLoading === `activate-${version.id}`}
+                            title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
                             className="ai-btn-outline px-2 py-0.5 text-xs"
                             type="button"
                           >

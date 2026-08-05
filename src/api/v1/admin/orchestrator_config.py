@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.v1.admin.auth import AdminIdentity, admin_auth
+from api.v1.admin.auth import AdminIdentity, admin_auth, require_admin
 from db import get_db
 from models.orchestrator_config import (
     DEFAULT_FALLBACK_MESSAGES,
@@ -128,7 +128,7 @@ async def update_config(
     request: Request,
     payload: OrchestratorConfigIn,
     service: OrchestratorConfigService = Depends(get_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Update the effective orchestrator configuration."""
     changed_fields = list(payload.model_dump(exclude_unset=True).keys())

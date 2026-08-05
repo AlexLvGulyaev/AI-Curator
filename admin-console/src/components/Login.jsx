@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+const DEMO_TOKEN = import.meta.env.VITE_ADMIN_DEMO_TOKEN;
+
 function Login({ onLogin }) {
   const [token, setToken] = useState('');
   const [error, setError] = useState(null);
@@ -13,6 +15,15 @@ function Login({ onLogin }) {
       return;
     }
     onLogin(trimmed);
+  };
+
+  const handleDemoLogin = () => {
+    setError(null);
+    if (!DEMO_TOKEN) {
+      setError('Демо-вход не настроен.');
+      return;
+    }
+    onLogin(DEMO_TOKEN);
   };
 
   return (
@@ -56,6 +67,16 @@ function Login({ onLogin }) {
           >
             Войти
           </button>
+
+          {DEMO_TOKEN && (
+            <button
+              type="button"
+              onClick={handleDemoLogin}
+              className="ai-btn-outline w-full px-4 py-3"
+            >
+              Войти в демо-режим (только просмотр)
+            </button>
+          )}
         </form>
       </div>
     </div>

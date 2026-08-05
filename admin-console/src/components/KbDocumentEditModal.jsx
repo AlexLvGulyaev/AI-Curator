@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDemo } from '../contexts/DemoContext';
 import { updateKbDocument } from '../api/backend';
 
 const DOCUMENT_TYPES = [
@@ -12,6 +13,7 @@ const DOCUMENT_TYPES = [
 ];
 
 function KbDocumentEditModal({ document, onDone, onCancel }) {
+  const { isDemo } = useDemo();
   const [form, setForm] = useState({
     title: '',
     document_type: 'lecture',
@@ -47,6 +49,11 @@ function KbDocumentEditModal({ document, onDone, onCancel }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError(null);
+
+    if (isDemo) {
+      setError('Демо-режим: изменения запрещены.');
+      return;
+    }
 
     const payload = {
       title: form.title,
@@ -197,7 +204,8 @@ function KbDocumentEditModal({ document, onDone, onCancel }) {
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={isDemo || loading}
+              title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
               className="ai-btn px-5 py-2"
             >
               {loading ? 'Сохранение…' : 'Сохранить'}

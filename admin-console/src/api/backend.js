@@ -26,6 +26,9 @@ async function apiRequest(path, options = {}) {
 
   if (!response.ok) {
     const text = await response.text();
+    if (response.status === 403) {
+      throw new Error(`Демо-режим: изменения запрещены. Войдите с полным административным токеном.`);
+    }
     throw new Error(`Ошибка ${response.status}: ${text}`);
   }
 
@@ -298,6 +301,9 @@ export async function exportReportsReport(params = {}, section = 'all') {
   });
   if (!response.ok) {
     const text = await response.text();
+    if (response.status === 403) {
+      throw new Error(`Демо-режим: изменения запрещены. Войдите с полным административным токеном.`);
+    }
     throw new Error(`Ошибка ${response.status}: ${text}`);
   }
   return response.blob();
@@ -357,6 +363,9 @@ export async function exportAnalyticsReport(params = {}) {
   });
   if (!response.ok) {
     const text = await response.text();
+    if (response.status === 403) {
+      throw new Error(`Демо-режим: изменения запрещены. Войдите с полным административным токеном.`);
+    }
     throw new Error(`Ошибка ${response.status}: ${text}`);
   }
   return response.blob();

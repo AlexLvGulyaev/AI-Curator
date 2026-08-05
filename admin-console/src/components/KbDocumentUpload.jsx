@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDemo } from '../contexts/DemoContext';
 import { uploadKbDocument, uploadKbVersion } from '../api/backend';
 
 const DOCUMENT_TYPES = [
@@ -12,6 +13,7 @@ const DOCUMENT_TYPES = [
 ];
 
 function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
+  const { isDemo } = useDemo();
   const isVersion = mode === 'version';
   const [form, setForm] = useState({
     title: '',
@@ -34,6 +36,11 @@ function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError(null);
+
+    if (isDemo) {
+      setError('Демо-режим: изменения запрещены.');
+      return;
+    }
 
     if (!file) {
       setError('Выберите файл.');
@@ -192,7 +199,8 @@ function KbDocumentUpload({ mode = 'document', documentId, onDone }) {
           </button>
           <button
             type="submit"
-            disabled={loading}
+            disabled={isDemo || loading}
+            title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
             className="ai-btn px-5 py-2"
           >
             {loading ? 'Загрузка…' : isVersion ? 'Загрузить версию' : 'Сохранить документ'}

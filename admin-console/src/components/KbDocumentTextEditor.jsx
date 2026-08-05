@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
+import { useDemo } from '../contexts/DemoContext';
 import { getKbVersionText, saveKbVersionText } from '../api/backend';
 
 function KbDocumentTextEditor({ documentId, versionId, stage = 'cleaned', onDone, onCancel }) {
+  const { isDemo } = useDemo();
   const [text, setText] = useState('');
   const [originalText, setOriginalText] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  const isReadOnly = stage === 'raw';
+  const isReadOnly = stage === 'raw' || isDemo;
 
   useEffect(() => {
     let isMounted = true;
@@ -46,6 +48,7 @@ function KbDocumentTextEditor({ documentId, versionId, stage = 'cleaned', onDone
       setSaving(false);
     }
   }
+
 
   const hasChanges = text !== originalText;
 

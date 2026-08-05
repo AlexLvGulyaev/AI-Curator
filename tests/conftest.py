@@ -25,6 +25,7 @@ from config import settings
 # Test database resolution
 # ------------------------------------------------------------------
 
+
 def _resolve_test_database_url() -> str:
     """Return the database URL tests should use.
 
@@ -172,6 +173,7 @@ def client():
 @pytest.fixture(autouse=True)
 async def override_get_db(db_session):
     """Route FastAPI dependency get_db through the transactional test session."""
+
     async def _get_db_override():
         yield db_session
 
@@ -184,6 +186,7 @@ async def override_get_db(db_session):
 def reset_response_cache():
     """Clear the global response cache before every test to avoid cross-test leaks."""
     from services.cache import response_cache
+
     response_cache.clear()
     yield
 
@@ -195,6 +198,18 @@ def disable_admin_auth():
     settings.admin_console_token = ""
     yield
     settings.admin_console_token = original
+
+
+@pytest.fixture(autouse=True)
+def disable_demo_mode():
+    """Disable Web UI demo mode by default so existing chat tests stay simple.
+
+    Demo mode tests explicitly enable it via their own fixture.
+    """
+    original = settings.demo_enabled
+    settings.demo_enabled = False
+    yield
+    settings.demo_enabled = original
 
 
 @pytest.fixture
@@ -239,6 +254,7 @@ async def reset_orchestrator_config_after_test():
 # ------------------------------------------------------------------
 # External service isolation
 # ------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session", autouse=True)
 def test_chroma_collection():

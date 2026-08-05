@@ -24,6 +24,7 @@ class ExecutionTracerService:
         course_id: Optional[int] = None,
         difficulty: Optional[str] = None,
         mode: Optional[str] = None,
+        demo_mode: bool = False,
     ) -> ChatSession:
         """Get or upsert a canonical ChatSession by business session_id."""
         result = await self.db.execute(
@@ -40,6 +41,7 @@ class ExecutionTracerService:
                 difficulty=difficulty,
                 mode=mode,
                 is_active=True,
+                demo_mode=demo_mode,
                 updated_at=now,
             )
             self.db.add(session)
@@ -54,6 +56,7 @@ class ExecutionTracerService:
                 session.difficulty = difficulty
             if mode is not None:
                 session.mode = mode
+            session.demo_mode = demo_mode
             session.is_active = True
             session.updated_at = now
         await self.db.commit()

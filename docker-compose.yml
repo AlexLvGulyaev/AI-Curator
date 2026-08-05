@@ -23,7 +23,7 @@ services:
   ai-curator-lms-init:
     image: alpine:latest
     container_name: ai-curator-lms-init
-    restart: no
+    restart: "no"
     environment:
       MOODLE_VERSION: ${MOODLE_VERSION:-MOODLE_404_STABLE}
     volumes:
@@ -157,6 +157,8 @@ services:
     build:
       context: ./web-ui
       dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=${BACKEND_API_URL:-https://curator-api.alex-n8n.site}
     container_name: ai-curator-web-ui
     restart: unless-stopped
     networks:
@@ -175,6 +177,9 @@ services:
     build:
       context: ./admin-console
       dockerfile: Dockerfile
+      args:
+        - VITE_ADMIN_DEMO_TOKEN=${ADMIN_CONSOLE_DEMO_TOKEN}
+        - VITE_API_BASE_URL=${BACKEND_API_URL:-https://curator-api.alex-n8n.site}
     container_name: ai-curator-admin-console
     restart: unless-stopped
     networks:

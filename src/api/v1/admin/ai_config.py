@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.v1.admin.auth import AdminIdentity, admin_auth
+from api.v1.admin.auth import AdminIdentity, admin_auth, require_admin
 from db import get_db
 from models.ai_config import AiConfig, DEFAULT_PROVIDER_SETTINGS
 from services.ai_config import AiConfigService
@@ -156,7 +156,7 @@ async def create_config(
     request: Request,
     payload: AiConfigIn,
     service: AiConfigService = Depends(get_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Create a new AI configuration version (inactive by default)."""
     config = await service.create_config(
@@ -195,7 +195,7 @@ async def activate_config(
     request: Request,
     config_id: int,
     service: AiConfigService = Depends(get_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Activate the specified configuration version."""
     try:

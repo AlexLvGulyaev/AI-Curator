@@ -44,7 +44,7 @@ function saveMessages(role, messages) {
   }
 }
 
-function useChat({ role, courseId, difficulty }) {
+function useChat({ role, courseId, difficulty, demoToken }) {
   const [messages, setMessages] = useState(() => loadMessages(role));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -73,6 +73,7 @@ function useChat({ role, courseId, difficulty }) {
           courseId,
           history,
           sessionId,
+          demoToken,
         });
 
         setMessages((prev) => [
@@ -81,6 +82,8 @@ function useChat({ role, courseId, difficulty }) {
             role: 'assistant',
             content: response.answer,
             sources: response.sources || [],
+            logId: response.log_id || null,
+            feedbackScore: null,
             meta: response.model
               ? `Модель: ${response.model} · Намерение: ${response.intent || '—'} · ${Math.round(response.latency_ms || 0)} мс`
               : null,
@@ -92,7 +95,7 @@ function useChat({ role, courseId, difficulty }) {
         setIsLoading(false);
       }
     },
-    [role, courseId, difficulty, messages, sessionId]
+    [role, courseId, difficulty, messages, sessionId, demoToken]
   );
 
   const clearMessages = useCallback(() => {

@@ -56,6 +56,7 @@ AI Curator — цифровой наставник для студентов о�
 - **Отдельный публичный Web UI AI Curator**, развёрнутый на VPS и доступный по собственному HTTPS-эндпоинту.
 - Чат с AI-куратором, история диалога, переключатель уровня сложности.
 - Источники ответа отображаются как ссылки на материалы Knowledge Base или задания в LMS.
+- **Safe demo mode** — токенизированные demo-сессии с квотами запросов, rate limit и UI-индикацией оставшихся запросов / таймером, чтобы защитить API-лимиты при публичном доступе.
 - Web UI не является частью Moodle и не встраивается в LMS-интерфейс.
 
 ### Moodle LMS
@@ -158,7 +159,7 @@ flowchart TB
 - ✅ AI-конфигурация версионируется и применяется.
 - ✅ Конфигурация маршрутизации запросов (Orchestrator) вынесена из хардкода в Admin Console: модель, сервис, API, миграция, UI-конструктор, тесты.
 - ✅ Web UI: `https://curator.alex-n8n.site` — гостевой вход, чат через `POST /api/v1/chat`, markdown-рендеринг, история диалога, источники ответов, переключатель сложности.
-- ✅ Admin Console: `https://curator-admin.alex-n8n.site` — KB, AI-config, orchestrator-config, analytics, monitoring, audit.
+- ✅ Admin Console: `https://curator-admin.alex-n8n.site` — KB, AI-config, orchestrator-config, analytics, monitoring, audit, read-only demo-вход.
 - ✅ Административные endpoints защищены Bearer-токеном.
 - ✅ Alembic-миграции Knowledge Base, Дня 6 и `orchestrator_configs` подготовлены.
 - ✅ Тесты `pytest` обновлены и расширены; полный прогон — 43 passed.

@@ -66,6 +66,15 @@ class Settings(BaseSettings):
 
     # Admin Console authentication
     admin_console_token: str = ""
+    admin_console_demo_token: str = ""
+
+    # Web UI safe demo mode (Sprint F)
+    demo_enabled: bool = False
+    demo_max_requests_per_session: int = 20
+    demo_session_ttl_minutes: int = 30
+    demo_rate_limit_per_minute: int = 12  # 1 request per 5 seconds
+    demo_max_sessions_per_ip_per_hour: int = 5
+    demo_cache_ttl_seconds: int = 604800  # 7 days for demo cache hits
 
     # Log retention and archiving
     archive_dir: str = "./storage/archives"

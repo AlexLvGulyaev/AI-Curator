@@ -1,6 +1,8 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
+import { useState } from 'react';
+import { sendChatFeedback } from '../api/backend';
 
 // Prevent markdown links inside the answer from duplicating the source list.
 function PlainTextLink({ children }) {
@@ -39,6 +41,60 @@ function SourceLink({ source }) {
   return null;
 }
 
+function StarRating({ initialScore, logId }) {
+  const [score, setScore] = useState(initialScore || 0);
+  const [hover, setHover] = useState(0);
+  const [submitted, setSubmitted] = useState(Boolean(initialScore));
+  const [error, setError] = useState(null);
+
+  const handleRate = async (value) => {
+    if (!logId) return;
+    setScore(value);
+    setSubmitted(true);
+    setError(null);
+    try {
+      await sendChatFeedback(logId, value);
+    } catch (err) {
+      setError('Не удалось сохранить оценку');
+      setSubmitted(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-ai-text-muted">
+          {submitted ? 'Спасибо за оценку!' : 'Оцените ответ:'}
+        </span>
+        <div className="flex">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-label={`Оценить ответ на ${value} из 10`}
+              disabled={submitted}
+              className={`px-0.5 py-0 text-lg leading-none transition ${
+                submitted ? 'cursor-default' : 'cursor-pointer hover:scale-110'
+              } ${
+                value <= (hover || score)
+                  ? 'text-ai-warning'
+                  : 'text-ai-text-muted/40'
+              }`}
+              style={{ color: value <= (hover || score) ? 'var(--ai-warning)' : 'var(--ai-text-muted)' }}
+              onMouseEnter={() => !submitted && setHover(value)}
+              onMouseLeave={() => setHover(0)}
+              onClick={() => handleRate(value)}
+            >
+              ★
+            </button>
+          ))}
+        </div>
+      </div>
+      {error && <p className="text-xs text-ai-error">{error}</p>}
+    </div>
+  );
+}
+
 function Message({ message }) {
   const isUser = message.role === 'user';
 
@@ -74,6 +130,10 @@ function Message({ message }) {
               <SourceLink key={index} source={source} />
             ))}
           </div>
+        )}
+
+        {!isUser && message.logId && (
+          <StarRating initialScore={message.feedbackScore} logId={message.logId} />
         )}
 
         {!isUser && message.meta && (

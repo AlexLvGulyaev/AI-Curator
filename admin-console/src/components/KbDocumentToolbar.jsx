@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDemo } from '../contexts/DemoContext';
 
 function KbDocumentToolbar({
   status,
@@ -10,6 +11,7 @@ function KbDocumentToolbar({
   onUploadVersion,
   actionLoading,
 }) {
+  const { isDemo } = useDemo();
   const [backendName, setBackendName] = useState('CHROMA');
 
   useEffect(() => {
@@ -46,41 +48,46 @@ function KbDocumentToolbar({
         <div className="flex flex-wrap items-center gap-2 flex-1">
           <button
             onClick={onUpload}
-            disabled={actionLoading === 'upload'}
+            disabled={isDemo || actionLoading === 'upload'}
             className={`ai-btn ${statusClass}`}
             type="button"
+            title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
           >
             {actionLoading === 'upload' ? '…' : '+ Загрузить файл'}
           </button>
           <button
             onClick={onUploadVersion}
-            disabled={!selectedDocument || actionLoading === 'upload-version'}
+            disabled={isDemo || !selectedDocument || actionLoading === 'upload-version'}
             className={`ai-btn-outline ${statusClass}`}
             type="button"
+            title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
           >
             {actionLoading === 'upload-version' ? '…' : 'Загрузить версию'}
           </button>
           <button
             onClick={onEdit}
-            disabled={!selectedDocument || actionLoading === 'edit'}
+            disabled={isDemo || !selectedDocument || actionLoading === 'edit'}
             className={`ai-btn-outline ${statusClass}`}
             type="button"
+            title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
           >
             {actionLoading === 'edit' ? '…' : 'Редактировать'}
           </button>
           <button
             onClick={onReindexSelected}
-            disabled={!selectedDocument || actionLoading === 'reindex'}
+            disabled={isDemo || !selectedDocument || actionLoading === 'reindex'}
             className={`ai-btn-outline ${statusClass}`}
             type="button"
+            title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
           >
             {actionLoading === 'reindex' ? '…' : 'Переиндексировать'}
           </button>
           <button
             onClick={onReindexAll}
-            disabled={actionLoading === 'reindex-all'}
+            disabled={isDemo || actionLoading === 'reindex-all'}
             className={`ai-btn-outline ${statusClass}`}
             type="button"
+            title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
           >
             {actionLoading === 'reindex-all' ? '…' : 'Переиндексировать всё'}
           </button>

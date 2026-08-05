@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDemo } from '../contexts/DemoContext';
 import { getOrchestratorConfig, updateOrchestratorConfig } from '../api/backend';
 
 const DEFAULT_INTENTS = ['deadline', 'progress', 'study', 'mixed', 'organizational'];
@@ -261,6 +262,7 @@ function NumberField({ label, value, min = 1, max = 4096, onChange, tooltip }) {
 }
 
 function OrchestratorConfig() {
+  const { isDemo } = useDemo();
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -380,7 +382,13 @@ function OrchestratorConfig() {
           <button onClick={load} className="ai-btn ai-btn--small ai-btn--secondary" type="button" disabled={saving}>
             Обновить
           </button>
-          <button type="button" className="ai-btn ai-btn--small" onClick={save} disabled={saving || hasErrors()}>
+          <button
+            type="button"
+            className="ai-btn ai-btn--small"
+            onClick={save}
+            disabled={isDemo || saving || hasErrors()}
+            title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
+          >
             {saving ? 'Сохранение…' : 'Сохранить'}
           </button>
         </div>

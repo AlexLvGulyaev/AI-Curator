@@ -1,8 +1,8 @@
 # AI Curator — Product E2E Checklist
 
-**Версия:** 1.1  
-**Дата:** 2026-08-04  
-**Статус:** Phase 1 — прогон выполнен 2026-08-04  
+**Версия:** 1.2  
+**Дата:** 2026-08-05  
+**Статус:** Phase 1 + Sprint F — прогон backend/tests выполнен 2026-08-05  
 
 ---
 
@@ -346,8 +346,8 @@
 |---|---|---|---|
 | PH2-01 | Просмотр Analytics Dashboard: total_requests, intent_distribution, latency | Sprint E1 | PASS — реализован и развёрнут |
 | PH2-02 | Просмотр и экспорт Business Report: quality, unanswered, KB gaps, popular topics, KB coverage, expansion candidates, CSV export | Sprint E2 | PASS — backend, frontend, тесты и production-деплой завершены; UI локализован и содержит tooltip'ы; ручная визуальная проверка в браузере рекомендуется |
-| PH2-03 | Read-only demo-вход в Admin Console без возможности изменений | Sprint A2/A3 | NOT RUN |
-| PH2-04 | Safe demo mode на Web UI: rate limit, квота сессии, капча | Sprint F | NOT RUN |
+| PH2-03 | Read-only demo-вход в Admin Console без возможности изменений | Sprint A2/A3 | PASS — backend: `ADMIN_CONSOLE_DEMO_TOKEN`, `AdminIdentity` с ролью `demo`, `require_admin` dependency на всех mutation endpoints; frontend: кнопка демо-входа, бейдж «только просмотр», disabled кнопки мутаций; тесты `tests/test_admin_auth.py`; ручная UI-верификация рекомендуется |
+| PH2-04 | Safe demo mode на Web UI: `X-Demo-Token`, квота 20 запросов / 30 мин, rate limit, UI-индикация лимитов и таймер | Sprint F | PASS — backend/frontend/tests завершены; ручная UI-верификация рекомендуется |
 | PH2-05 | Автоматизированный Playwright-прогон всех сценариев Phase 1 | Инфраструктура | NOT RUN |
 
 ---
@@ -395,3 +395,4 @@
 | 2026-08-04 | 1.0 | Начальная версия Phase 1. |
 | 2026-08-04 | 1.1 | Результаты первого прогона Phase 1: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 UI). Добавлена сводка и найденные дефекты. |
 | 2026-08-05 | 1.2 | Sprint E2 Business Reports завершён: backend, frontend, тесты. PH2-02 отмечен PASS на уровне backend/тестов; ручная UI-верификация рекомендуется. |
+| 2026-08-05 | 1.3 | Sprint F safe demo mode Web UI завершён: `X-Demo-Token`, квоты, rate limit, UI-индикация. PH2-04 PASS; ручная UI-верификация рекомендуется. |

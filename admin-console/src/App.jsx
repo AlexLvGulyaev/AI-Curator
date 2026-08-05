@@ -12,6 +12,7 @@ import OperationalLogs from './components/OperationalLogs';
 import DialogSessions from './components/DialogSessions';
 import AuditLog from './components/AuditLog';
 import Reports from './components/Reports';
+import { DemoProvider } from './contexts/DemoContext';
 
 const PLACEHOLDER_PAGES = new Set([]);
 
@@ -28,7 +29,7 @@ function Placeholder({ page }) {
 }
 
 function App() {
-  const { isReady, isLoggedIn, login, logout } = useAuth();
+  const { isReady, isLoggedIn, isDemo, login, logout } = useAuth();
   const [activePage, setActivePage] = useState('dashboard');
 
   if (!isReady) {
@@ -56,29 +57,31 @@ function App() {
   };
 
   return (
-    <div className="ai-layout">
-      <Sidebar
-        active={activePage === 'kb' ? 'kb' : activePage}
-        onChange={setActivePage}
-        onLogout={logout}
-      />
-      <div className="ai-main">
-        <div className="ai-header__wrapper">
-          <header className="ai-header">
-            <div>
-              <div className="ai-header__title">Admin Console</div>
-              <div className="ai-header__subtitle">FastAPI · консоль наблюдаемости</div>
-            </div>
-            <div className="ai-header__brand">Zerocoder</div>
-          </header>
+    <DemoProvider isDemo={isDemo}>
+      <div className="ai-layout">
+        <Sidebar
+          active={activePage === 'kb' ? 'kb' : activePage}
+          onChange={setActivePage}
+          onLogout={logout}
+        />
+        <div className="ai-main">
+          <div className="ai-header__wrapper">
+            <header className="ai-header">
+              <div>
+                <div className="ai-header__title">Admin Console</div>
+                <div className="ai-header__subtitle">FastAPI · консоль наблюдаемости</div>
+              </div>
+              <div className="ai-header__brand">Zerocoder</div>
+            </header>
+          </div>
+          <main className="ai-content">
+            <ErrorBoundary key={activePage}>
+              {renderContent()}
+            </ErrorBoundary>
+          </main>
         </div>
-        <main className="ai-content">
-          <ErrorBoundary key={activePage}>
-            {renderContent()}
-          </ErrorBoundary>
-        </main>
       </div>
-    </div>
+    </DemoProvider>
   );
 }
 

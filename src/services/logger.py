@@ -21,8 +21,9 @@ from services.execution_tracer import ExecutionTracerService
 class LoggerService:
     """Async logger for chat, LLM, analytics and audit events."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, demo_mode: bool = False):
         self.db = db
+        self.demo_mode = demo_mode
         self.tracer = ExecutionTracerService(db)
 
     async def create_or_update_chat_session(
@@ -43,6 +44,7 @@ class LoggerService:
             course_id=course_id,
             difficulty=difficulty,
             mode=mode,
+            demo_mode=self.demo_mode,
         )
 
     async def create_chat_request(
@@ -67,6 +69,7 @@ class LoggerService:
             difficulty=difficulty,
             message=message,
             intent=intent,
+            demo_mode=self.demo_mode,
             lms_calls=lms_calls or [],
             rag_filters=rag_filters or {},
         )

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import Chat from './components/Chat';
 import RoleSelector from './components/RoleSelector';
+import { DemoProvider } from './contexts/DemoContext';
 
 const STORAGE_KEY = 'ai-curator-role';
 
-function App() {
+function AppContent() {
   const [role, setRole] = useState(null);
   const [isReady, setIsReady] = useState(false);
 
@@ -38,6 +39,14 @@ function App() {
         <RoleSelector onSelectRole={handleSelectRole} />
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <DemoProvider>
+      <AppContent />
+    </DemoProvider>
   );
 }
 

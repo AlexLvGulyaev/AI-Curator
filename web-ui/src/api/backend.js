@@ -12,7 +12,22 @@ async function apiRequest(path, options = {}) {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Ошибка ${response.status}: ${text}`);
+    let message = `Ошибка ${response.status}: ${text}`;
+    try {
+      const data = JSON.parse(text);
+      if (data.detail) {
+        message = data.detail;
+      }
+    } catch {
+      // keep raw text
+    }
+    if (response.status === 429) {
+      throw new Error(`Демо-лимит исчерпан: ${message}. Начните новую сессию.`);
+    }
+    if (response.status === 403 || response.status === 401) {
+      throw new Error(`Доступ запрещён: ${message}. Начните новую демо-сессию.`);
+    }
+    throw new Error(message);
   }
 
   if (response.status === 204) {
@@ -20,6 +35,19 @@ async function apiRequest(path, options = {}) {
   }
 
   return response.json();
+}
+
+export async function startDemoSession(sessionId = null) {
+  return apiRequest('/api/v1/demo/start', {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+}
+
+export async function getDemoStatus(demoToken) {
+  return apiRequest('/api/v1/demo/status', {
+    headers: { 'X-Demo-Token': demoToken },
+  });
 }
 
 export async function checkBackendStatus() {
@@ -43,9 +71,14 @@ export async function getProgress() {
   return apiRequest('/api/v1/me/progress');
 }
 
-export async function sendChatMessage({ message, role, difficulty, courseId, history = [], sessionId }) {
+export async function sendChatMessage({ message, role, difficulty, courseId, history = [], sessionId, demoToken }) {
+  const headers = {};
+  if (demoToken) {
+    headers['X-Demo-Token'] = demoToken;
+  }
   return apiRequest('/api/v1/chat', {
     method: 'POST',
+    headers,
     body: JSON.stringify({
       message,
       role,
@@ -54,5 +87,12 @@ export async function sendChatMessage({ message, role, difficulty, courseId, his
       history,
       session_id: sessionId,
     }),
+  });
+}
+
+export async function sendChatFeedback(logId, score) {
+  return apiRequest(`/api/v1/chat/${logId}/feedback`, {
+    method: 'POST',
+    body: JSON.stringify({ score }),
   });
 }

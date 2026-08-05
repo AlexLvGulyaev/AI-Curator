@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import useChat from '../hooks/useChat';
+import useDemo from '../hooks/useDemo';
+import DemoBadge from './DemoBadge';
 import DifficultyToggle from './DifficultyToggle';
 import Message from './Message';
 import { checkBackendStatus } from '../api/backend';
@@ -19,11 +21,16 @@ function Chat({ role, onChangeRole }) {
   const [input, setInput] = useState('');
   const [difficulty, setDifficulty] = useState('beginner');
   const [backendOnline, setBackendOnline] = useState(null);
+  const { token, status, clearDemo } = useDemo();
   const { messages, isLoading, error, sendMessage, clearMessages } = useChat({
     role,
     courseId,
     difficulty,
+    demoToken: token,
   });
+
+  const requestsRemaining = status?.requests_remaining ?? 0;
+  const isDemoActive = token && requestsRemaining > 0 && status?.is_active !== false;
 
   useEffect(() => {
     let mounted = true;
@@ -43,9 +50,15 @@ function Chat({ role, onChangeRole }) {
   const handleSubmit = (event) => {
     event.preventDefault();
     const text = input.trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || !isDemoActive) return;
     setInput('');
     sendMessage(text);
+  };
+
+  const handleNewDemoSession = () => {
+    clearDemo();
+    clearMessages();
+    onChangeRole();
   };
 
   const roleTitles = {
@@ -86,6 +99,7 @@ function Chat({ role, onChangeRole }) {
         </div>
 
         <div className="flex items-center gap-3">
+          <DemoBadge />
           <span className="hidden rounded-full bg-ai-primary-light px-3 py-1 text-xs font-medium text-ai-primary sm:inline-block">
             {roleTitles[role] || role}
           </span>
@@ -109,6 +123,13 @@ function Chat({ role, onChangeRole }) {
             title="Начать новый диалог"
           >
             Новый диалог
+          </button>
+          <button
+            onClick={handleNewDemoSession}
+            className="rounded-ai px-3 py-1.5 text-sm font-medium text-ai-text-secondary hover:bg-ai-surface-hover"
+            title="Начать новую демо-сессию с новым лимитом"
+          >
+            Новая демо-сессия
           </button>
           <button
             onClick={onChangeRole}
@@ -151,13 +172,16 @@ function Chat({ role, onChangeRole }) {
             type="text"
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Задайте вопрос по курсу…"
-            className="ai-input flex-1 px-4 py-3 text-sm"
+            placeholder={
+              isDemoActive ? 'Задайте вопрос по курсу…' : 'Демо-лимит исчерпан. Начните новую сессию.'
+            }
+            disabled={!isDemoActive}
+            className="ai-input flex-1 px-4 py-3 text-sm disabled:opacity-60"
           />
           <button
             type="submit"
-            disabled={isLoading || !input.trim()}
-            className="ai-btn px-5 py-3 text-sm font-medium"
+            disabled={isLoading || !input.trim() || !isDemoActive}
+            className="ai-btn px-5 py-3 text-sm font-medium disabled:opacity-60"
           >
             Отправить
           </button>

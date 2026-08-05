@@ -20,6 +20,7 @@ class ChatSession(Base):
     difficulty = Column(String(50), nullable=True)
     mode = Column(String(20), nullable=True, index=True)
     is_active = Column(Boolean, nullable=False, default=True)
+    demo_mode = Column(Boolean, nullable=False, default=False, server_default="false")
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -56,6 +57,7 @@ class ChatRequest(Base):
     difficulty = Column(String(50), nullable=True)
     message = Column(Text, nullable=False)
     intent = Column(String(50), nullable=True)
+    demo_mode = Column(Boolean, nullable=False, default=False, server_default="false")
     lms_calls = Column(JSON, nullable=True, default=list)
     rag_filters = Column(JSON, nullable=True, default=dict)
 

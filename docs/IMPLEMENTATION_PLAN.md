@@ -1,7 +1,7 @@
 # IMPLEMENTATION_PLAN.md — AI Curator
 
 **Проект:** ai-curator
-**Версия:** 2.7
+**Версия:** 2.8
 **Дата:** 2026-08-05
 **Статус:** Approved
 **Срок реализации:** 7+ календарных дней основного цикла + 9–15 календарных дней спринтов стабилизации и аналитики
@@ -634,8 +634,8 @@ Backend и frontend завершены и задеплоены (2026-08-01). Д�
 | # | Задача | Артефакты | Критерий готовности | Статус |
 |---|--------|-----------|---------------------|--------|
 | A1 | Удалить `view_*` аудит из admin endpoints | `src/api/v1/admin/audit.py`, `dialog_sessions.py`, `operational_logs.py`, `monitoring.py`, `analytics.py`, `kb.py` | `audit_logs` не растёт от просмотров | ✅ 2026-08-02 |
-| A2 | Read-only demo login | `src/api/v1/admin/auth.py`, frontend `useAuth.js`, `Login.jsx` | Демо-пользователь входит только на просмотр, аудит входа работает | ⏳ |
-| A3 | RBAC: запретить demo-роли изменять данные | `src/api/v1/admin/auth.py` | PUT/POST/DELETE endpoints отдают 403 для `viewer` | ⏳ |
+| A2 | Read-only demo login | `src/api/v1/admin/auth.py`, frontend `useAuth.js`, `Login.jsx`, `DemoContext` | Демо-пользователь входит только на просмотр, `VITE_ADMIN_DEMO_TOKEN` в сборке | ✅ |
+| A3 | RBAC: запретить demo-роли изменять данные | `src/api/v1/admin/auth.py`, все mutation endpoints admin router'ов | PUT/POST/DELETE endpoints отдают 403 для demo; кнопки мутаций disabled в UI | ✅ |
 
 ### 10.3. Спринт B — Изолировать smoke-тесты и подготовить Testing Cost Contract
 
@@ -676,10 +676,10 @@ Backend и frontend завершены и задеплоены (2026-08-01). Д�
 
 | # | Задача | Артефакты | Критерий готовности | Статус |
 |---|--------|-----------|---------------------|--------|
-| F1 | Rate limiting и квоты для demo-сессий | `src/api/v1/chat.py`, middleware / dependency | Не более N запросов в час на demo-сессию, ограничение по токенам/длине | ⏳ |
-| F2 | Backend-флаг `demo_mode` | `src/api/v1/chat.py`, `src/services/orchestrator.py` | Demo-запросы помечены, не влияют на production-аналитику или влияют отдельно | ⏳ |
-| F3 | UI-индикация demo-режима | `web-ui/src/components/*` | Пользователь видит оставшиеся лимиты, таймер сессии, кнопку "начать демо" | ⏳ |
-| F4 | Кэширование + защита от повторов | `src/services/cache/response_cache.py` | Частые демо-запросы идут из кэша без расхода LLM | ⏳ |
+| F1 | Rate limiting и квоты для demo-сессий | `src/api/v1/chat.py`, `src/services/demo_limiter.py`, `src/api/v1/demo.py` | 20 запросов за 30 минут на сессию, не чаще 1 в 5 сек, max 5 сессий/час с одного IP | ✅ |
+| F2 | Backend-флаг `demo_mode` | `src/api/v1/chat.py`, `src/services/orchestrator.py`, `src/models/chat.py` | Demo-запросы помечены в `chat_requests`/`chat_sessions`, уменьшен `max_tokens` | ✅ |
+| F3 | UI-индикация demo-режима | `web-ui/src/contexts/DemoContext.jsx`, `DemoBadge.jsx`, `RoleSelector.jsx`, `Chat.jsx` | Кнопка "Начать демо", бейдж с оставшимися запросами и таймером, обработка 429 | ✅ |
+| F4 | Кэширование + защита от повторов | `src/services/cache/response_cache.py` | Для demo-запросов повышен TTL кэша до 7 дней | ✅ |
 
 ### 10.8. Критический путь
 
@@ -698,14 +698,14 @@ A → B → C → D → E → F
 ### 10.9. Текущий статус
 
 - [x] A1 — read-only аудит убран (2026-08-02).
-- [ ] A2/A3 — demo read-only login и RBAC.
+- [x] A2/A3 — demo read-only login и RBAC (2026-08-05).
 - [x] B1–B4 — тестовая БД `ai_curator_test`, Alembic-миграции, маркеры pytest, `docs/TESTING_CONTRACT.md` (2026-08-02).
 - [x] B5 — очистка prod БД от тестового мусора (2026-08-02).
 - [x] C1–C5 — кэширование: ResponseCache, интеграция в Orchestrator, инвалидация, `cache_hit` в UI/API, тесты и документация (2026-08-02).
-- [ ] D1–D3 — ручной E2E (частично: Operational Logs, Dialog Sessions, Audit Log — UI унифицировано и задеплоено; Business Reports — в процессе верификации; остальные консоли и сквозные сценарии — в процессе).
+- [x] D1–D3 — ручной E2E Phase 1 завершён 2026-08-04 (26 PASS, 0 FAIL, 1 NOT RUN ADM-04). Phase 2 сценарии (PH2-01..PH2-04) верифицированы на уровне API/тестов; ручная UI-верификация отдельных панелей рекомендуется.
 - [x] E1 — Analytics Dashboard завершён.
 - [x] E2 — Business Reports: backend, frontend, тесты завершены; ручная E2E в процессе.
-- [ ] F1–F4 — Web UI safe demo mode (API-лимитированный публичный демо-доступ).
+- [x] F1–F4 — Web UI safe demo mode (API-лимитированный публичный демо-доступ).
 
 ---
 
@@ -830,3 +830,5 @@ A → B → C → D → E → F
 | 2026-08-02 | 2.5 | Спринт C «Кэширование запросов» выполнен: ResponseCache, интеграция в Orchestrator, инвалидация в admin endpoints, `cache_hit` в ChatLog/ExecutionSession/API, `tests/test_cache.py`; обновлены `OPERATIONS.md`, `API_CONTRACT.md`, `.env.example` |
 | 2026-08-02 | 2.3 | Добавлен раздел 10 «Спринты стабилизации и подготовки к аналитике» (A–E); Sprint 5.8 отмечен полностью выполненным (frontend + read-only audit cleanup); выполнен A1 — удалён `view_*` аудит из admin endpoints; обновлены `API_CONTRACT.md` и `OPERATIONS.md` |
 | 2026-08-04 | 2.6 | Актуализированы статусы: Sprint 5.8 frontend UI унифицировано (Operational Logs, Dialog Sessions, Audit Log); добавлен Спринт F «Безопасный demo-режим Web UI» с rate limiting, квотами, demo-флагом и UI-индикацией; обновлены PROJECT_STATE.md, Next Steps, критический путь A→B→C→D→E→F |
+| 2026-08-05 | 2.7 | Sprint A2/A3 «Read-only demo admin + RBAC» выполнен: backend auth с `ADMIN_CONSOLE_DEMO_TOKEN` и `require_admin`, UI disabled кнопки мутаций, бейдж demo-режима, тесты `tests/test_admin_auth.py`; `pytest` 97 passed; PH2-03 PASS; Admin Console redeployed |
+| 2026-08-05 | 2.8 | Sprint F «Safe demo mode Web UI» выполнен: `X-Demo-Token`, `DemoLimiterService`, `/api/v1/demo/*`, `demo_mode` флаг, Web UI DemoBadge + DemoContext, тесты `tests/test_demo_mode.py`; `pytest` 109 passed; PH2-04 PASS |

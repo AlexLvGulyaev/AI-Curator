@@ -1,9 +1,9 @@
 # API_CONTRACT.md — AI Curator Backend
 
 **Проект:** ai-curator  
-**Версия:** 1.16  
+**Версия:** 1.18  
 **Дата:** 2026-08-05  
-**Статус:** Актуален для Sprint E2 Business Reports / Quality Reports
+**Статус:** Актуален для Sprint F safe demo mode Web UI
 
 ---
 
@@ -715,6 +715,12 @@
 
 Публичный чат со студентами. Backend классифицирует запрос, получает данные из LMS и/или Knowledge Base, формирует промпт, вызывает LLM и возвращает ответ с источниками.
 
+**Заголовки:**
+
+| Заголовок | Описание |
+|-----------|----------|
+| `X-Demo-Token` | Токен демо-сессии. **Обязателен** в production, когда `DEMO_ENABLED=true`. В dev/test без `DEMO_ENABLED` токен не требуется. |
+
 **Тело запроса (JSON):**
 
 | Параметр | Тип | Описание |
@@ -739,15 +745,118 @@
   "latency_ms": 1234.56,
   "session_id": "...",
   "cache_hit": false,
-  "error": null
+  "error": null,
+  "log_id": 12345,
+  "demo_mode": false
 }
 ```
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `answer` | string | Текст ответа AI |
+| `sources` | array[ChatSource] | Источники ответа (LMS / Knowledge Base) |
+| `intent` | string | Классифицированный интент |
+| `model` | string \| null | Модель LLM |
+| `latency_ms` | float \| null | Задержка в миллисекундах |
+| `session_id` | string \| null | ID диалоговой сессии |
+| `cache_hit` | bool | Ответ получен из кэша |
+| `error` | string \| null | Ошибка, если произошла |
+| `log_id` | int \| null | ID записи в `chat_logs`; используется Web UI для отправки feedback |
+| `demo_mode` | bool | Признак demo-запроса. При `true` ответ формируется с уменьшенным `max_tokens` и повышенным TTL кэша. |
 
 **Кэширование:**
 
 - Ответы кэшируются по ключу `SHA256(message | role | difficulty | course_id | intent)`.
 - `cache_hit: true` означает, что ответ был возвращён из кэша без вызова LMS/RAG/LLM.
 - Кэш инвалидируется при изменении KB, AI-config, retrieval tuning и orchestrator config.
+
+---
+
+### 3.26. `POST /api/v1/chat/{log_id}/feedback`
+
+Студент отправляет оценку полезности конкретного ответа AI. Оценка записывается в поле `feedback_score` таблицы `chat_logs`.
+
+**Параметры пути:**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `log_id` | int | ID записи в `chat_logs` (поле `log_id` из ответа `POST /api/v1/chat`) |
+
+**Тело запроса (JSON):**
+
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `score` | int | Оценка от 1 до 10 |
+
+**Ответ 204 No Content** — оценка успешно сохранена.
+
+**Возможные ошибки:**
+
+- `404 Not Found` — запись `chat_logs` с указанным `log_id` не найдена.
+- `422 Unprocessable Entity` — `score` вне диапазона 1–10 (валидация Pydantic).
+
+**Аудит:** при каждом успешном сохранении в `audit_logs` создаётся запись `action="chat_feedback"`, `resource_type="chat_log"`, `resource_id="<log_id>"` с `score` и предыдущей оценкой.
+
+---
+
+### 3.27. `POST /api/v1/demo/start`
+
+Создаёт новую демо-сессию для публичного Web UI. Возвращает токен, который необходимо передавать в заголовке `X-Demo-Token` на каждый `POST /api/v1/chat`.
+
+**Тело запроса (JSON):**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `session_id` | string | Опциональный business session_id |
+
+**Ответ 200 OK:**
+
+```json
+{
+  "token": "f5a3efee30bc453bbfa96604af7dce54",
+  "session_id": null,
+  "requests_limit": 20,
+  "requests_remaining": 20,
+  "rate_limit_per_minute": 12,
+  "expires_at": "2026-08-05T04:10:34.488823+00:00"
+}
+```
+
+**Возможные ошибки:**
+
+- `403 Forbidden` — demo-режим не включён (`DEMO_ENABLED=false`).
+- `429 Too Many Requests` — превышен лимит сессий с одного IP-адреса.
+
+---
+
+### 3.28. `GET /api/v1/demo/status`
+
+Возвращает текущее состояние демо-сессии: использованные и оставшиеся запросы, время истечения.
+
+**Заголовки:**
+
+| Заголовок | Описание |
+|-----------|----------|
+| `X-Demo-Token` | Токен демо-сессии |
+
+**Ответ 200 OK:**
+
+```json
+{
+  "token": "f5a3efee30bc453bbfa96604af7dce54",
+  "session_id": null,
+  "requests_used": 3,
+  "requests_limit": 20,
+  "requests_remaining": 17,
+  "expires_at": "2026-08-05T04:10:34.488823+00:00",
+  "is_active": true
+}
+```
+
+**Возможные ошибки:**
+
+- `401 Unauthorized` — отсутствует или истёкший `X-Demo-Token`.
+- `404 Not Found` — сессия не найдена.
 
 ---
 
@@ -1173,7 +1282,22 @@
 
 ### 4.8. Авторизация
 
-Административные endpoints защищены Bearer-токеном из переменной окружения `ADMIN_CONSOLE_TOKEN`, если она задана. Web UI и публичный чат не требуют авторизации.
+Административные endpoints защищены Bearer-токеном. Используются два токена:
+
+| Роль | Переменная | Доступ |
+|------|------------|--------|
+| `admin` | `ADMIN_CONSOLE_TOKEN` | Полный доступ ко всем endpoints (read + write). |
+| `demo` | `ADMIN_CONSOLE_DEMO_TOKEN` | Только read-only endpoints (`GET`, CSV export). Любая мутация (`POST`, `PUT`, `DELETE`) возвращает `403 Forbidden`. |
+
+Если `ADMIN_CONSOLE_TOKEN` не задан, авторизация отключена (например, в тестах). Web UI и публичный чат не требуют авторизации.
+
+**Пример ошибки для demo-пользователя при попытке мутации:**
+
+```json
+{
+  "detail": "Demo access is read-only"
+}
+```
 
 ### 4.9. Orchestrator Configuration
 
@@ -1500,3 +1624,5 @@
 | 2026-08-02 | 1.14 | Убран аудит read-only действий (`view_*`) во всех admin endpoints; раздел 4.6 Audit описывает новую политику |
 | 2026-08-02 | 1.15 | Добавлен Response Cache: `cache_hit` в ответе `POST /api/v1/chat`, `chat_logs.cache_hit`, `execution_metadata.cache_hit`, `cache_hit` в Operational Logs / Dialog Sessions; добавлен этап `cache_hit` в `ExecutionStep`; описана инвалидация кэша в admin endpoints |
 | 2026-08-05 | 1.16 | Добавлен раздел 4.7 «Reports (Business Reports / Quality Reports)» с endpoints `/api/v1/admin/reports/*`, параметрами фильтрации, примерами ответов и CSV-экспортом |
+| 2026-08-05 | 1.17 | Добавлено поле `log_id` в ответ `POST /api/v1/chat`; добавлен endpoint `POST /api/v1/chat/{log_id}/feedback` для сбора оценок студентов; обновлены модели `ChatResponse` и `ChatFeedbackPayload` |
+| 2026-08-05 | 1.18 | Sprint F: добавлены endpoints `POST /api/v1/demo/start` и `GET /api/v1/demo/status`; `POST /api/v1/chat` требует `X-Demo-Token` в production; в `ChatResponse` добавлено `demo_mode` |

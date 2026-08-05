@@ -941,6 +941,7 @@ class Orchestrator:
         history: Optional[List[Dict[str, str]]] = None,
         client_ip: Optional[str] = None,
         user_agent: Optional[str] = None,
+        demo_mode: bool = False,
     ) -> Dict[str, Any]:
         """Process a student message end-to-end and return answer + sources."""
         if session_id is None:
@@ -953,6 +954,8 @@ class Orchestrator:
         default_course_id: int = role_context["default_course_id"]
 
         # Start canonical chat session and execution trace.
+        self.logger = LoggerService(self.db, demo_mode=demo_mode)
+        self.tracer = self.logger.tracer
         chat_session = await self.logger.create_or_update_chat_session(
             session_id=session_id,
             user_id=user_id,
@@ -984,6 +987,7 @@ class Orchestrator:
                 available_course_ids=available_course_ids,
                 default_course_id=default_course_id,
                 history=history,
+                demo_mode=demo_mode,
             )
             result.setdefault("cache_hit", False)
             return result
@@ -1012,7 +1016,7 @@ class Orchestrator:
                 lms_calls=[],
                 rag_filters={},
             )
-            await self.logger.create_chat_log(
+            error_log = await self.logger.create_chat_log(
                 request_id=request.id,
                 answer=fallback_answer,
                 sources=[],
@@ -1033,6 +1037,7 @@ class Orchestrator:
                 "session_id": session_id,
                 "cache_hit": False,
                 "error": error_text,
+                "log_id": error_log.id,
             }
 
     @staticmethod
@@ -1055,6 +1060,7 @@ class Orchestrator:
         available_course_ids: List[int],
         default_course_id: int,
         history: Optional[List[Dict[str, str]]] = None,
+        demo_mode: bool = False,
     ) -> Dict[str, Any]:
         """Core pipeline: classify intent, fetch data, generate and validate answer."""
         t_core_start = time.perf_counter()
@@ -1086,7 +1092,7 @@ class Orchestrator:
                 lms_calls=[],
                 rag_filters={},
             )
-            await self.logger.create_chat_log(
+            refusal_log = await self.logger.create_chat_log(
                 request_id=request.id,
                 answer=refusal,
                 sources=[],
@@ -1110,6 +1116,7 @@ class Orchestrator:
                 "latency_ms": 0,
                 "session_id": session_id,
                 "error": None,
+                "log_id": refusal_log.id,
             }
 
         intent_detect_started_at = self._utc_now()
@@ -1132,6 +1139,8 @@ class Orchestrator:
         # Response cache: identical requests skip LMS/RAG/LLM.
         cache_key = self.response_cache.build_cache_key(message, role, difficulty, course_id, intent)
         effective_cache_ttl = retrieval_tuning.cache_ttl_seconds or settings.cache_ttl_seconds
+        if demo_mode:
+            effective_cache_ttl = settings.demo_cache_ttl_seconds
         cache_entry = None
         if retrieval_tuning.cache_enabled:
             cache_entry = self.response_cache.get_entry_by_key(cache_key)
@@ -1178,7 +1187,7 @@ class Orchestrator:
                 round((response_save_finished_at - response_save_started_at).total_seconds() * 1000, 2),
             )
 
-            await self.logger.create_chat_log(
+            cached_log = await self.logger.create_chat_log(
                 request_id=request.id,
                 answer=cached_result["answer"],
                 sources=cached_result.get("sources", []),
@@ -1216,7 +1225,7 @@ class Orchestrator:
                 t_core_total_ms,
                 execution_metadata={"cache_hit": True, "route": "cache", "timings_ms": timings},
             )
-            return {**cached_result, "latency_ms": t_core_total_ms}
+            return {**cached_result, "latency_ms": t_core_total_ms, "log_id": cached_log.id}
 
         # Determine target course: mentioned course in message takes precedence over
         # explicit UI selection, then default, but only if the mentioned course is
@@ -1251,7 +1260,7 @@ class Orchestrator:
                 lms_calls=[],
                 rag_filters={},
             )
-            await self.logger.create_chat_log(
+            out_of_scope_log = await self.logger.create_chat_log(
                 request_id=request.id,
                 answer=refusal,
                 sources=[],
@@ -1277,6 +1286,7 @@ class Orchestrator:
                     "latency_ms": 0,
                     "session_id": session_id,
                     "error": None,
+                    "log_id": out_of_scope_log.id,
                 },
                 cache_key,
                 effective_cache_ttl,
@@ -1517,7 +1527,7 @@ class Orchestrator:
                     lms_calls=lms_calls,
                     rag_filters=rag_filters,
                 )
-                await self.logger.create_chat_log(
+                deadline_log = await self.logger.create_chat_log(
                     request_id=request.id,
                     answer=deadline_answer,
                     sources=deadline_sources,
@@ -1564,6 +1574,7 @@ class Orchestrator:
                         "latency_ms": total_lms_ms,
                         "session_id": session_id,
                         "error": None,
+                        "log_id": deadline_log.id,
                     },
                     cache_key,
                     effective_cache_ttl,
@@ -1593,7 +1604,7 @@ class Orchestrator:
                     lms_calls=lms_calls,
                     rag_filters=rag_filters,
                 )
-                await self.logger.create_chat_log(
+                progress_log = await self.logger.create_chat_log(
                     request_id=request.id,
                     answer=progress_answer,
                     sources=progress_sources,
@@ -1640,6 +1651,7 @@ class Orchestrator:
                         "latency_ms": total_lms_ms,
                         "session_id": session_id,
                         "error": None,
+                        "log_id": progress_log.id,
                     },
                     cache_key,
                     effective_cache_ttl,
@@ -1673,7 +1685,7 @@ class Orchestrator:
                     lms_calls=lms_calls,
                     rag_filters=rag_filters,
                 )
-                await self.logger.create_chat_log(
+                count_log = await self.logger.create_chat_log(
                     request_id=request.id,
                     answer=count_answer,
                     sources=count_sources,
@@ -1720,6 +1732,7 @@ class Orchestrator:
                         "latency_ms": total_lms_ms,
                         "session_id": session_id,
                         "error": None,
+                        "log_id": count_log.id,
                     },
                     cache_key,
                     effective_cache_ttl,
@@ -1756,7 +1769,7 @@ class Orchestrator:
                     lms_calls=lms_calls,
                     rag_filters=rag_filters,
                 )
-                await self.logger.create_chat_log(
+                no_deadline_log = await self.logger.create_chat_log(
                     request_id=request.id,
                     answer=no_deadline_answer,
                     sources=[],
@@ -1803,6 +1816,7 @@ class Orchestrator:
                         "latency_ms": total_lms_ms,
                         "session_id": session_id,
                         "error": None,
+                        "log_id": no_deadline_log.id,
                     },
                     cache_key,
                     effective_cache_ttl,
@@ -1838,7 +1852,7 @@ class Orchestrator:
                 lms_calls=lms_calls,
                 rag_filters=rag_filters,
             )
-            await self.logger.create_chat_log(
+            no_lms_log = await self.logger.create_chat_log(
                 request_id=request.id,
                 answer=no_lms_template,
                 sources=[],
@@ -1885,6 +1899,7 @@ class Orchestrator:
                     "latency_ms": short_latency,
                     "session_id": session_id,
                     "error": None,
+                    "log_id": no_lms_log.id,
                 },
                 cache_key,
                 effective_cache_ttl,
@@ -1918,7 +1933,7 @@ class Orchestrator:
                 lms_calls=lms_calls,
                 rag_filters=rag_filters,
             )
-            await self.logger.create_chat_log(
+            no_rag_log = await self.logger.create_chat_log(
                 request_id=request.id,
                 answer=refusal,
                 sources=[],
@@ -1965,6 +1980,7 @@ class Orchestrator:
                     "latency_ms": short_latency,
                     "session_id": session_id,
                     "error": None,
+                    "log_id": no_rag_log.id,
                 },
                 cache_key,
                 effective_cache_ttl,
@@ -2029,6 +2045,9 @@ class Orchestrator:
             # Advanced study and any other intent: cap below the config default
             # to keep latency under the NFR ceiling.
             llm_max_tokens = token_budgets.get("default", 750)
+
+        if demo_mode:
+            llm_max_tokens = min(llm_max_tokens, 500)
 
         llm = LLMAdapter(config)
         llm_result: LlmResponse = await llm.generate(prompt, max_tokens=llm_max_tokens)
@@ -2176,7 +2195,7 @@ class Orchestrator:
             2,
         )
 
-        await self.logger.create_chat_log(
+        answer_log = await self.logger.create_chat_log(
             request_id=request.id,
             answer=final_answer,
             sources=final_sources,
@@ -2211,6 +2230,7 @@ class Orchestrator:
                 "llm_truncated": llm_truncated,
                 "validated": validation.is_valid,
                 "timings_ms": timings,
+                "demo_mode": demo_mode,
             },
         )
 
@@ -2235,6 +2255,7 @@ class Orchestrator:
                 "latency_ms": total_latency,
                 "session_id": session_id,
                 "error": llm_result.error,
+                "log_id": answer_log.id,
             },
             cache_key,
             effective_cache_ttl,

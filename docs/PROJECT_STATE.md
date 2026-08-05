@@ -3,7 +3,7 @@
 **Проект:** ai-curator
 **Дата создания:** 2026-07-29
 **Последнее обновление:** 2026-08-05
-**Статус:** Implementation In Progress — Sprint E2 Business Reports implemented; full pytest suite green; manual E2E pending
+**Статус:** Implementation In Progress — Sprints A2/A3 (read-only demo admin) and Sprint F (Web UI safe demo mode) completed; full pytest suite green; DEPLOYMENT_GUIDE актуализирован; remaining: README/portfolio docs
 
 ---
 
@@ -48,15 +48,17 @@ AI Curator не заменяет преподавателя, не выставл
 - Auth: Admin Console защищён Bearer-токеном `ADMIN_CONSOLE_TOKEN`.
 - TZ compliance report: `docs/TZ_COMPLIANCE_REPORT.md` — соответствие реализации исходному `ТЗ проекта.md`.
 - Testing infrastructure: тестовая БД `ai_curator_test`, Alembic-миграции в тестах, маркеры pytest, `docs/TESTING_CONTRACT.md`.
-- `pytest` стабильно проходит (87 тестов, ~20 секунд).
+- `pytest` стабильно проходит (109 тестов, ~30 секунд).
+- Read-only demo admin + RBAC (Sprint A2/A3): `ADMIN_CONSOLE_DEMO_TOKEN`, `AdminIdentity` с ролью `demo`, `require_admin` на mutation endpoints, UI disabled кнопки мутаций и бейдж demo-режима.
+- Safe demo mode Web UI (Sprint F): токенизированные demo-сессии (`X-Demo-Token`), квоты 20 запросов / 30 мин, rate limit, IP-лимит сессий, backend-флаг `demo_mode`, UI-индикация оставшихся запросов и таймер.
 
 **Оставшиеся ключевые работы:**
 
 1. ✅ **Спринт E2 — Business Reports / Quality Reports:** backend, frontend и тесты завершены; требуется ручная E2E-верификация PH2-02.
-3. **Спринт A2/A3 — Read-only demo admin + RBAC:** безопасный демо-доступ в Admin Console только на просмотр, запрет изменений для demo-роли.
+3. ✅ **Спринт A2/A3 — Read-only demo admin + RBAC:** безопасный демо-доступ в Admin Console только на просмотр, запрет изменений для demo-роли. Backend, frontend, тесты и docker-compose деплой завершены; ручная UI-верификация рекомендуется.
 4. **Web UI safe demo mode:** ограниченный по запросам/расходу API режим для потенциальных клиентов на публичном Web UI с защитой API-лимитов.
 5. **Phase 2 E2E:** дополнить чек-лист сценариями Analytics, Business Reports, read-only demo admin / RBAC и safe Web UI demo mode по мере реализации фич.
-6. **Актуализация DEPLOYMENT_GUIDE.md и README.md:** подготовка материалов для портфолио.
+6. **Актуализация DEPLOYMENT_GUIDE.md и README.md:** DEPLOYMENT_GUIDE.md обновлён для Sprint F (DEMO_* переменные, verification curl). README.md остаётся для финальной портфельной полировки.
 7. ✅ **Инфраструктурная безопасность:** зафиксирован инцидент с `TRUNCATE` deadlock; добавлен engineering pattern `shared/patterns/pytest-transactional-fixture-deadlock.md`; процедура проверки висящих backend-процессов перед прогоном pytest.
 
 ## Market Validation
@@ -132,9 +134,9 @@ AI Curator не заменяет преподавателя, не выставл
 13. ✅ Подготовить `docs/TZ_COMPLIANCE_REPORT.md` — отчёт о соответствии ТЗ.
 14. ✅ Выполнить первый прогон `docs/PRODUCT_E2E_CHECKLIST.md` (Phase 1) — 26 PASS, 0 FAIL, 1 NOT RUN.
 15. ✅ Реализовать Business Reports / Quality Reports (Sprint E2).
-16. ⏳ Реализовать read-only demo login и RBAC в Admin Console (Sprint A2/A3).
-17. ⏳ Реализовать безопасный API-лимитированный demo режим на Web UI.
-18. ⏳ Актуализировать DEPLOYMENT_GUIDE.md и README.md для портфолио.
+16. ✅ Реализовать read-only demo login и RBAC в Admin Console (Sprint A2/A3).
+17. ✅ Реализовать безопасный API-лимитированный demo режим на Web UI.
+18. ✅ Актуализировать DEPLOYMENT_GUIDE.md для Sprint F. ⏳ README.md — финальная портфельная полировка.
 19. ✅ Настроить процедуру проверки БД перед тестами (pattern + мониторинг висящих процессов).
 
 ## Open Questions
@@ -148,8 +150,8 @@ AI Curator не заменяет преподавателя, не выставл
 | Как организовать хранилище документов Knowledge Base? | Инфраструктура | ✅ Решено: файловое хранилище внутри Backend-контейнера через Docker volume |
 | Нужна ли аутентификация студентов в Web UI? | Безопасность | ✅ Решено: гостевой демо-доступ с выбором ролей; Moodle OAuth / SSO — будущая опция |
 | Какие метрики аналитики критичны? | Продукт | ✅ Решено: total_requests, intent_distribution, unanswered_count, average_latency_ms, feedback_score_distribution |
-| Как защитить API-лимиты в demo-режиме Web UI? | Безопасность / Cost | ⏳ Открыто: требуется rate limiting, квоты на сессию, кэширование, возможно капча |
-| Нужен ли read-only demo-доступ в Admin Console? | Безопасность | ⏳ Открыто: запланировано в Sprint A2/A3 |
+| Как защитить API-лимиты в demo-режиме Web UI? | Безопасность / Cost | ✅ Решено: Sprint F — токенизированные demo-сессии, rate limit, квоты, `demo_mode` флаг, extended cache TTL |
+| Нужен ли read-only demo-доступ в Admin Console? | Безопасность | ✅ Решено: реализован read-only demo-вход с отдельным `ADMIN_CONSOLE_DEMO_TOKEN`; кнопки мутаций disabled, backend возвращает 403 |
 
 ## Dependencies
 

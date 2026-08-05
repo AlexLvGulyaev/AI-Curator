@@ -34,9 +34,20 @@ LMS_API_TOKEN=YOUR_MOODLE_WEBSERVICE_TOKEN
 # Admin Console auth
 ADMIN_CONSOLE_URL=https://curator-admin.alex-n8n.site
 ADMIN_CONSOLE_TOKEN=YOUR_RANDOM_HEX_TOKEN_64_CHARS
+# Optional: a separate read-only demo token for the Admin Console.
+ADMIN_CONSOLE_DEMO_TOKEN=YOUR_DEMO_READONLY_TOKEN_64_CHARS
 
 # Web UI
 WEB_UI_URL=https://curator.alex-n8n.site
+
+# Web UI safe demo mode (Sprint F)
+# Set DEMO_ENABLED=true in production to require X-Demo-Token on public chat.
+DEMO_ENABLED=false
+DEMO_MAX_REQUESTS_PER_SESSION=20
+DEMO_SESSION_TTL_MINUTES=30
+DEMO_RATE_LIMIT_PER_MINUTE=12
+DEMO_MAX_SESSIONS_PER_IP_PER_HOUR=5
+DEMO_CACHE_TTL_SECONDS=604800
 
 # Log retention and archiving
 ARCHIVE_DIR=/app/storage/archives
@@ -94,6 +105,39 @@ curl -s https://curator-api.alex-n8n.site/health
 ```
 
 Expected result: `{"status":"ok","service":"ai-curator-backend"}`.
+
+### Verify safe demo mode (when `DEMO_ENABLED=true`)
+
+Start a demo session:
+
+```bash
+curl -s -X POST https://curator-api.alex-n8n.site/api/v1/demo/start \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+```
+
+Expected result: a JSON object with `token`, `requests_limit`, `requests_remaining` and `expires_at`.
+
+Use the token to chat:
+
+```bash
+export DEMO_TOKEN=<token-from-above>
+curl -s -X POST https://curator-api.alex-n8n.site/api/v1/chat \
+  -H 'Content-Type: application/json' \
+  -H "X-Demo-Token: $DEMO_TOKEN" \
+  -d '{"message":"Какие дедлайны?","role":"active_student","difficulty":"beginner","course_id":3}'
+```
+
+Expected result: `200 OK` with `demo_mode: true` in the response.
+
+Check the remaining quota:
+
+```bash
+curl -s https://curator-api.alex-n8n.site/api/v1/demo/status \
+  -H "X-Demo-Token: $DEMO_TOKEN"
+```
+
+Expected result: `requests_used` incremented and `requests_remaining` decremented.
 
 ## First-time setup
 

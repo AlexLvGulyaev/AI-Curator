@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDemo } from '../contexts/DemoContext';
 import {
   getActiveAiConfig,
   updateActiveAiConfig,
@@ -56,7 +57,7 @@ function InputRow({ label, children, inline = false, error }) {
   );
 }
 
-function TextModal({ isOpen, title, value, onChange, onSave, onClose, saving }) {
+function TextModal({ isOpen, title, value, onChange, onSave, onClose, saving, isDemo }) {
   if (!isOpen) return null;
   return (
     <div className="ai-modal-overlay" onClick={onClose}>
@@ -69,13 +70,20 @@ function TextModal({ isOpen, title, value, onChange, onSave, onClose, saving }) 
           className="ai-textarea ai-textarea--modal"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          disabled={saving}
+          disabled={saving || isDemo}
+          readOnly={isDemo}
         />
         <div className="ai-modal__actions">
           <button type="button" className="ai-btn ai-btn--secondary" onClick={onClose} disabled={saving}>
             Отмена
           </button>
-          <button type="button" className="ai-btn" onClick={onSave} disabled={saving}>
+          <button
+            type="button"
+            className="ai-btn"
+            onClick={onSave}
+            disabled={isDemo || saving}
+            title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
+          >
             {saving ? 'Сохранение…' : 'Сохранить'}
           </button>
         </div>
@@ -100,6 +108,7 @@ function validateNumber(value, { min, max, step, integer }) {
 }
 
 function AiAndRetrievalConfig() {
+  const { isDemo } = useDemo();
   const [config, setConfig] = useState(null);
   const [tuning, setTuning] = useState(null);
   const [providers, setProviders] = useState([]);
@@ -374,7 +383,8 @@ function AiAndRetrievalConfig() {
             type="button"
             className="ai-btn"
             onClick={saveAll}
-            disabled={saving || hasConfigErrors || hasTuningErrors}
+            disabled={isDemo || saving || hasConfigErrors || hasTuningErrors}
+            title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
           >
             {saving ? 'Сохранение…' : 'Сохранить'}
           </button>
@@ -507,7 +517,8 @@ function AiAndRetrievalConfig() {
                       type="button"
                       className="ai-btn ai-btn--secondary ai-btn--small"
                       onClick={() => runProviderTest(p.key)}
-                      disabled={!isImplemented || saving}
+                      disabled={isDemo || !isImplemented || saving}
+                      title={isDemo ? 'Демо-режим: изменения запрещены' : undefined}
                     >
                       {saving ? 'Проверка…' : 'Проверить'}
                     </button>
@@ -735,6 +746,7 @@ function AiAndRetrievalConfig() {
         onSave={saveTextField}
         onClose={closeModal}
         saving={saving}
+        isDemo={isDemo}
       />
     </div>
   );

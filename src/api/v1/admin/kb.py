@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.v1.admin.auth import AdminIdentity, admin_auth
+from api.v1.admin.auth import AdminIdentity, admin_auth, require_admin
 from db import get_db
 from models.knowledge_base import KbDocument, KbDocumentVersion
 from schemas.knowledge_base import (
@@ -130,7 +130,7 @@ async def create_document(
     source_url: str = Form(None),
     file: UploadFile = File(...),
     service: KnowledgeBaseService = Depends(get_kb_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Upload a new document to the Knowledge Base."""
     try:
@@ -217,7 +217,7 @@ async def update_document(
     document_id: int,
     data: KbDocumentUpdate,
     service: KnowledgeBaseService = Depends(get_kb_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Update document metadata."""
     try:
@@ -251,7 +251,7 @@ async def delete_document(
     request: Request,
     document_id: int,
     service: KnowledgeBaseService = Depends(get_kb_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Archive a Knowledge Base document."""
     try:
@@ -279,7 +279,7 @@ async def add_version(
     document_id: int,
     file: UploadFile = File(...),
     service: KnowledgeBaseService = Depends(get_kb_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Upload a new version of an existing document."""
     try:
@@ -318,7 +318,7 @@ async def publish_document(
     document_id: int,
     publish: bool = Query(True),
     service: KnowledgeBaseService = Depends(get_kb_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Publish or unpublish a document."""
     try:
@@ -351,7 +351,7 @@ async def process_document(
     request: Request,
     document_id: int,
     service: KnowledgeBaseService = Depends(get_kb_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Process the active version of a document: extract text, chunk, embed, index."""
     try:
@@ -455,7 +455,7 @@ async def save_version_text(
     stage: str = Query("cleaned"),
     reindex: bool = Query(True),
     service: KnowledgeBaseService = Depends(get_kb_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Save edited cleaned text for a document version and optionally reindex it."""
     if stage != "cleaned":
@@ -541,7 +541,7 @@ async def activate_version(
     document_id: int,
     version_id: int,
     service: KnowledgeBaseService = Depends(get_kb_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Activate a specific document version without reindexing."""
     try:
@@ -578,7 +578,7 @@ async def reindex_version(
     document_id: int,
     version_id: int,
     service: KnowledgeBaseService = Depends(get_kb_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Activate and reindex a specific document version."""
     try:
@@ -611,7 +611,7 @@ async def reindex_document(
     request: Request,
     document_id: int,
     service: KnowledgeBaseService = Depends(get_kb_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Reindex the currently active version of a document."""
     try:
@@ -649,7 +649,7 @@ async def reindex_document(
 async def reindex_all(
     request: Request,
     service: KnowledgeBaseService = Depends(get_kb_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Reindex all currently published documents."""
     result = await service.reindex_all_published()

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.v1.admin.auth import AdminIdentity, admin_auth
+from api.v1.admin.auth import AdminIdentity, admin_auth, require_admin
 from db import get_db
 from services.cache import response_cache
 from services.knowledge_base import KnowledgeBaseService
@@ -118,7 +118,7 @@ async def update_tuning(
     request: Request,
     payload: RetrievalTuningIn,
     service: RetrievalTuningService = Depends(get_service),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Update the effective retrieval tuning settings."""
     changed_fields = payload.model_dump(exclude_unset=True)
@@ -158,7 +158,7 @@ async def list_backends():
 async def reindex_all(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    admin: AdminIdentity = Depends(admin_auth),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Reindex all published Knowledge Base documents."""
     kb_service = KnowledgeBaseService(db)

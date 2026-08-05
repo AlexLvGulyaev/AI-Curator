@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.v1.admin.auth import AdminIdentity, require_admin
 from db import get_db
 from services.ai_config import AiConfigService
 from services.gigachat_adapter import GigaChatAdapter
@@ -25,6 +26,7 @@ class ProviderTestOut(BaseModel):
 async def test_provider(
     provider_key: str,
     db: AsyncSession = Depends(get_db),
+    admin: AdminIdentity = Depends(require_admin),
 ):
     """Test a specific LLM provider by sending a minimal prompt."""
     if provider_key not in ("openai", "gigachat"):
