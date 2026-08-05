@@ -205,6 +205,48 @@ flowchart TB
 
 ---
 
+## 📁 Структура проекта
+
+```
+ai-curator/
+├── README.md                  # Точка входа в проект
+├── docs/                      # Документация кейса
+│   ├── BUSINESS_VALUE.md      # Бизнес-ценность
+│   ├── SYSTEM_DEMO.md       # Скриншоты и live demo
+│   ├── E2E_SCENARIOS.md     # Сквозные бизнес-сценарии
+│   ├── USER_GUIDE.md        # Руководство студента
+│   ├── ADMIN_GUIDE.md       # Руководство администратора
+│   ├── CURATOR_GUIDE.md     # Руководство методиста
+│   ├── FAQ.md               # Частые вопросы
+│   ├── ARCHITECTURE.md      # Архитектурные решения
+│   ├── SPEC.md              # Продуктовая спецификация
+│   ├── IMPLEMENTATION_PLAN.md  # План реализации
+│   ├── API_CONTRACT.md      # API endpoints и payload
+│   ├── DEPLOYMENT_GUIDE.md  # Развёртывание с нуля
+│   ├── OPERATIONS.md        # Эксплуатация
+│   ├── PROMPT_ARCHITECTURE.md  # Структура промптов
+│   ├── PROJECT_STATE.md     # Текущий статус и roadmap
+│   └── screenshots/         # Иллюстрации и скриншоты
+├── src/                       # Backend (FastAPI)
+│   ├── services/              # Бизнес-логика: orchestrator, RAG, KB, LLM
+│   ├── models/                # SQLAlchemy-модели
+│   ├── schemas/               # Pydantic-схемы
+│   ├── adapters/              # Адаптеры внешних систем (LMS)
+│   └── api/                   # API endpoints
+├── admin-console/             # Frontend консоли администратора (React + Vite)
+├── web-ui/                    # Frontend веб-интерфейса студента (React + Vite)
+├── tests/                     # Pytest-тесты
+├── alembic/                   # Миграции PostgreSQL
+├── scripts/                   # Вспомогательные скрипты
+├── kb-content/                # Исходные материалы Базы знаний
+├── storage/                   # Хранилище документов и кэша
+├── docker-compose.yml         # Docker Compose: backend, frontend, БД, Chroma
+├── Dockerfile                 # Backend-сервис
+└── task_history/              # История задач по кейсу
+```
+
+---
+
 ## 📄 Лицензия
 
 © AI Curator. Права защищены.
