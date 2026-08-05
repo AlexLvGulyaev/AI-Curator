@@ -642,7 +642,13 @@ or set PYTEST_ALLOW_PROD_DB=true to intentionally use the production database fo
 
 ---
 
-## 📝 14. История изменений
+## 🔗 14. Связанные документы
+
+- [🎛️ `docs/ADMIN_GUIDE.md`](ADMIN_GUIDE.md) — руководство администратора по Консоли администратора.
+
+---
+
+## 📝 15. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
@@ -654,4 +660,4 @@ or set PYTEST_ALLOW_PROD_DB=true to intentionally use the production database fo
 | 2026-08-05 | 1.5 | Добавлены retention policy и CSV-экспорт логов |
 | 2026-08-05 | 1.6 | Актуализирован раздел Knowledge Base под реальный UI Admin Console; удалены не реализованные в UI функции |
 | 2026-08-05 | 1.7 | Полная фактическая проверка: AI и Retrieval, Orchestrator, Analytics, Monitoring, Operational Logs, Dialog Sessions, Audit; исправлены token budgets и нумерация разделов |
-| 2026-08-05 | 1.8 | Расставлены эмодзи по контракту `shared/patterns/documentation-emoji-contract.md` для всех H1–H3 заголовков |
+| 2026-08-05 | 1.8 | Расставлены эмодзи по контракту `shared/patterns/documentation-emoji-contract.md` для всех H1–H3 заголовков; добавлена обратная ссылка на `ADMIN_GUIDE.md` |
