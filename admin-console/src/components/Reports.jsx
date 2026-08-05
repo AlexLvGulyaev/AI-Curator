@@ -415,10 +415,10 @@ function Reports() {
           />
         </div>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          <MetricCard compact label="RAG eligible" value={quality.rag_eligible_count} tooltip />
-          <MetricCard compact label="RAG covered" value={quality.rag_covered_count} tooltip />
-          <MetricCard compact label="RAG coverage" value={`${quality.rag_coverage_rate ?? 0}%`} suffix="" tooltip />
-          <MetricCard compact label="Без ответа" value={quality.total_requests - quality.answered_count} tooltip />
+          <MetricCard compact label="RAG eligible" value={quality.rag_eligible_count} />
+          <MetricCard compact label="RAG covered" value={quality.rag_covered_count} />
+          <MetricCard compact label="RAG coverage" value={`${quality.rag_coverage_rate ?? 0}%`} suffix="" />
+          <MetricCard compact label="Без ответа" value={quality.total_requests - quality.answered_count} />
         </div>
         <ChartCard title="Последние вопросы без ответа" className="flex flex-col">
           <RequestList items={unanswered.items.slice(0, 10)} emptyText="Нет данных." />
