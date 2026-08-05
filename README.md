@@ -8,7 +8,7 @@ AI Curator — самостоятельная подсистема образо�
 
 ## Live Demo
 
-🌐 **Web UI:** `https://curator.alex-n8n.site`
+🌐 **Веб-интерфейс:** `https://curator.alex-n8n.site`
 
 Откройте, выберите demo-роль и задайте вопрос AI-куратору. Safe demo mode защищает API-лимиты: квота запросов, rate limit и таймер сессии.
 
@@ -29,10 +29,10 @@ AI Curator — самостоятельная подсистема образо�
 
 Преподаватели отвечают на однотипные вопросы многократно, а актуальная информация разрознена между LMS, мессенджерами и email.
 
-**AI Curator решает эту проблему**, предоставляя студенту единый публичный Web UI для персонализированных, подтверждённых источниками ответов на основе двух независимых источников:
+**AI Curator решает эту проблему**, предоставляя студенту единый публичный Веб-интерфейс для персонализированных, подтверждённых источниками ответов на основе двух независимых источников:
 
 - **LMS** — Source of Truth учебного процесса (расписание, задания, дедлайны, прогресс);
-- **Knowledge Base AI Curator** — управляемая база учебных материалов (лекции, методички, FAQ).
+- **База знаний AI Curator** — управляемая база учебных материалов (лекции, методички, FAQ).
 
 Больше о бизнес-ценности — в [`docs/BUSINESS_VALUE.md`](docs/BUSINESS_VALUE.md).
 
@@ -51,9 +51,9 @@ AI Curator — самостоятельная подсистема образо�
 
 - **Наставнический диалог** — AI общается в поддерживающем стиле и помогает разобраться.
 - **Организационные ответы** — дедлайны, задания, расписание, прогресс берутся из LMS в реальном времени.
-- **Учебные ответы** — система находит релевантные материалы в Knowledge Base и объясняет темы простыми словами или углублённо.
+- **Учебные ответы** — система находит релевантные материалы в Базе знаний и объясняет темы простыми словами или углублённо.
 - **Персональные рекомендации** — AI предлагает следующие шаги с учётом прогресса и текущего модуля.
-- **Ссылки на источники** — каждый содержательный ответ сопровождается карточками источников: кликабельные LMS-ссылки и бейджи Knowledge Base.
+- **Ссылки на источники** — каждый содержательный ответ сопровождается карточками источников: кликабельные LMS-ссылки и бейджи Базы знаний.
 - **Адаптация сложности** — ответы подстраиваются под уровень подготовки студента.
 - **Чёткие границы** — AI Curator не выставляет оценки, не переносит дедлайны и не изменяет учебный процесс.
 - **Safe demo mode** — защищённый публичный доступ с квотами и rate limit.
@@ -72,8 +72,8 @@ flowchart TB
     end
 
     subgraph "AI Curator"
-        WebUI[Web UI AI Curator]
-        AdminConsole[Admin Console AI Curator]
+        WebUI[Веб-интерфейс AI Curator]
+        AdminConsole[Консоль администратора AI Curator]
 
         subgraph "Backend — единый оркестратор"
             Backend[Backend Core]
@@ -81,13 +81,13 @@ flowchart TB
             LangChain[LangChain]
             PromptBuilder[Prompt Builder]
             Validator[Answer Validator]
-            Logger[Logging & Analytics]
+            Logger[Logging & Аналитика]
         end
     end
 
     subgraph "Источники данных"
         LMS[(LMS)]
-        KB[(Knowledge Base AI Curator)]
+        KB[(База знаний AI Curator)]
     end
 
     subgraph "Инфраструктура"
@@ -122,7 +122,7 @@ flowchart TB
 ```
 
 - **LMS** — Source of Truth учебного процесса.
-- **Knowledge Base** — самостоятельный источник учебных материалов.
+- **База знаний** — самостоятельный источник учебных материалов.
 - **Backend** — единый оркестратор, который классифицирует запросы, объединяет контекст и вызывает LLM.
 - **LangChain** — внутренняя библиотека Backend для RAG.
 
@@ -134,8 +134,8 @@ flowchart TB
 
 | Сервис | Домен | Назначение |
 |--------|-------|-----------|
-| Web UI студента | `https://curator.alex-n8n.site` | Диалог со студентами |
-| Admin Console | `https://curator-admin.alex-n8n.site` | Управление Knowledge Base, AI-конфигурацией, логами |
+| Веб-интерфейс студента | `https://curator.alex-n8n.site` | Диалог со студентами |
+| Консоль администратора | `https://curator-admin.alex-n8n.site` | Управление Базой знаний, AI-конфигурацией, логами |
 | Backend API | `https://curator-api.alex-n8n.site` | API AI Curator |
 | Moodle LMS | `https://lms.alex-n8n.site` | Штатный интерфейс LMS |
 
@@ -155,9 +155,9 @@ flowchart TB
 
 | Документ | Описание |
 |----------|----------|
-| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | Как пользоваться Web UI студенту |
+| [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) | Как пользоваться Веб-интерфейс студенту |
 | [`docs/ADMIN_GUIDE.md`](docs/ADMIN_GUIDE.md) | Руководство администратора AI Curator |
-| [`docs/CURATOR_GUIDE.md`](docs/CURATOR_GUIDE.md) | Руководство методиста по Knowledge Base |
+| [`docs/CURATOR_GUIDE.md`](docs/CURATOR_GUIDE.md) | Руководство методиста по Базе знаний |
 | [`docs/FAQ.md`](docs/FAQ.md) | Частые вопросы |
 
 ### Для инженеров и интеграторов
@@ -176,7 +176,7 @@ flowchart TB
 
 ## Статус проекта
 
-Реализованы все ключевые компоненты: LMS-интеграция, Knowledge Base, RAG, LLM Chat, Admin Console, Analytics, Audit, Response Cache, safe demo mode, log export и retention policy.
+Реализованы все ключевые компоненты: LMS-интеграция, База знаний, RAG, LLM Chat, Консоль администратора, Аналитика, Audit, Response Cache, safe demo mode, log export и retention policy.
 
 `pytest`: 109 passed.
 

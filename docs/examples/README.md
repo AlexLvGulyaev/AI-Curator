@@ -10,7 +10,7 @@
 |------|-----------|
 | `chat_request.json` | Тело запроса `POST /api/v1/chat` |
 | `chat_response.json` | Пример ответа `POST /api/v1/chat` |
-| `admin_kb_upload.sh` | curl: загрузка документа в Knowledge Base |
+| `admin_kb_upload.sh` | curl: загрузка документа в Базе знаний |
 | `admin_export_logs.sh` | curl: экспорт operational logs в CSV |
 | `demo_session.sh` | curl: получение demo-токена и отправка сообщения |
 

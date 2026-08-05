@@ -8,13 +8,13 @@
 
 ## 1. Назначение
 
-Это руководство для **администратора AI Curator** — человека, который управляет Knowledge Base, AI-конфигурацией, аналитикой, мониторингом и безопасностью системы.
+Это руководство для **администратора AI Curator** — человека, который управляет Базой знаний, AI-конфигурацией, аналитикой, мониторингом и безопасностью системы.
 
 Администратор AI Curator не управляет учебным процессом в LMS. Курсы, задания, дедлайны и оценки остаются в ведении LMS.
 
 ---
 
-## 2. Вход в Admin Console
+## 2. Вход в Консоль администратора
 
 1. Перейдите по адресу `https://curator-admin.alex-n8n.site`.
 2. Введите Bearer-токен из переменной окружения `ADMIN_CONSOLE_TOKEN`.
@@ -22,38 +22,38 @@
 
 Токен хранится в `localStorage` браузера и передаётся в заголовке `Authorization: Bearer <token>`.
 
-![Экран входа в Admin Console с Bearer-токеном](screenshots/AIC_admin_login.png)
+![Экран входа в Консоль администратора с Bearer-токеном](screenshots/AIC_admin_login.png)
 
 ---
 
-## 3. Dashboard
+## 3. Панель состояния
 
-Dashboard показывает общее состояние системы:
+Панель состояния показывает общее состояние системы:
 
-- количество документов Knowledge Base;
+- количество документов Базе знаний;
 - активная AI-конфигурация;
 - статус LLM-провайдера;
 - краткая аналитика запросов.
 
-![Dashboard: health сервисов и KPI](screenshots/AIC_admin_dashboard.png)
+![Панель состояния: health сервисов и KPI](screenshots/AIC_admin_dashboard.png)
 
 ---
 
-## 4. Knowledge Base
+## 4. База знаний
 
-Раздел **Knowledge Base → Документы** — трёхпанельная операционная консоль:
+Раздел **База знаний → Документы** — трёхпанельная операционная консоль:
 
 - **Список документов** слева — фильтры, поиск, статусы.
 - **Детальная карточка** по центру — метаданные, версии, чанки.
 - **Жизненный цикл** справа — timeline событий обработки.
 
-![Панель Knowledge Base: список документов и детальная карточка](screenshots/AIC_admin_kb_list.png)
+![Панель Базы знаний: список документов и детальная карточка](screenshots/AIC_admin_kb_list.png)
 
 ![Детальная карточка документа: метаданные, версии, чанки](screenshots/AIC_admin_kb_detail.png)
 
 Для загрузки нового документа нажмите **Загрузить файл**, заполните метаданные и выберите файл.
 
-![Форма загрузки документа в Knowledge Base](screenshots/AIC_admin_kb_upload.png)
+![Форма загрузки документа в Базе знаний](screenshots/AIC_admin_kb_upload.png)
 
 ---
 
@@ -74,25 +74,25 @@ Dashboard показывает общее состояние системы:
 
 ---
 
-## 6. Orchestrator Configuration
+## 6. Настройки оркестратора
 
 Orchestrator определяет:
 
 - интент-классификацию по ключевым словам;
-- source routing: LMS, Knowledge Base, оба источника, strict_course;
+- source routing: LMS, База знаний, оба источника, strict_course;
 - token-бюджеты по интентам;
 - fallback-сообщения;
 - размеры LMS-контекста.
 
-![Orchestrator Configuration: интенты, маршрутизация, fallback](screenshots/AIC_admin_orchestrator.png)
+![Настройки оркестратора: интенты, маршрутизация, fallback](screenshots/AIC_admin_orchestrator.png)
 
 Подробнее см. [`ORCHESTRATOR_USER_GUIDE.md`](ORCHESTRATOR_USER_GUIDE.md).
 
 ---
 
-## 7. Analytics и Reports
+## 7. Аналитика и отчёты
 
-### Analytics Dashboard
+### Панель аналитики
 
 - KPI за период;
 - latency histogram;
@@ -100,54 +100,54 @@ Orchestrator определяет:
 - популярные темы;
 - динамика по курсам.
 
-![Analytics Dashboard: распределение запросов и источники ответов](screenshots/AIC_admin_analytics.png)
+![Панель аналитики: распределение запросов и источники ответов](screenshots/AIC_admin_analytics.png)
 
-### Business Reports / Quality Reports
+### Управленческие отчёты и отчёты качества
 
 - качество ответов;
 - вопросы без ответа;
-- гэпы Knowledge Base;
+- гэпы Базы знаний;
 - кандидаты на расширение KB;
 - CSV export.
 
-![Business Reports: качество ответов и покрытие KB](screenshots/AIC_admin_reports.png)
+![Управленческие отчёты: качество ответов и покрытие KB](screenshots/AIC_admin_reports.png)
 
 ---
 
-## 8. Operational Logs и Dialog Sessions
+## 8. Операционные логи и Диалоговые сессии
 
-### Operational Logs
+### Операционные логи
 
-Operational Logs показывают каждый запрос студента с фильтрами по роли, источнику, интенту, статусу и дате.
+Операционные логи показывают каждый запрос студента с фильтрами по роли, источнику, интенту, статусу и дате.
 
-![Operational Logs: список запросов с фильтрами](screenshots/AIC_admin_operational_logs.png)
+![Операционные логи: список запросов с фильтрами](screenshots/AIC_admin_operational_logs.png)
 
-### Dialog Sessions
+### Диалоговые сессии
 
-Dialog Sessions показывают полный timeline обработки запроса: получение запроса → классификация intent → embedding → Chroma search → RAG-постобработка → генерация LLM → валидация → ответ.
+Диалоговые сессии показывают полный timeline обработки запроса: получение запроса → классификация intent → embedding → Chroma search → RAG-постобработка → генерация LLM → валидация → ответ.
 
-![Dialog Sessions: таймлайн обработки запроса](screenshots/AIC_admin_dialog_sessions.png)
+![Диалоговые сессии: таймлайн обработки запроса](screenshots/AIC_admin_dialog_sessions.png)
 
 ---
 
-## 9. Audit Log
+## 9. Журнал аудита
 
-Audit Log фиксирует изменяющие действия в системе:
+Журнал аудита фиксирует изменяющие действия в системе:
 
 - активация AI-конфигурации;
 - публикация документа KB;
 - обновление Orchestrator-конфигурации;
 - chat-запросы студентов (с `session_id`, `ip_address`).
 
-![Audit Log: журнал административных событий](screenshots/AIC_admin_audit.png)
+![Журнал аудита: журнал административных событий](screenshots/AIC_admin_audit.png)
 
 ---
 
 ## 10. Экспорт логов
 
-В разделах Operational Logs, Audit Log и Dialog Sessions доступен экспорт в CSV.
+В разделах Операционные логи, Журнал аудита и Диалоговые сессии доступен экспорт в CSV.
 
-![Operational Logs: кнопка Экспорт CSV и детальная карточка запроса](screenshots/AIC_admin_export_csv.png)
+![Операционные логи: кнопка Экспорт CSV и детальная карточка запроса](screenshots/AIC_admin_export_csv.png)
 
 Политика ротации:
 
@@ -179,7 +179,7 @@ Moodle: **Site administration → Server → Web services → Manage tokens**.
 
 ---
 
-## 12. Demo-режим Admin Console
+## 12. Demo-режим Консоль администратора
 
 Для публичных демонстраций можно использовать `ADMIN_CONSOLE_DEMO_TOKEN`:
 
@@ -193,16 +193,16 @@ Moodle: **Site administration → Server → Web services → Manage tokens**.
 
 | Симптом | Возможная причина | Решение |
 |---|---|---|
-| Ответы AI не используют новый материал | Документ не опубликован / не переиндексирован | Проверить статус документа в Knowledge Base и запустить переиндексацию |
+| Ответы AI не используют новый материал | Документ не опубликован / не переиндексирован | Проверить статус документа в Базе знаний и запустить переиндексацию |
 | Долгие ответы | Высокое значение `top_k` или большой контекст | Уменьшить `top_k`, проверить token-бюджеты в Orchestrator |
 | Организационные ответы не работают | LMS API недоступен или токен истёк | Проверить `LMS_API_TOKEN` и health LMS в Monitoring |
-| Пустой Audit Log | Нет изменяющих действий | Выполнить любую мутацию или chat-запрос |
+| Пустой Журнал аудита | Нет изменяющих действий | Выполнить любую мутацию или chat-запрос |
 
 ---
 
 ## Связанные документы
 
-- [`docs/ADMIN_CONSOLE.md`](ADMIN_CONSOLE.md) — component reference Admin Console.
+- [`docs/ADMIN_CONSOLE.md`](ADMIN_CONSOLE.md) — component reference Консоль администратора.
 - [`docs/OPERATIONS.md`](OPERATIONS.md) — эксплуатация, retention, KB workflow.
 - [`docs/ORCHESTRATOR_USER_GUIDE.md`](ORCHESTRATOR_USER_GUIDE.md) — настройка Orchestrator.
 - [`docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание и env vars.

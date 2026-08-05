@@ -16,7 +16,7 @@
 
 ---
 
-## 2. Web UI студента
+## 2. Веб-интерфейс студента
 
 ### Выбор demo-роли
 
@@ -34,7 +34,7 @@
 
 ![Учебный ответ с карточками источников KB и LMS](screenshots/AIC_web_sources_expanded.png)
 
-Каждый содержательный ответ содержит карточки источников: Knowledge Base — как бейдж с названием документа и типом, LMS — как кликабельная карточка с названием задания и модулем.
+Каждый содержательный ответ содержит карточки источников: База знаний — как бейдж с названием документа и типом, LMS — как кликабельная карточка с названием задания и модулем.
 
 ### Переключатель уровня сложности
 
@@ -50,17 +50,17 @@ Safe demo mode показывает квоту запросов, rate limit и �
 
 ---
 
-## 3. Admin Console
+## 3. Консоль администратора
 
-### Dashboard
+### Панель состояния
 
-![Dashboard: health сервисов и KPI за 24 часа](screenshots/AIC_admin_dashboard.png)
+![Панель состояния: health сервисов и KPI за 24 часа](screenshots/AIC_admin_dashboard.png)
 
-Единый экран состояния: health API, PostgreSQL, LMS, Chroma; распределение интентов; статистика запросов/ответов; состояние Knowledge Base.
+Единый экран состояния: health API, PostgreSQL, LMS, Chroma; распределение интентов; статистика запросов/ответов; состояние База знаний.
 
-### Knowledge Base
+### База знаний
 
-![Панель Knowledge Base: список документов и детальная карточка PE07](screenshots/AIC_admin_kb_list.png)
+![Панель Базы знаний: список документов и детальная карточка PE07](screenshots/AIC_admin_kb_list.png)
 
 ![Детальная карточка документа: метаданные, версии и чанки](screenshots/AIC_admin_kb_detail.png)
 
@@ -72,45 +72,45 @@ Safe demo mode показывает квоту запросов, rate limit и �
 
 Создание карточки документа: название, тип, привязка к курсу/модулю/теме, язык, описание, файл.
 
-### AI Configuration
+### Настройки AI
 
 ![AI & Retrieval Configuration](screenshots/AIC_admin_ai_config.png)
 
 Настройка LLM-провайдеров, системного промпта, RAG-параметров, кэша и курсового бустинга.
 
-### Orchestrator Configuration
+### Настройки оркестратора
 
 ![Orchestrator: интенты, маршрутизация, fallback-ответы](screenshots/AIC_admin_orchestrator.png)
 
 Классификация запросов, маршрутизация к LMS/RAG, лимиты токенов и fallback-ответы на случай недостатка данных.
 
-### Analytics
+### Аналитика
 
-![Analytics Dashboard](screenshots/AIC_admin_analytics.png)
+![Панель аналитики](screenshots/AIC_admin_analytics.png)
 
 Аналитика использования: распределение по темам, источники ответов, latency, вопросы без ответа.
 
-### Business Reports
+### Управленческие отчёты
 
-![Business Reports: качество ответов и покрытие KB](screenshots/AIC_admin_reports.png)
+![Управленческие отчёты: качество ответов и покрытие KB](screenshots/AIC_admin_reports.png)
 
-Качество ответов, fallback-статистика, покрытие Knowledge Base и кандидаты на расширение контента.
+Качество ответов, fallback-статистика, покрытие Базы знаний и кандидаты на расширение контента.
 
-### Operational Logs и экспорт CSV
+### Операционные логи и экспорт CSV
 
-![Operational Logs с детализацией запроса и экспортом CSV](screenshots/AIC_admin_export_csv.png)
+![Операционные логи с детализацией запроса и экспортом CSV](screenshots/AIC_admin_export_csv.png)
 
 Операционная консоль: каждый запрос с параметрами, цепочкой этапов и таймлайном pipeline. Кнопка `Экспорт CSV` выгружает логи за период.
 
-### Dialog Sessions
+### Диалоговые сессии
 
-![Dialog Sessions: таймлайн диалоговой сессии](screenshots/AIC_admin_dialog_sessions.png)
+![Диалоговые сессии: таймлайн диалоговой сессии](screenshots/AIC_admin_dialog_sessions.png)
 
 Просмотр диалоговых сессий студентов с детализацией сообщений и технических шагов.
 
-### Audit Log
+### Журнал аудита
 
-![Audit Log: журнал административных событий](screenshots/AIC_admin_audit.png)
+![Журнал аудита: журнал административных событий](screenshots/AIC_admin_audit.png)
 
 ---
 
@@ -148,7 +148,7 @@ Safe demo mode показывает квоту запросов, rate limit и �
 2. Вопрос: `Когда дедлайн по заданию PE07?`
 3. Ответ с источником `LMS` и ссылкой на задание.
 4. Переключение уровня сложности `Базовый / Углублённый`.
-5. Учебный вопрос с карточками источников `Knowledge Base`.
+5. Учебный вопрос с карточками источников `База знаний`.
 
 ---
 
@@ -162,4 +162,4 @@ Safe demo mode показывает квоту запросов, rate limit и �
 
 - [`README.md`](../README.md) — главная страница проекта.
 - [`docs/BUSINESS_VALUE.md`](BUSINESS_VALUE.md) — бизнес-ценность.
-- [`docs/USER_GUIDE.md`](USER_GUIDE.md) — как пользоваться Web UI.
+- [`docs/USER_GUIDE.md`](USER_GUIDE.md) — как пользоваться Веб-интерфейс.
