@@ -20,23 +20,33 @@
 
 ### Выбор demo-роли
 
-![Выбор demo-роли](screenshots/AIC_web_role_selector.png)
+![Выбор demo-роли: active_student, late_student, new_student](screenshots/AIC_web_role_selector.png)
+
+Студент выбирает роль перед началом демо-диалога. Каждая роль эмулирует разный профиль прогресса в LMS.
 
 ### Диалог с AI-куратором
 
-![Пример диалога](screenshots/AIC_web_chat_basic.png)
+![Организационный вопрос: дедлайн по заданию PE07](screenshots/AIC_web_chat_basic.png)
+
+Студент спрашивает: «Когда дедлайн по заданию PE07?». AI Curator берёт ответ из LMS и даёт прямую ссылку на задание.
 
 ### Ответ с источниками
 
-![Источники ответа](screenshots/AIC_web_sources_expanded.png)
+![Учебный ответ с карточками источников KB и LMS](screenshots/AIC_web_sources_expanded.png)
+
+Каждый содержательный ответ содержит карточки источников: Knowledge Base — как бейдж с названием документа и типом, LMS — как кликабельная карточка с названием задания и модулем.
 
 ### Переключатель уровня сложности
 
-![Уровень сложности](screenshots/AIC_web_difficulty_toggle.png)
+![Уровень сложности Базовый / Углублённый и учебный ответ](screenshots/AIC_web_difficulty_toggle.png)
+
+Переключатель в хедере меняет глубину и стиль ответа. На скриншоте выбран уровень `Базовый` для вопроса «Что такое промпт?».
 
 ### Demo-режим
 
-![Demo-режим](screenshots/AIC_web_demo_badge.png)
+![Demo-режим: бейдж с оставшимися запросами и таймером](screenshots/AIC_web_demo_badge.png)
+
+Safe demo mode показывает квоту запросов, rate limit и таймер сессии, чтобы публичный доступ не исчерпывал API-лимиты.
 
 ---
 
@@ -44,33 +54,63 @@
 
 ### Dashboard
 
-![Dashboard](screenshots/AIC_admin_dashboard.png)
+![Dashboard: health сервисов и KPI за 24 часа](screenshots/AIC_admin_dashboard.png)
+
+Единый экран состояния: health API, PostgreSQL, LMS, Chroma; распределение интентов; статистика запросов/ответов; состояние Knowledge Base.
 
 ### Knowledge Base
 
-![Список документов](screenshots/AIC_admin_kb_list.png)
+![Панель Knowledge Base: список документов и детальная карточка PE07](screenshots/AIC_admin_kb_list.png)
 
-![Детальная карточка документа](screenshots/AIC_admin_kb_detail.png)
+![Детальная карточка документа: метаданные, версии и чанки](screenshots/AIC_admin_kb_detail.png)
+
+Администратор и методист управляют учебными материалами: загружают документы, заполняют метаданные, публикуют и переиндексируют.
+
+### Загрузка документа
+
+![Форма загрузки нового документа в KB](screenshots/AIC_admin_kb_upload.png)
+
+Создание карточки документа: название, тип, привязка к курсу/модулю/теме, язык, описание, файл.
 
 ### AI Configuration
 
-![AI Configuration](screenshots/AIC_admin_ai_config.png)
+![AI & Retrieval Configuration](screenshots/AIC_admin_ai_config.png)
+
+Настройка LLM-провайдеров, системного промпта, RAG-параметров, кэша и курсового бустинга.
 
 ### Orchestrator Configuration
 
-![Orchestrator](screenshots/AIC_admin_orchestrator.png)
+![Orchestrator: интенты, маршрутизация, fallback-ответы](screenshots/AIC_admin_orchestrator.png)
+
+Классификация запросов, маршрутизация к LMS/RAG, лимиты токенов и fallback-ответы на случай недостатка данных.
 
 ### Analytics
 
-![Analytics](screenshots/AIC_admin_analytics.png)
+![Analytics Dashboard](screenshots/AIC_admin_analytics.png)
+
+Аналитика использования: распределение по темам, источники ответов, latency, вопросы без ответа.
 
 ### Business Reports
 
-![Business Reports](screenshots/AIC_admin_reports.png)
+![Business Reports: качество ответов и покрытие KB](screenshots/AIC_admin_reports.png)
+
+Качество ответов, fallback-статистика, покрытие Knowledge Base и кандидаты на расширение контента.
+
+### Operational Logs и экспорт CSV
+
+![Operational Logs с детализацией запроса и экспортом CSV](screenshots/AIC_admin_export_csv.png)
+
+Операционная консоль: каждый запрос с параметрами, цепочкой этапов и таймлайном pipeline. Кнопка `Экспорт CSV` выгружает логи за период.
+
+### Dialog Sessions
+
+![Dialog Sessions: таймлайн диалоговой сессии](screenshots/AIC_admin_dialog_sessions.png)
+
+Просмотр диалоговых сессий студентов с детализацией сообщений и технических шагов.
 
 ### Audit Log
 
-![Audit Log](screenshots/AIC_admin_audit.png)
+![Audit Log: журнал административных событий](screenshots/AIC_admin_audit.png)
 
 ---
 
@@ -78,17 +118,21 @@
 
 ### Структура курса
 
-![Структура курса](screenshots/AIC_lms_admin_course_structure.png)
+![Структура курса «Промпт-инжиниринг» в Moodle](screenshots/AIC_lms_admin_course_structure.png)
+
+Курсы, модули и темы заводятся преподавателем в Moodle. AI Curator читает эту структуру через API и использует её при ответах.
 
 ### Задание с дедлайном
 
-![Создание задания](screenshots/AIC_lms_teacher_assignment.png)
+![Создание задания PE07. Chain-of-thought](screenshots/AIC_lms_teacher_assignment.png)
 
-![Дедлайн в задании](screenshots/AIC_lms_teacher_deadline.png)
+![Настройка срока сдачи задания](screenshots/AIC_lms_teacher_deadline.png)
+
+Дедлайны и условия сдачи настраиваются в LMS. AI Curator отвечает на организационные вопросы студентов, используя эти данные.
 
 ### Студент в Moodle
 
-![Студент в Moodle](screenshots/AIC_lms_student_course_view.png)
+![Студент видит курс, задания и оценки в Moodle](screenshots/AIC_lms_student_course_view.png)
 
 ---
 
@@ -102,9 +146,9 @@
 
 1. Выбор demo-роли `active_student`.
 2. Вопрос: `Когда дедлайн по заданию PE07?`
-3. Ответ с источником `LMS`.
-4. Переключение уровня сложности.
-5. Учебный вопрос с источниками `Knowledge Base`.
+3. Ответ с источником `LMS` и ссылкой на задание.
+4. Переключение уровня сложности `Базовый / Углублённый`.
+5. Учебный вопрос с карточками источников `Knowledge Base`.
 
 ---
 

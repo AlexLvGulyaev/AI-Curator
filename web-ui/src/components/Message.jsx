@@ -9,36 +9,57 @@ function PlainTextLink({ children }) {
   return <span>{children}</span>;
 }
 
-function SourceLink({ source }) {
-  if (source.type === 'kb') {
+function SourceCard({ source }) {
+  const isKb = source.type === 'kb';
+  const details = source.document_type || source.module || source.section;
+
+  if (isKb) {
     return (
-      <a
-        href={source.url || '#'}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-md bg-ai-primary-light px-2.5 py-1 text-xs font-medium text-ai-primary hover:bg-ai-primary hover:text-white transition"
-      >
-        <span>📚</span>
-        <span className="truncate max-w-[180px]">{source.title}</span>
-      </a>
+      <div className="flex flex-col gap-1 rounded-ai border border-ai-primary-light bg-ai-primary-light/40 px-3 py-2 text-sm text-ai-primary">
+        <div className="flex items-center gap-2">
+          <span>📚</span>
+          <span className="font-medium line-clamp-1">{source.title}</span>
+        </div>
+        {details && (
+          <div className="flex flex-wrap gap-1 text-xs opacity-80">
+            {source.document_type && (
+              <span className="rounded-full bg-white/60 px-2 py-0.5 capitalize">
+                {source.document_type}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
     );
   }
 
-  if (source.type === 'lms') {
-    return (
-      <a
-        href={source.url || '#'}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-md bg-ai-teal-light px-2.5 py-1 text-xs font-medium text-ai-teal hover:bg-ai-teal hover:text-white transition"
-      >
+  return (
+    <a
+      href={source.url || '#'}
+      target="_blank"
+      rel="noreferrer"
+      className="flex flex-col gap-1 rounded-ai border border-ai-teal-light bg-ai-teal-light/40 px-3 py-2 text-sm text-ai-teal transition hover:shadow-ai"
+    >
+      <div className="flex items-center gap-2">
         <span>🎓</span>
-        <span className="truncate max-w-[180px]">{source.title}</span>
-      </a>
-    );
-  }
-
-  return null;
+        <span className="font-medium line-clamp-1">{source.title}</span>
+      </div>
+      {details && (
+        <div className="flex flex-wrap gap-1 text-xs opacity-80">
+          {source.module && (
+            <span className="rounded-full bg-white/60 px-2 py-0.5">
+              {source.module}
+            </span>
+          )}
+          {source.section && (
+            <span className="rounded-full bg-white/60 px-2 py-0.5">
+              {source.section}
+            </span>
+          )}
+        </div>
+      )}
+    </a>
+  );
 }
 
 function StarRating({ initialScore, logId }) {
@@ -127,7 +148,7 @@ function Message({ message }) {
         {!isUser && message.sources && message.sources.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {message.sources.map((source, index) => (
-              <SourceLink key={index} source={source} />
+              <SourceCard key={index} source={source} />
             ))}
           </div>
         )}

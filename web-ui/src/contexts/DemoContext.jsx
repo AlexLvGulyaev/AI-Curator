@@ -98,6 +98,8 @@ export function DemoProvider({ children }) {
   useEffect(() => {
     if (token) {
       refreshStatus();
+      const interval = setInterval(refreshStatus, 5000);
+      return () => clearInterval(interval);
     }
   }, [token, refreshStatus]);
 

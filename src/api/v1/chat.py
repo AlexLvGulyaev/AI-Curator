@@ -59,6 +59,10 @@ class ChatSource(BaseModel):
     type: str
     title: str
     url: Optional[str] = None
+    document_type: Optional[str] = None
+    module: Optional[str] = None
+    topic: Optional[str] = None
+    section: Optional[str] = None
     document_id: Optional[int] = None
     chunk_index: Optional[int] = None
 

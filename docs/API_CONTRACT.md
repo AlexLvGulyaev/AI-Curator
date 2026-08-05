@@ -739,7 +739,8 @@
 {
   "answer": "## Дедлайны по курсу\n\n1. **ДЗ: Установка...** — 1 августа 2026 г.\n...",
   "sources": [
-    {"type": "lms", "title": "ДЗ: Установка и первый запуск Claude Code", "url": "https://lms.alex-n8n.site/mod/assign/view.php?id=24"}
+    {"type": "lms", "title": "ДЗ: Установка и первый запуск Claude Code", "url": "https://lms.alex-n8n.site/mod/assign/view.php?id=24", "module": "Модуль 1"},
+    {"type": "kb", "title": "Методичка: Установка Claude Code", "document_type": "methodical", "document_id": 12, "chunk_index": 3}
   ],
   "intent": "organizational",
   "model": "gpt-4o-mini-2024-07-18",
@@ -764,6 +765,20 @@
 | `error` | string \| null | Ошибка, если произошла |
 | `log_id` | int \| null | ID записи в `chat_logs`; используется Web UI для отправки feedback |
 | `demo_mode` | bool | Признак demo-запроса. При `true` ответ формируется с уменьшенным `max_tokens` и повышенным TTL кэша. |
+
+#### Схема `ChatSource`
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `type` | string | Тип источника: `kb` (Knowledge Base) или `lms` (LMS) |
+| `title` | string | Название источника |
+| `url` | string \| null | Прямая ссылка (только для LMS) |
+| `document_type` | string \| null | Тип KB-документа: `lecture`, `methodical`, `faq`, `instruction`, `glossary`, `example`, `external` |
+| `module` | string \| null | Название модуля/темы (обычно для LMS) |
+| `topic` | string \| null | Название темы (зарезервировано) |
+| `section` | string \| null | Название секции (зарезервировано) |
+| `document_id` | int \| null | ID KB-документа |
+| `chunk_index` | int \| null | Индекс чанка внутри документа |
 
 **Кэширование:**
 

@@ -2146,6 +2146,7 @@ class Orchestrator:
             sources.append({
                 "type": "kb",
                 "title": title,
+                "document_type": meta.get("document_type"),
                 "document_id": doc_id,
                 "chunk_index": meta.get("chunk_index"),
             })

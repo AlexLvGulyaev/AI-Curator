@@ -22,7 +22,7 @@
 
 Токен хранится в `localStorage` браузера и передаётся в заголовке `Authorization: Bearer <token>`.
 
-![Экран входа](screenshots/AIC_admin_login.png)
+![Экран входа в Admin Console с Bearer-токеном](screenshots/AIC_admin_login.png)
 
 ---
 
@@ -35,7 +35,7 @@ Dashboard показывает общее состояние системы:
 - статус LLM-провайдера;
 - краткая аналитика запросов.
 
-![Dashboard](screenshots/AIC_admin_dashboard.png)
+![Dashboard: health сервисов и KPI](screenshots/AIC_admin_dashboard.png)
 
 ---
 
@@ -47,13 +47,13 @@ Dashboard показывает общее состояние системы:
 - **Детальная карточка** по центру — метаданные, версии, чанки.
 - **Жизненный цикл** справа — timeline событий обработки.
 
-![Список документов](screenshots/AIC_admin_kb_list.png)
+![Панель Knowledge Base: список документов и детальная карточка](screenshots/AIC_admin_kb_list.png)
 
-![Детальная карточка документа](screenshots/AIC_admin_kb_detail.png)
+![Детальная карточка документа: метаданные, версии, чанки](screenshots/AIC_admin_kb_detail.png)
 
-Для загрузки нового документа нажмите **Загрузить файл** и заполните метаданные.
+Для загрузки нового документа нажмите **Загрузить файл**, заполните метаданные и выберите файл.
 
-![Загрузка документа](screenshots/AIC_admin_kb_upload.png)
+![Форма загрузки документа в Knowledge Base](screenshots/AIC_admin_kb_upload.png)
 
 ---
 
@@ -68,7 +68,7 @@ Dashboard показывает общее состояние системы:
 - few-shot примеры;
 - правила вывода и текст отказа.
 
-![AI Configuration](screenshots/AIC_admin_ai_config.png)
+![AI & Retrieval Configuration](screenshots/AIC_admin_ai_config.png)
 
 Каждая новая версия конфигурации создаётся неактивной. Активация производится отдельной кнопкой.
 
@@ -84,7 +84,7 @@ Orchestrator определяет:
 - fallback-сообщения;
 - размеры LMS-контекста.
 
-![Orchestrator Configuration](screenshots/AIC_admin_orchestrator.png)
+![Orchestrator Configuration: интенты, маршрутизация, fallback](screenshots/AIC_admin_orchestrator.png)
 
 Подробнее см. [`ORCHESTRATOR_USER_GUIDE.md`](ORCHESTRATOR_USER_GUIDE.md).
 
@@ -100,7 +100,7 @@ Orchestrator определяет:
 - популярные темы;
 - динамика по курсам.
 
-![Analytics Dashboard](screenshots/AIC_admin_analytics.png)
+![Analytics Dashboard: распределение запросов и источники ответов](screenshots/AIC_admin_analytics.png)
 
 ### Business Reports / Quality Reports
 
@@ -110,7 +110,7 @@ Orchestrator определяет:
 - кандидаты на расширение KB;
 - CSV export.
 
-![Business Reports](screenshots/AIC_admin_reports.png)
+![Business Reports: качество ответов и покрытие KB](screenshots/AIC_admin_reports.png)
 
 ---
 
@@ -120,13 +120,13 @@ Orchestrator определяет:
 
 Operational Logs показывают каждый запрос студента с фильтрами по роли, источнику, интенту, статусу и дате.
 
-![Operational Logs](screenshots/AIC_admin_operational_logs.png)
+![Operational Logs: список запросов с фильтрами](screenshots/AIC_admin_operational_logs.png)
 
 ### Dialog Sessions
 
-Dialog Sessions показывают полный timeline обработки запроса: classify_intent → fetch_lms → rag_retrieval → build_prompt → llm_call → validate → respond.
+Dialog Sessions показывают полный timeline обработки запроса: получение запроса → классификация intent → embedding → Chroma search → RAG-постобработка → генерация LLM → валидация → ответ.
 
-![Dialog Sessions](screenshots/AIC_admin_dialog_sessions.png)
+![Dialog Sessions: таймлайн обработки запроса](screenshots/AIC_admin_dialog_sessions.png)
 
 ---
 
@@ -139,7 +139,7 @@ Audit Log фиксирует изменяющие действия в систе
 - обновление Orchestrator-конфигурации;
 - chat-запросы студентов (с `session_id`, `ip_address`).
 
-![Audit Log](screenshots/AIC_admin_audit.png)
+![Audit Log: журнал административных событий](screenshots/AIC_admin_audit.png)
 
 ---
 
@@ -147,7 +147,7 @@ Audit Log фиксирует изменяющие действия в систе
 
 В разделах Operational Logs, Audit Log и Dialog Sessions доступен экспорт в CSV.
 
-![Экспорт CSV](screenshots/AIC_admin_export_csv.png)
+![Operational Logs: кнопка Экспорт CSV и детальная карточка запроса](screenshots/AIC_admin_export_csv.png)
 
 Политика ротации:
 
@@ -173,7 +173,7 @@ AI Curator читает данные учебного процесса из Mood
 
 Moodle: **Site administration → Server → Web services → Manage tokens**.
 
-![Web service token](screenshots/AIC_lms_webservice_token.png)
+![Moodle: управление Web service token](screenshots/AIC_lms_webservice_token.png)
 
 Токен указывается в переменной окружения `LMS_API_TOKEN`. Никогда не коммитьте токен в репозиторий.
 

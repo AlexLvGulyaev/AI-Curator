@@ -130,6 +130,8 @@ class RagPipeline:
         module_id: Optional[int],
         topic_id: Optional[int],
         difficulty: Optional[str] = None,
+        title: Optional[str] = None,
+        document_type: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Build a Chroma metadata dict (JSON-serializable, no nulls)."""
         metadata: Dict[str, Any] = {
@@ -146,6 +148,10 @@ class RagPipeline:
             metadata["module_id"] = module_id
         if topic_id is not None:
             metadata["topic_id"] = topic_id
+        if title is not None:
+            metadata["title"] = title
+        if document_type is not None:
+            metadata["document_type"] = document_type
         return metadata
 
     async def index_chunks(
@@ -157,6 +163,8 @@ class RagPipeline:
         module_id: Optional[int] = None,
         topic_id: Optional[int] = None,
         difficulty: str = "beginner",
+        title: Optional[str] = None,
+        document_type: Optional[str] = None,
         embedding_timeout_ms: Optional[int] = None,
     ) -> int:
         """Embed and store chunks in Chroma. Returns number of indexed chunks."""
@@ -174,6 +182,8 @@ class RagPipeline:
                 module_id=module_id,
                 topic_id=topic_id,
                 difficulty=difficulty,
+                title=title,
+                document_type=document_type,
             )
             for chunk in chunks
         ]

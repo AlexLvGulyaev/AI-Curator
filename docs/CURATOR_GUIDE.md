@@ -27,7 +27,7 @@
 1. Нажмите **Загрузить файл**.
 2. Заполните форму:
    - **Название** — понятное название документа.
-   - **Тип документа** — `lecture`, `methodology`, `faq` и т.д.
+   - **Тип документа** — `lecture`, `methodical`, `faq`, `instruction`, `example` и др.
    - **Курс / Модуль / Тема** — идентификаторы, которые соответствуют структуре в LMS.
    - **Уровень сложности** — `beginner` или `advanced`.
    - **Язык** — `ru`, `en` и т.д.
@@ -35,7 +35,7 @@
    - **URL источника** — ссылка на оригинал.
    - **Файл** — markdown, PDF или текстовый документ.
 
-![Загрузка документа](screenshots/AIC_admin_kb_upload.png)
+![Форма загрузки документа в Knowledge Base](screenshots/AIC_admin_kb_upload.png)
 
 3. Нажмите **Сохранить документ**.
 4. Выберите документ в списке.
@@ -54,13 +54,13 @@ Knowledge Base не знает о структуре LMS автоматичес�
 | `module_id` или название модуля | поле `module` |
 | `topic_id` или название темы | поле `topic` |
 
-Например, если в LMS есть курс `AI Skills Lab` (course_id=3) и модуль `Модуль 2. Работа с LLM`, то документ в KB должен иметь:
+Например, если в LMS есть курс `Промпт-инжиниринг` (course_id=4) и модуль `Модуль 3. Chain-of-thought и структурирование`, то документ в KB должен иметь:
 
-- `course_id = 3`;
-- `module = "Модуль 2. Работа с LLM"`;
-- `topic = "Prompt Engineering"`.
+- `course_id = 4`;
+- `module = "Модуль 3. Chain-of-thought и структурирование"`;
+- `topic = "Chain-of-thought"`.
 
-![Структура курса в LMS](screenshots/AIC_lms_admin_course_structure.png)
+![Структура курса «Промпт-инжиниринг» в Moodle](screenshots/AIC_lms_admin_course_structure.png)
 
 Это позволяет Orchestrator фильтровать retrieval по контексту студента.
 
@@ -76,7 +76,7 @@ Knowledge Base не знает о структуре LMS автоматичес�
 
 Для обновления индекса нажмите **Переиндексировать**.
 
-![Детальная карточка документа](screenshots/AIC_admin_kb_detail.png)
+![Детальная карточка документа: метаданные, версии и чанки](screenshots/AIC_admin_kb_detail.png)
 
 ---
 
@@ -96,7 +96,7 @@ Knowledge Base не знает о структуре LMS автоматичес�
 - популярные темы с низким покрытием;
 - кандидаты на добавление новых материалов.
 
-![Business Reports](screenshots/AIC_admin_reports.png)
+![Business Reports: популярные темы и кандидаты на расширение KB](screenshots/AIC_admin_reports.png)
 
 Если тема часто спрашивается, но материала мало:
 

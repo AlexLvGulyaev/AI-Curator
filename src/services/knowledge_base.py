@@ -435,6 +435,8 @@ class KnowledgeBaseService:
             course_id=document.course_id,
             module_id=document.module_id,
             topic_id=document.topic_id,
+            title=document.title,
+            document_type=document.document_type.value,
             embedding_timeout_ms=tuning.embedding_timeout_ms,
         )
 
