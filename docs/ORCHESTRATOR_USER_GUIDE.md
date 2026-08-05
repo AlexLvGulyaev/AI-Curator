@@ -26,7 +26,7 @@ Orchestrator определяет, как AI Curator обрабатывает в
 
 ![Панель Orchestrator: классификация интентов, маршрутизация источников, лимиты и fallback](screenshots/AIC_admin_orchestrator.png)
 
-*Панель Orchestrator в Admin Console. На скриншоте показаны примеры keywords, source routing и fallback-сообщений. Актуальные дефолтные числовые значения token budgets приведены в разделе 3.3.*
+*Панель Orchestrator в Admin Console. На скриншоте показаны дефолтные настройки: priorities интентов, source routing, лимиты и token budgets.*
 
 ---
 
