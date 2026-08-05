@@ -135,7 +135,9 @@ Safe demo mode показывает квоту запросов, rate limit и �
 
 ### 🧑‍🎓 Студент в Moodle
 
-![Студент видит курс, задания и оценки в Moodle](screenshots/AIC_lms_student_course_view.png)
+![Студент в Moodle: курс «Claude Code: от знакомства до автоматизации», модули, задания и итоговые оценки](screenshots/AIC_lms_student_course_view.png)
+
+Тот же студент видит курс в штатном интерфейсе Moodle: список модулей, задания и выставленные оценки. AI Curator не заменяет LMS, а работает с теми же данными через read-only API.
 
 ---
 
