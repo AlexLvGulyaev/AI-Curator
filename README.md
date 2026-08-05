@@ -16,9 +16,9 @@ AI Curator не заменяет преподавателя, не выставл
 
 ## ▶️ Live Demo
 
-🌐 **Веб-интерфейс:** `https://curator.alex-n8n.site`
+🌐 **Студенту:** [▶️ Открыть веб-интерфейс](https://curator.alex-n8n.site)
 
-Откройте, выберите demo-роль и задайте вопрос AI-куратору. Demo-режим работает с квотой запросов, rate limit и таймером сессии.
+Выберите demo-роль и задайте вопрос AI-куратору. Demo-режим работает с квотой запросов, rate limit и таймером сессии.
 
 ![Организационный вопрос: дедлайн по заданию PE07](docs/screenshots/AIC_web_chat_basic.png)
 
@@ -140,12 +140,12 @@ flowchart TB
 
 ## 🌐 Публичные точки входа
 
-| Сервис | Домен | Назначение |
-|--------|-------|-----------|
-| Веб-интерфейс студента | `https://curator.alex-n8n.site` | Диалог со студентами |
-| Консоль администратора | `https://curator-admin.alex-n8n.site` | Управление Базой знаний, AI-конфигурацией, логами |
-| Backend API | `https://curator-api.alex-n8n.site` | API AI Curator |
-| Moodle LMS | `https://lms.alex-n8n.site` | Штатный интерфейс LMS |
+| Роль | Сервис | Домен | Назначение |
+|------|--------|-------|-----------|
+| Студент | Веб-интерфейс | [curator.alex-n8n.site](https://curator.alex-n8n.site) | Диалог с AI-куратором |
+| Администратор / Методист | Консоль администратора | [curator-admin.alex-n8n.site](https://curator-admin.alex-n8n.site) | Управление Базой знаний, AI-конфигурацией, логами |
+| Интегратор | Backend API | [curator-api.alex-n8n.site](https://curator-api.alex-n8n.site) | API AI Curator |
+| Преподаватель | Moodle LMS | [lms.alex-n8n.site](https://lms.alex-n8n.site) | Штатный интерфейс LMS |
 
 ---
 
