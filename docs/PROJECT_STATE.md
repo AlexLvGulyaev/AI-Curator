@@ -1,13 +1,13 @@
-# PROJECT_STATE.md — AI Curator
+# 📍 PROJECT_STATE.md — AI Curator
 
-**Проект:** ai-curator
-**Дата создания:** 2026-07-29
-**Последнее обновление:** 2026-08-05
-**Статус:** Implementation In Progress — все спринты завершены; публичная документация переработана по стандарту APL; скриншоты подготовлены и встроены; GIF walkthrough остаётся опциональным.
+**Проект:** ai-curator  
+**Дата создания:** 2026-07-29  
+**Последнее обновление:** 2026-08-05  
+**Статус:** Implementation Complete — все спринты и стабилизационные работы завершены; публичная документация переработана по стандарту APL; скриншоты подготовлены и встроены; GIF walkthrough остаётся опциональным.
 
 ---
 
-## Project Summary
+## 🎯 Project Summary
 
 AI Curator — самостоятельная подсистема образовательной платформы, которая помогает студентам ориентироваться в учебном процессе, находить ответы в учебных материалах, разбирать сложные темы и получать персональные рекомендации.
 
@@ -18,11 +18,11 @@ AI Curator — самостоятельная подсистема образо�
 
 AI Curator не заменяет преподавателя, не выставляет оценки и не изменяет учебный процесс. Система разворачивается на VPS как полноценный публичный сервис.
 
-## Current Status
+## 📊 Current Status
 
-**Implementation In Progress.**
+**Implementation Complete.**
 
-Документы PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md и IMPLEMENTATION_PLAN.md утверждены. Дни 1–6 IMPLEMENTATION_PLAN выполнены, Sprints 5–6.1 завершены, стабилизационные спринты A–E1 завершены. Подготовлен отчёт о соответствии ТЗ (`docs/TZ_COMPLIANCE_REPORT.md`). Выполнен первый Phase 1 E2E-прогон по `docs/PRODUCT_E2E_CHECKLIST.md`: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 cleaned-text UI). В ходе прогона устранены дефекты intent-классификации в Orchestrator и расширена keyword-конфигурация в БД.
+Документы PROJECT_STATE.md, SPEC.md, ARCHITECTURE.md и IMPLEMENTATION_PLAN.md утверждены. Дни 1–6 IMPLEMENTATION_PLAN выполнены, Sprints 5–6.1 завершены, стабилизационные спринты A–F завершены. Подготовлен отчёт о соответствии ТЗ (`docs/TZ_COMPLIANCE_REPORT.md`). Выполнен первый Phase 1 E2E-прогон по `docs/PRODUCT_E2E_CHECKLIST.md`: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 cleaned-text UI). В ходе прогона устранены дефекты intent-классификации в Orchestrator и расширена keyword-конфигурация в БД. Phase 2-фичи (Analytics Dashboard, Business Reports, read-only demo admin / RBAC, safe Web UI demo mode, CSV export логов) реализованы и отражены в `docs/PRODUCT_E2E_CHECKLIST.md`.
 
 **Что уже реализовано и развёрнуто:**
 
@@ -39,23 +39,27 @@ AI Curator не заменяет преподавателя, не выставл
 - **Эксплуатация:** CSV-экспорт operational logs / audit / dialog sessions, фоновая архивация и retention policy.
 - **Тестирование:** pytest 109 passed, Alembic-миграции в тестах, E2E-тест-план и чек-листы.
 
-**Оставшиеся ключевые работы:**
+**Оставшиеся опциональные работы:**
 
 1. ✅ **Спринт E2 — Business Reports / Quality Reports:** backend, frontend и тесты завершены; требуется ручная E2E-верификация PH2-02.
-3. ✅ **Спринт A2/A3 — Read-only demo admin + RBAC:** безопасный демо-доступ в Admin Console только на просмотр, запрет изменений для demo-роли. Backend, frontend, тесты и docker-compose деплой завершены; ручная UI-верификация рекомендуется.
-4. ✅ **Web UI safe demo mode:** ограниченный по запросам/расходу API режим для потенциальных клиентов на публичном Web UI с защитой API-лимитов.
-5. **Phase 2 E2E:** дополнить чек-лист сценариями Analytics, Business Reports, read-only demo admin / RBAC и safe Web UI demo mode по мере реализации фич.
-6. **Актуализация DEPLOYMENT_GUIDE.md и README.md:** DEPLOYMENT_GUIDE.md обновлён для Sprint F (DEMO_* переменные, verification curl). README.md остаётся для финальной портфельной полировки.
-7. ✅ **Инфраструктурная безопасность:** зафиксирован инцидент с `TRUNCATE` deadlock; добавлен engineering pattern `shared/patterns/pytest-transactional-fixture-deadlock.md`; процедура проверки висящих backend-процессов перед прогоном pytest.
-8. **Roadmap UI Knowledge Base:** публикация / снятие с публикации документов KB, удаление / архивирование документов KB, отображение Git-метаданных версий (`git_commit_hash`, `git_blob_hash`, `git_author`) в паспорте документа. Функции реализованы в Admin API, но не вынесены в UI Admin Console текущей версии.
+2. ✅ **Спринт A2/A3 — Read-only demo admin + RBAC:** безопасный демо-доступ в Admin Console только на просмотр, запрет изменений для demo-роли. Backend, frontend, тесты и docker-compose деплой завершены; ручная UI-верификация рекомендуется.
+3. ✅ **Web UI safe demo mode:** ограниченный по запросам/расходу API режим для потенциальных клиентов на публичном Web UI с защитой API-лимитов.
+4. ✅ **Phase 2 E2E:** чек-лист дополнен сценариями Analytics, Business Reports, read-only demo admin / RBAC и safe Web UI demo mode.
+5. ✅ **Актуализация DEPLOYMENT_GUIDE.md:** обновлён для Sprint F (DEMO_* переменные, verification curl).
+6. ✅ **Инфраструктурная безопасность:** зафиксирован инцидент с `TRUNCATE` deadlock; добавлен engineering pattern `shared/patterns/pytest-transactional-fixture-deadlock.md`; процедура проверки висящих backend-процессов перед прогоном pytest.
 
-## Market Validation
+**Roadmap / будущие улучшения (не блокируют текущий портфельный актив):**
+
+- **Playwright-автоматизация E2E** (PH2-05) — запланирована, но не реализована.
+- **Roadmap UI Knowledge Base:** публикация / снятие с публикации документов KB, удаление / архивирование документов KB, отображение Git-метаданных версий (`git_commit_hash`, `git_blob_hash`, `git_author`) в паспорте документа. Функции реализованы в Admin API, но не вынесены в UI Admin Console текущей версии.
+
+## 🛒 Market Validation
 
 **Источник запроса:** функциональные требования заказчика.
 
 Рынок образовательных AI-ассистентов растёт. Потребность в персонализированной поддержке студентов подтверждается распространением LMS, онлайн-курсов и повторяющимися вопросами преподавателям. Конкретные заказы и сделки на данном этапе не зафиксированы.
 
-## Commercial Assessment
+## 💰 Commercial Assessment
 
 **Коммерческий потенциал:** Высокий для образовательных платформ, корпоративных учебных центров и преподавателей с курсами на LMS.
 
@@ -68,7 +72,7 @@ AI Curator не заменяет преподавателя, не выставл
 - Требования к безопасности и конфиденциальности студенческих данных.
 - Необходимость управления Knowledge Base отдельно от LMS.
 
-## Key Technology Areas
+## 🔧 Key Technology Areas
 
 | Область | Компетенция / решение | Статус |
 |---------|----------------------|--------|
@@ -88,7 +92,7 @@ AI Curator не заменяет преподавателя, не выставл
 | Execution tracing | `chat_sessions` + `execution_sessions` + `execution_steps` | ✅ Развёрнуто |
 | Тестирование | pytest + тестовая БД + маркеры | ✅ Инфраструктура готова |
 
-## Decision
+## ✅ Decision
 
 **Принято:** разработать AI Curator как самостоятельный публичный сервис на VPS, интегрированный с Moodle LMS через LMS Adapter.
 
@@ -105,7 +109,7 @@ AI Curator не заменяет преподавателя, не выставл
 - Пользовательские интерфейсы не обращаются напрямую к LMS, Knowledge Base, векторному индексу или LLM.
 - Все публичные сервисы доступны по HTTPS.
 
-## Next Steps
+## 🚀 Next Steps
 
 1. ✅ Утвердить PROJECT_STATE, SPEC, ARCHITECTURE и IMPLEMENTATION_PLAN.
 2. ✅ Утвердить технологический стек frontend, LLM-провайдера и хостинг.
@@ -129,8 +133,9 @@ AI Curator не заменяет преподавателя, не выставл
 20. ✅ Подготовить скриншоты и GIF walkthrough по спецификации (скриншоты готовы, GIF опционально).
 21. ✅ Реализовать экспорт логов (CSV) и явную политику ротации.
 22. ✅ Настроить процедуру проверки БД перед тестами (pattern + мониторинг висящих процессов).
+23. ✅ Актуализировать API_CONTRACT.md, E2E_TEST_PLAN.md, ORCHESTRATOR_E2E_CHECKLIST.md, PRODUCT_E2E_CHECKLIST.md — привести к as-built состоянию и единому стилю APL.
 
-## Open Questions
+## ❓ Open Questions
 
 | Вопрос | Категория | Примечание |
 |--------|-----------|------------|
@@ -144,7 +149,7 @@ AI Curator не заменяет преподавателя, не выставл
 | Как защитить API-лимиты в demo-режиме Web UI? | Безопасность / Cost | ✅ Решено: Sprint F — токенизированные demo-сессии, rate limit, квоты, `demo_mode` флаг, extended cache TTL |
 | Нужен ли read-only demo-доступ в Admin Console? | Безопасность | ✅ Решено: реализован read-only demo-вход с отдельным `ADMIN_CONSOLE_DEMO_TOKEN`; кнопки мутаций disabled, backend возвращает 403 |
 
-## Dependencies
+## 🔗 Dependencies
 
 | Зависимость | Описание | Влияние |
 |-------------|----------|---------|
@@ -154,7 +159,7 @@ AI Curator не заменяет преподавателя, не выставл
 | Knowledge Base content | Необходимы учебные материалы для RAG | Блокирует содержательные ответы |
 | Куратор / владелец | Согласование концепции и плана | Блокирует старт реализации |
 
-## Risks
+## ⚠️ Risks
 
 | Риск | Вероятность | Влияние | Митигация |
 |------|-------------|--------|------------|
@@ -167,13 +172,13 @@ AI Curator не заменяет преподавателя, не выставл
 | Наполнение Knowledge Base | Средняя | Высокое | Подготовить методистский процесс и контент заранее |
 | Перерасход API-лимитов в demo-режиме | Средняя | Среднее | Rate limiting, квоты на сессию, кэширование, ограничение длины диалога |
 
-## Readiness Criteria for Implementation
+## 🚦 Readiness Criteria for Implementation
 
 Переход к реализации возможен когда:
-- [x] Подготовлен [`docs/PROJECT_STATE.md`](PROJECT_STATE.md).
-- [x] Подготовлен [`docs/SPEC.md`](SPEC.md).
-- [x] Подготовлен [`docs/ARCHITECTURE.md`](ARCHITECTURE.md).
-- [x] Подготовлен [`docs/IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md).
+- [x] Подготовлен [PROJECT_STATE.md](PROJECT_STATE.md).
+- [x] Подготовлен [SPEC.md](SPEC.md).
+- [x] Подготовлен [ARCHITECTURE.md](ARCHITECTURE.md).
+- [x] Подготовлен [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
 - [x] Куратор утвердил концепцию и план.
 - [x] Выбран и доступен VPS.
 - [x] Зарезервированы домены.
@@ -181,7 +186,7 @@ AI Curator не заменяет преподавателя, не выставл
 - [x] Подготовлен или выбран учебный курс в LMS.
 - [x] Подготовлены учебные материалы для Knowledge Base (19 документов, 40 чанков).
 
-## Status History
+## 📜 Status History
 
 | Дата | Статус | Примечание |
 |------|--------|------------|
@@ -193,4 +198,5 @@ AI Curator не заменяет преподавателя, не выставл
 | 2026-07-29 | Implementation In Progress | Выполнен Sprint 4.2: RAG pipeline, обработка документов, Chroma search. |
 | 2026-07-29 | Implementation In Progress | Выполнен День 5: Web UI студента, гостевой demo-вход, чат с источниками. |
 | 2026-07-30 | Implementation In Progress | Выполнен День 6: LLM Chat, Admin Console scaffold, logging, analytics, audit, deploy. |
-| 2026-08-04 | Implementation In Progress — Phase 1 E2E | Выполнен первый Phase 1 E2E-прогон по `docs/PRODUCT_E2E_CHECKLIST.md`: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 cleaned-text UI). Устранены дефекты intent-классификации в Orchestrator (`src/services/orchestrator.py`) и расширена keyword-конфигурация в БД. Догружены 5 недостающих документов в KB course=99. Следующий шаг — Sprint E2 (Business Reports), Sprint A2/A3 (demo admin + RBAC), Web UI safe demo mode, финальная документация. |
+| 2026-08-04 | Implementation In Progress — Phase 1 E2E | Выполнен первый Phase 1 E2E-прогон по `docs/PRODUCT_E2E_CHECKLIST.md`: 26 PASS, 0 FAIL, 1 NOT RUN (ADM-04 cleaned-text UI). Устранены дефекты intent-классификации в Orchestrator (`src/services/orchestrator.py`) и расширена keyword-конфигурация в БД. Догружены 5 недостающих документов в KB course=99. |
+| 2026-08-05 | Implementation Complete — финальная документация | Завершены Sprint E2 (Business Reports), Sprint A2/A3 (read-only demo admin / RBAC), Sprint F (safe Web UI demo mode), CSV-экспорт логов и retention. Публичная документация актуализирована (API_CONTRACT.md, E2E_TEST_PLAN.md, ORCHESTRATOR_E2E_CHECKLIST.md, PRODUCT_E2E_CHECKLIST.md, PROJECT_STATE.md). Скриншоты подготовлены и встроены. GIF walkthrough остаётся опциональным. |
