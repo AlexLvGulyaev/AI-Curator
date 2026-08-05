@@ -53,6 +53,9 @@ const KPI_TOOLTIPS = {
   'Типов документов': 'Число различных document_type в базе знаний.',
   'Курсов в сводке': 'Число курсов, к которым привязаны документы базы знаний.',
   'Всего чанков': 'Общее число проиндексированных фрагментов по всем курсам.',
+  'Вопросы без ответа': 'Запросы, по которым система не смогла сформировать ответ.',
+  'Гэпы базы знаний': 'Учебные и смешанные запросы, отвеченные без источников из базы знаний — кандидаты на добавление материалов.',
+  'Кандидаты на расширение базы знаний': 'Темы с наибольшим числом гэпов базы знаний — приоритет для добавления материалов.',
 };
 
 const CHART_TOOLTIPS = {
@@ -412,10 +415,10 @@ function Reports() {
           />
         </div>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          <MetricCard compact label="RAG eligible" value={quality.rag_eligible_count} />
-          <MetricCard compact label="RAG covered" value={quality.rag_covered_count} />
-          <MetricCard compact label="RAG coverage" value={`${quality.rag_coverage_rate ?? 0}%`} suffix="" />
-          <MetricCard compact label="Без ответа" value={quality.total_requests - quality.answered_count} />
+          <MetricCard compact label="RAG eligible" value={quality.rag_eligible_count} tooltip />
+          <MetricCard compact label="RAG covered" value={quality.rag_covered_count} tooltip />
+          <MetricCard compact label="RAG coverage" value={`${quality.rag_coverage_rate ?? 0}%`} suffix="" tooltip />
+          <MetricCard compact label="Без ответа" value={quality.total_requests - quality.answered_count} tooltip />
         </div>
         <ChartCard title="Последние вопросы без ответа" className="flex flex-col">
           <RequestList items={unanswered.items.slice(0, 10)} emptyText="Нет данных." />
@@ -425,26 +428,23 @@ function Reports() {
   };
 
   const renderUnanswered = () => (
-    <div className="ai-card flex flex-col p-3">
-      <h3 className="mb-2 font-display text-sm font-semibold text-ai-text">
-        Вопросы без ответа <span className="text-xs font-normal text-ai-text-muted">({unanswered.total})</span>
-      </h3>
+    <ChartCard title="Вопросы без ответа" className="flex flex-col">
+      <p className="mb-2 text-xs text-ai-text-muted">
+        Запросы, по которым не был сформирован ответ. Всего: {unanswered.total}.
+      </p>
       <RequestList items={unanswered.items} emptyText="Вопросов без ответа не найдено." />
       <Paginator total={unanswered.total} limit={50} offset={offset} onChange={setOffset} />
-    </div>
+    </ChartCard>
   );
 
   const renderKbGaps = () => (
-    <div className="ai-card flex flex-col p-3">
-      <h3 className="mb-2 font-display text-sm font-semibold text-ai-text">
-        Гэпы базы знаний <span className="text-xs font-normal text-ai-text-muted">({kbGaps.total})</span>
-      </h3>
+    <ChartCard title="Гэпы базы знаний" className="flex flex-col">
       <p className="mb-2 text-xs text-ai-text-muted">
-        Вопросы по учебным темам (учёба / смешанный), где AI не смогла привести источник из базы знаний.
+        Вопросы по учебным темам (учёба / смешанный), где AI не смогла привести источник из базы знаний. Всего: {kbGaps.total}.
       </p>
       <RequestList items={kbGaps.items} emptyText="Гэпов базы знаний не найдено." />
       <Paginator total={kbGaps.total} limit={50} offset={offset} onChange={setOffset} />
-    </div>
+    </ChartCard>
   );
 
   const renderPopularTopics = () => (
@@ -529,8 +529,7 @@ function Reports() {
   };
 
   const renderExpansion = () => (
-    <div className="ai-card overflow-x-auto p-3">
-      <h3 className="mb-2 font-display text-sm font-semibold text-ai-text">Кандидаты на расширение базы знаний</h3>
+    <ChartCard title="Кандидаты на расширение базы знаний" className="overflow-x-auto">
       <p className="mb-2 text-xs text-ai-text-muted">
         Темы с наибольшим числом гэпов базы знаний — приоритет для добавления материалов.
       </p>
@@ -559,7 +558,7 @@ function Reports() {
           )}
         </tbody>
       </table>
-    </div>
+    </ChartCard>
   );
 
   const renderTabContent = () => {
