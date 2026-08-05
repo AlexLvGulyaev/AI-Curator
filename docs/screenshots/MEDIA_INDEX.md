@@ -29,6 +29,7 @@
 | IMG-003 | `AIC_web_sources_expanded.png` | web | Ответ на учебный вопрос с новыми карточками источников KB и LMS | SYSTEM_DEMO, USER_GUIDE, E2E_SCENARIOS |
 | IMG-004 | `AIC_web_difficulty_toggle.png` | web | Учебный диалог с активным переключателем сложности `Базовый / Углублённый`. Вопрос «Что такое промпт?», ответ с карточками источников KB | USER_GUIDE, SYSTEM_DEMO |
 | IMG-005 | `AIC_web_demo_badge.png` | web | Demo-режим: бейдж с оставшимися запросами, таймер сессии, источники KB | SYSTEM_DEMO, USER_GUIDE |
+| IMG-005a | `AIC_web_chat_mixed.png` | web | **Смешанный вопрос**: диалог с ответом, источники из LMS и База знаний одновременно. Вопрос «Что мне повторить перед заданием CC01?», намерение `mixed` | E2E_SCENARIOS |
 | IMG-006 | `AIC_web_no_answer.png` | web | Сценарий «вопрос без данных»: запрос пароля Moodle и fallback-ответ | USER_GUIDE, FAQ |
 | IMG-010 | `AIC_admin_login.png` | admin | Экран входа с Bearer-токеном и кнопка demo-режима | ADMIN_GUIDE, SYSTEM_DEMO |
 | IMG-011 | `AIC_admin_dashboard.png` | admin | Панель состояния: health сервисов, KPI за 24ч, активность по интентам, состояние KB | README, SYSTEM_DEMO, ADMIN_GUIDE |
