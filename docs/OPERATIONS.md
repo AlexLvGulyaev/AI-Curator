@@ -52,7 +52,7 @@
 
 ### 📥 2.2. Добавление нового материала
 
-1. Откройте Admin Console: `https://curator-admin.alex-n8n.site`.
+1. Откройте Admin Console: `https://ai-curator-admin.example.com`.
 2. Войдите с Bearer-токеном (`ADMIN_CONSOLE_TOKEN`).
 3. Перейдите в раздел **База знаний** → **Документы**.
 4. В toolbar нажмите **Загрузить файл**.
@@ -644,7 +644,14 @@ or set PYTEST_ALLOW_PROD_DB=true to intentionally use the production database fo
 
 ## 🔗 14. Связанные документы
 
+- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — архитектурные решения и потоки данных.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание и переменные окружения.
 - [🎛️ `docs/ADMIN_GUIDE.md`](ADMIN_GUIDE.md) — руководство администратора по Консоли администратора.
+- [🧠 `docs/CURATOR_GUIDE.md`](CURATOR_GUIDE.md) — руководство методиста по Базе знаний.
+- [🧭 `docs/ORCHESTRATOR_USER_GUIDE.md`](ORCHESTRATOR_USER_GUIDE.md) — настройка Orchestrator.
+- [📝 `docs/PROMPT_ARCHITECTURE.md`](PROMPT_ARCHITECTURE.md) — структура промптов.
+- [🔌 `docs/API_CONTRACT.md`](API_CONTRACT.md) — endpoints и payload.
+- [🧪 `docs/TESTING_CONTRACT.md`](TESTING_CONTRACT.md) — стратегия тестирования.
 
 ---
 

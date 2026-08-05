@@ -212,3 +212,5 @@ Moodle: **Site administration → Server → Web services → Manage tokens**.
 - [⚙️ `docs/OPERATIONS.md`](OPERATIONS.md) — эксплуатация, retention, KB workflow.
 - [🎼 `docs/ORCHESTRATOR_USER_GUIDE.md`](ORCHESTRATOR_USER_GUIDE.md) — настройка Orchestrator.
 - [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание и env vars.
+- [🧠 `docs/CURATOR_GUIDE.md`](CURATOR_GUIDE.md) — руководство методиста по Базе знаний.
+- [📖 `docs/USER_GUIDE.md`](USER_GUIDE.md) — руководство студента по Web UI.

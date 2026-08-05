@@ -88,7 +88,7 @@ Sprint 5.1 (Dashboard) → Sprint 5.3+5.4 (AI & Retrieval) → Sprint 5.2 (KB Do
 | Артефакт | Признак готовности |
 |----------|-------------------|
 | VPS подготовлен | SSH-доступ, Docker и Docker Compose установлены |
-| Moodle развёрнута | `https://lms.alex-n8n.site` открывается без ошибок |
+| Moodle развёрнута | `https://lms.example.com` открывается без ошибок |
 | HTTPS работает | SSL-сертификат валиден |
 | Базовая сеть настроена | Docker-сеть между сервисами работает |
 | `.env.example` подготовлен | Плейсхолдеры секретов и доменов |
@@ -258,7 +258,7 @@ Sprint 5.1 (Dashboard) → Sprint 5.3+5.4 (AI & Retrieval) → Sprint 5.2 (KB Do
 | Chat работает | Можно отправить вопрос и получить ответ |
 | Источники отображаются | Под ответом есть ссылки на материалы Knowledge Base или задания LMS |
 | Переключатель сложности | Есть выбор уровня подготовки |
-| HTTPS-доступ | `https://curator.alex-n8n.site` открывается |
+| HTTPS-доступ | `https://ai-curator.example.com` открывается |
 | Демо-доступ | Гостевой вход с выбором демо-роли, без пароля |
 
 ### Задачи
@@ -306,7 +306,7 @@ Sprint 5.1 (Dashboard) → Sprint 5.3+5.4 (AI & Retrieval) → Sprint 5.2 (KB Do
 | AI Configuration | Можно изменить системные инструкции, модель, параметры retrieval |
 | Аналитика | Доступны частые темы, вопросы без ответа, популярные материалы, оценки, задержки |
 | Мониторинг | Отображается состояние Backend, LMS, Knowledge Base, LLM |
-| HTTPS-доступ | `https://curator-admin.alex-n8n.site` открывается |
+| HTTPS-доступ | `https://ai-curator-admin.example.com` открывается |
 
 ### Задачи
 
@@ -394,7 +394,7 @@ Sprint 5.1 (Dashboard) → Sprint 5.3+5.4 (AI & Retrieval) → Sprint 5.2 (KB Do
 
 - [x] Dashboard отображается без ошибок и умещается на один экран при масштабе 100 %.
 - [x] Все статусы в «Состоянии системы» отображаются корректно (`НОРМА` / `Н/Д`).
-- [x] Admin Console развёрнут на `https://curator-admin.alex-n8n.site`.
+- [x] Admin Console развёрнут на `https://ai-curator-admin.example.com`.
 
 ---
 
@@ -823,7 +823,17 @@ A → B → C → D → E → F
 
 ---
 
-## 15. История изменений
+## 15. Связанные документы
+
+- [🏠 `README.md`](../README.md) — публичное описание проекта.
+- [📍 `docs/PROJECT_STATE.md`](PROJECT_STATE.md) — текущее состояние и roadmap.
+- [📋 `docs/SPEC.md`](SPEC.md) — продуктовая спецификация.
+- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — архитектурные решения.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание с нуля.
+
+---
+
+## 16. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|

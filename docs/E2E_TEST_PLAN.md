@@ -94,20 +94,21 @@
 
 | Интерфейс | URL |
 |---|---|
-| Web UI студента | `https://curator.alex-n8n.site` |
-| Admin Console | `https://curator-admin.alex-n8n.site` |
-| Backend API | `https://curator-api.alex-n8n.site` |
-| Moodle LMS | `https://lms.alex-n8n.site` |
+| Web UI студента | `https://ai-curator.example.com` |
+| Admin Console | `https://ai-curator-admin.example.com` |
+| Backend API | `https://ai-curator-api.example.com` |
+| Moodle LMS | `https://lms.example.com` |
 
 ---
 
-## 8. Связь с другими артефактами
+## 8. Связанные документы
 
-- `docs/PRODUCT_E2E_CHECKLIST.md` — конкретные ручные сценарии и шаги.
-- `docs/ORCHESTRATOR_E2E_CHECKLIST.md` — детальные проверки оркестратора (cross-reference).
-- `docs/TESTING_CONTRACT.md` — автоматизированные backend-тесты.
-- `docs/DEPLOYMENT_GUIDE.md` — инструкции для Deployment Validation.
-- `docs/PROJECT_STATE.md` — актуальный статус E2E и открытые задачи.
+- [📋 `docs/PRODUCT_E2E_CHECKLIST.md`](PRODUCT_E2E_CHECKLIST.md) — конкретные ручные сценарии и шаги.
+- [📋 `docs/ORCHESTRATOR_E2E_CHECKLIST.md`](ORCHESTRATOR_E2E_CHECKLIST.md) — детальные проверки оркестратора.
+- [🧪 `docs/TESTING_CONTRACT.md`](TESTING_CONTRACT.md) — автоматизированные backend-тесты.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — инструкции для Deployment Validation.
+- [🎬 `docs/E2E_SCENARIOS.md`](E2E_SCENARIOS.md) — бизнес-сценарии.
+- [📍 `docs/PROJECT_STATE.md`](PROJECT_STATE.md) — актуальный статус E2E и открытые задачи.
 
 ---
 

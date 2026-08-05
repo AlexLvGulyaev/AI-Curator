@@ -2,7 +2,7 @@
 
 **Проект:** ai-curator  
 **Дата:** 2026-07-29  
-**URL:** `https://curator.alex-n8n.site`
+**URL:** `https://ai-curator.example.com`
 
 ---
 
@@ -127,7 +127,7 @@ Web UI использует светлую тему с CSS-переменным�
 
 | Переменная | Значение по умолчанию | Описание |
 |------------|----------------------|----------|
-| `VITE_API_BASE_URL` | `https://curator-api.alex-n8n.site` | Базовый URL backend API |
+| `VITE_API_BASE_URL` | `https://ai-curator-api.example.com` | Базовый URL backend API |
 
 ---
 
@@ -139,7 +139,7 @@ npm install
 npm run dev
 ```
 
-Vite проксирует `/api` на `https://curator-api.alex-n8n.site`.
+Vite проксирует `/api` на `https://ai-curator-api.example.com`.
 
 ---
 
@@ -159,9 +159,17 @@ docker compose up -d ai-curator-web-ui
 Backend разрешает запросы с `WEB_UI_URL` и `ADMIN_CONSOLE_URL`. Для production убедитесь, что `.env` содержит:
 
 ```env
-WEB_UI_URL=https://curator.alex-n8n.site
-ADMIN_CONSOLE_URL=https://curator-admin.alex-n8n.site
+WEB_UI_URL=https://ai-curator.example.com
+ADMIN_CONSOLE_URL=https://ai-curator-admin.example.com
 ```
+
+---
+
+## Связанные документы
+
+- [📖 `docs/USER_GUIDE.md`](USER_GUIDE.md) — руководство студента по Web UI.
+- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — место Web UI в архитектуре системы.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание и переменные окружения.
 
 ---
 

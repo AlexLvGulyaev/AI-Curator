@@ -135,6 +135,8 @@ docker compose up -d --build ai-curator-admin-console
 ## 🔗 9. Связанные документы
 
 - [🎛️ `docs/ADMIN_GUIDE.md`](ADMIN_GUIDE.md) — руководство администратора по работе с Консолью администратора.
+- [⚙️ `docs/OPERATIONS.md`](OPERATIONS.md) — эксплуатация, retention, KB workflow.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание и переменные окружения.
 
 ---
 

@@ -175,10 +175,15 @@ flowchart TB
 | [🏗️ `docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Архитектурные решения, C4, потоки данных |
 | [📋 `docs/SPEC.md`](docs/SPEC.md) | Продуктовая спецификация |
 | [📅 `docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) | План реализации и развёртывания |
+| [📍 `docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) | Текущее состояние и roadmap |
 | [🔌 `docs/API_CONTRACT.md`](docs/API_CONTRACT.md) | API endpoints и payload |
 | [🚀 `docs/DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md) | Развёртывание с нуля |
 | [⚙️ `docs/OPERATIONS.md`](docs/OPERATIONS.md) | Эксплуатация, KB, AI-config, аналитика |
+| [🧭 `docs/ORCHESTRATOR_USER_GUIDE.md`](docs/ORCHESTRATOR_USER_GUIDE.md) | Настройка Orchestrator |
 | [📝 `docs/PROMPT_ARCHITECTURE.md`](docs/PROMPT_ARCHITECTURE.md) | Структура промптов |
+| [🧪 `docs/TESTING_CONTRACT.md`](docs/TESTING_CONTRACT.md) | Стратегия тестирования |
+| [🖥️ `docs/ADMIN_CONSOLE.md`](docs/ADMIN_CONSOLE.md) | Component reference Admin Console |
+| [🌐 `docs/WEB_UI.md`](docs/WEB_UI.md) | Component reference Web UI |
 
 ---
 
@@ -244,6 +249,22 @@ ai-curator/
 ├── Dockerfile                       # Backend-сервис
 └── task_history/                    # История задач по кейсу
 ```
+
+---
+
+## 📚 Связанные документы
+
+Полный пакет документации:
+
+- [📈 `docs/BUSINESS_VALUE.md`](docs/BUSINESS_VALUE.md) — бизнес-ценность.
+- [🎬 `docs/SYSTEM_DEMO.md`](docs/SYSTEM_DEMO.md) — live demo и скриншоты.
+- [🎬 `docs/E2E_SCENARIOS.md`](docs/E2E_SCENARIOS.md) — сквозные бизнес-сценарии.
+- [📖 `docs/USER_GUIDE.md`](docs/USER_GUIDE.md) — руководство студента.
+- [🎛️ `docs/ADMIN_GUIDE.md`](docs/ADMIN_GUIDE.md) — руководство администратора.
+- [🧠 `docs/CURATOR_GUIDE.md`](docs/CURATOR_GUIDE.md) — руководство методиста.
+- [🏗️ `docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — архитектурные решения.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md) — развёртывание.
+- [⚙️ `docs/OPERATIONS.md`](docs/OPERATIONS.md) — эксплуатация.
 
 ---
 

@@ -297,6 +297,17 @@ Retrieval поддерживает фильтры по `course_id`, `module_id`,
 | `src/adapters/lms_adapter.py` | LMS интеграция |
 | `src/models/ai_config.py` | Модель конфигурации AI |
 | `src/models/orchestrator_config.py` | Модель конфигурации оркестратора |
+
+---
+
+## 📚 Связанные документы
+
+- [🏠 `README.md`](../README.md) — публичное описание проекта.
+- [📋 `docs/SPEC.md`](SPEC.md) — продуктовая спецификация.
+- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — архитектурные решения.
+- [📝 `docs/PROMPT_ARCHITECTURE.md`](PROMPT_ARCHITECTURE.md) — структура промптов.
+- [🔌 `docs/API_CONTRACT.md`](API_CONTRACT.md) — API endpoints и payload.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание системы.
 | `src/api/v1/admin/analytics.py` | Analytics endpoints |
 | `admin-console/src/components/Analytics.jsx` | UI аналитики |
 | PostgreSQL `ai_curator` | Счётчики таблиц, распределение интентов, active AI config |

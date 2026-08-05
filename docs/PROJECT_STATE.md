@@ -170,10 +170,10 @@ AI Curator не заменяет преподавателя, не выставл
 ## Readiness Criteria for Implementation
 
 Переход к реализации возможен когда:
-- [x] Подготовлен PROJECT_STATE.md.
-- [x] Подготовлен SPEC.md.
-- [x] Подготовлен ARCHITECTURE.md.
-- [x] Подготовлен IMPLEMENTATION_PLAN.md.
+- [x] Подготовлен [`docs/PROJECT_STATE.md`](PROJECT_STATE.md).
+- [x] Подготовлен [`docs/SPEC.md`](SPEC.md).
+- [x] Подготовлен [`docs/ARCHITECTURE.md`](ARCHITECTURE.md).
+- [x] Подготовлен [`docs/IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md).
 - [x] Куратор утвердил концепцию и план.
 - [x] Выбран и доступен VPS.
 - [x] Зарезервированы домены.

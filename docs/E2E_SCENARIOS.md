@@ -190,3 +190,4 @@
 - [📖 `docs/USER_GUIDE.md`](USER_GUIDE.md) — руководство студента.
 - [🎛️ `docs/ADMIN_GUIDE.md`](ADMIN_GUIDE.md) — руководство администратора.
 - [🧠 `docs/CURATOR_GUIDE.md`](CURATOR_GUIDE.md) — руководство методиста.
+- [📋 `docs/PRODUCT_E2E_CHECKLIST.md`](PRODUCT_E2E_CHECKLIST.md) — детальный чек-лист E2E-проверок.

@@ -136,6 +136,15 @@ pytest tests/ -m "not integration and not expensive" -q
 
 ---
 
-## 9. Изменение контракта
+## 9. Связанные документы
+
+- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — компоненты Backend, подлежащие тестированию.
+- [📋 `docs/E2E_TEST_PLAN.md`](E2E_TEST_PLAN.md) — план сквозного тестирования.
+- [📋 `docs/PRODUCT_E2E_CHECKLIST.md`](PRODUCT_E2E_CHECKLIST.md) — чек-лист E2E-прогонов.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание тестового и production-окружения.
+
+---
+
+## 10. Изменение контракта
 
 Любое добавление/удаление маркера, изменение команд или стоимости требует обновления этого документа.

@@ -9,7 +9,7 @@
 
 ## 1. Общие соглашения
 
-- Базовый URL production: `https://curator-api.alex-n8n.site`
+- Базовый URL production: `https://ai-curator-api.example.com` (замените на ваш домен)
 - Версионированный API: `/api/v1`
 - Публичные health endpoints: `/health/*`
 - Все ответы в формате `application/json`
@@ -148,7 +148,7 @@
     "visible": true,
     "start_date": null,
     "end_date": null,
-    "url": "https://lms.alex-n8n.site/course/view.php?id=1"
+    "url": "https://lms.example.com/course/view.php?id=1"
   },
   {
     "id": 3,
@@ -159,7 +159,7 @@
     "visible": true,
     "start_date": "2026-07-29T18:39:21Z",
     "end_date": "2027-07-29T18:39:21Z",
-    "url": "https://lms.alex-n8n.site/course/view.php?id=3"
+    "url": "https://lms.example.com/course/view.php?id=3"
   }
 ]
 ```
@@ -193,7 +193,7 @@
     "section_name": "Модуль 1. Знакомство с Claude Code",
     "section_number": 1,
     "visible": true,
-    "url": "https://lms.alex-n8n.site/mod/page/view.php?id=9",
+    "url": "https://lms.example.com/mod/page/view.php?id=9",
     "contents": [...],
     "description": null
   }
@@ -226,7 +226,7 @@
     "due_date": "2026-08-01T18:49:57Z",
     "allow_submissions_from": null,
     "cutoff_date": null,
-    "url": "https://lms.alex-n8n.site/mod/assign/view.php?id=24"
+    "url": "https://lms.example.com/mod/assign/view.php?id=24"
   }
 ]
 ```
@@ -739,7 +739,7 @@
 {
   "answer": "## Дедлайны по курсу\n\n1. **ДЗ: Установка...** — 1 августа 2026 г.\n...",
   "sources": [
-    {"type": "lms", "title": "ДЗ: Установка и первый запуск Claude Code", "url": "https://lms.alex-n8n.site/mod/assign/view.php?id=24", "module": "Модуль 1"},
+    {"type": "lms", "title": "ДЗ: Установка и первый запуск Claude Code", "url": "https://lms.example.com/mod/assign/view.php?id=24", "module": "Модуль 1"},
     {"type": "kb", "title": "Методичка: Установка Claude Code", "document_type": "methodical", "document_id": 12, "chunk_index": 3}
   ],
   "intent": "organizational",
@@ -1591,7 +1591,7 @@
 
 ### 6.1. Web UI AI Curator
 
-- URL: `https://curator.alex-n8n.site`.
+- URL: `https://ai-curator.example.com`.
 - Стек: React + Vite + Tailwind CSS.
 - Гостевой вход с выбором одной из трёх демо-ролей: `active_student`, `late_student`, `new_student`.
 - Сессия хранится в `localStorage`.
@@ -1601,7 +1601,7 @@
 
 ### 6.2. Admin Console AI Curator
 
-- URL: `https://curator-admin.alex-n8n.site`.
+- URL: `https://ai-curator-admin.example.com`.
 - Стек: React + Vite + Tailwind CSS (тёмная административная тема).
 - Аутентификация по Bearer-токену из переменной окружения `ADMIN_CONSOLE_TOKEN`.
 - Возможности:
@@ -1624,7 +1624,18 @@
 
 ---
 
-## 8. История изменений
+## 8. Связанные документы
+
+- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — архитектура Backend и потоки данных.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание и переменные окружения.
+- [⚙️ `docs/OPERATIONS.md`](OPERATIONS.md) — эксплуатация, retention, KB workflow.
+- [📝 `docs/PROMPT_ARCHITECTURE.md`](PROMPT_ARCHITECTURE.md) — структура промптов.
+- [🧪 `docs/TESTING_CONTRACT.md`](TESTING_CONTRACT.md) — стратегия тестирования.
+- [📁 `docs/examples/`](examples/) — curl и JSON-примеры.
+
+---
+
+## 9. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|

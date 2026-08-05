@@ -129,6 +129,8 @@ FAQ-материалы участвуют в retrieval наравне с лек�
 ## 📚 Связанные документы
 
 - [🏠 `README.md`](../README.md) — главная страница проекта и live demo.
+- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — LMS-KB Linking Contract и границы ответственности.
 - [🎛️ `docs/ADMIN_GUIDE.md`](ADMIN_GUIDE.md) — общее руководство по Консоль администратора.
 - [⚙️ `docs/OPERATIONS.md`](OPERATIONS.md) — эксплуатация База знаний.
 - [📖 `docs/USER_GUIDE.md`](USER_GUIDE.md) — как студент видит ответы.
+- [❓ `docs/FAQ.md`](FAQ.md) — частые вопросы методиста и администратора.

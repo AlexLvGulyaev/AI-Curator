@@ -167,4 +167,6 @@ Safe demo mode показывает квоту запросов, rate limit и �
 
 - [🏠 `README.md`](../README.md) — главная страница проекта.
 - [📈 `docs/BUSINESS_VALUE.md`](BUSINESS_VALUE.md) — бизнес-ценность.
+- [🎬 `docs/E2E_SCENARIOS.md`](E2E_SCENARIOS.md) — сквозные бизнес-сценарии.
 - [📖 `docs/USER_GUIDE.md`](USER_GUIDE.md) — как пользоваться веб-интерфейсом.
+- [🎛️ `docs/ADMIN_GUIDE.md`](ADMIN_GUIDE.md) — обзор Консоли администратора.

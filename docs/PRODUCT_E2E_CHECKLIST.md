@@ -31,9 +31,9 @@
 ## Предусловия для всего чек-листа
 
 - [x] Все контейнеры AI Curator запущены и healthy (`docker compose ps`).
-- [x] Backend health возвращает `{"status":"ok"}` (`curl https://curator-api.alex-n8n.site/health`).
-- [x] Web UI доступен по `https://curator.alex-n8n.site`.
-- [x] Admin Console доступен по `https://curator-admin.alex-n8n.site`.
+- [x] Backend health возвращает `{"status":"ok"}` (`curl https://ai-curator-api.example.com/health`).
+- [x] Web UI доступен по `https://ai-curator.example.com`.
+- [x] Admin Console доступен по `https://ai-curator-admin.example.com`.
 - [x] В Moodle создан демо-курс с дедлайнами и прогрессом (id: 3).
 - [x] В KB загружены и опубликованы материалы по курсу (включая догрузку course=99 2026-08-04).
 - [x] Известен `ADMIN_CONSOLE_TOKEN` для AC.
@@ -49,7 +49,7 @@
 | **ID** | STU-01 |
 | **User Journey** | Новый пользователь открывает Web UI и выбирает роль. |
 | **Preconditions** | Очищены cookies/localStorage, чистая сессия. |
-| **Steps** | 1. Открыть `https://curator.alex-n8n.site`. <br>2. Убедиться, что открылась страница выбора роли. <br>3. Выбрать `active_student`. <br>4. Убедиться, что открылся чат с курсом «Claude Code: от знакомства до автоматизации». |
+| **Steps** | 1. Открыть `https://ai-curator.example.com`. <br>2. Убедиться, что открылась страница выбора роли. <br>3. Выбрать `active_student`. <br>4. Убедиться, что открылся чат с курсом «Claude Code: от знакомства до автоматизации». |
 | **Expected Result** | Отображается чат, в шапке — роль «Активный студент», курс выбран, backend online. |
 | **Backend / Data Checks** | В `audit_logs` нет новой записи (гостевой вход не аудируется). В `chat_sessions` может быть создана сессия только после первого сообщения. |
 | **Status** | PASS |
@@ -157,7 +157,7 @@
 | **ID** | ADM-01 |
 | **User Journey** | Администратор открывает Admin Console. |
 | **Preconditions** | `ADMIN_CONSOLE_TOKEN` известен. |
-| **Steps** | 1. Открыть `https://curator-admin.alex-n8n.site`. <br>2. Ввести токен. <br>3. Нажать «Войти». |
+| **Steps** | 1. Открыть `https://ai-curator-admin.example.com`. <br>2. Ввести токен. <br>3. Нажать «Войти». |
 | **Expected Result** | Открывается Dashboard Admin Console, Sidebar с пунктами меню. |
 | **Backend / Data Checks** | В `audit_logs` нет записи о входе (read-only view). |
 | **Status** | PASS |
@@ -291,7 +291,7 @@
 | **ID** | CROSS-02 |
 | **User Journey** | Запрос студента из внешней сети не логируется с Docker-internal IP. |
 | **Preconditions** | Доступ к prod Web UI из внешней сети. |
-| **Steps** | 1. Зайти на `curator.alex-n8n.site` с публичного IP. <br>2. Задать вопрос. <br>3. Проверить `audit_logs.ip_address`. |
+| **Steps** | 1. Зайти на `ai-curator.example.com` с публичного IP. <br>2. Задать вопрос. <br>3. Проверить `audit_logs.ip_address`. |
 | **Expected Result** | `ip_address` — публичный IP пользователя, а не `172.21.0.x`. |
 | **Backend / Data Checks** | `audit_logs.ip_address` не начинается с `172.21.` или `10.` или `192.168.`. |
 | **Status** | PASS |
@@ -330,10 +330,10 @@
 | ID | Проверка | Ожидаемый результат | Статус |
 |---|---|---|---|
 | DEP-01 | `docker compose ps` | Все контейнеры healthy / running | PASS |
-| DEP-02 | `curl https://curator-api.alex-n8n.site/health` | `{"status":"ok"}` | PASS |
-| DEP-03 | `curl https://curator.alex-n8n.site` | HTML 200 | PASS |
-| DEP-04 | `curl https://curator-admin.alex-n8n.site` | HTML 200 | PASS |
-| DEP-05 | `curl https://lms.alex-n8n.site/login/index.php` | HTML 200 | PASS |
+| DEP-02 | `curl https://ai-curator-api.example.com/health` | `{"status":"ok"}` | PASS |
+| DEP-03 | `curl https://ai-curator.example.com` | HTML 200 | PASS |
+| DEP-04 | `curl https://ai-curator-admin.example.com` | HTML 200 | PASS |
+| DEP-05 | `curl https://lms.example.com/login/index.php` | HTML 200 | PASS |
 | DEP-06 | SSL-сертификаты валидны | Браузер не показывает предупреждение | PASS |
 
 ---
@@ -380,12 +380,13 @@
 
 ---
 
-## Связь с другими документами
+## Связанные документы
 
-- `docs/ORCHESTRATOR_E2E_CHECKLIST.md` — детальные проверки оркестратора, cross-reference для STU-03..STU-07 и ADM-06.
-- `docs/TESTING_CONTRACT.md` — автоматизированные backend-тесты.
-- `docs/DEPLOYMENT_GUIDE.md` — инструкции для DEP-01..DEP-06.
-- `docs/E2E_TEST_PLAN.md` — стратегия, частота, инструменты, критерии приёмки.
+- [📋 `docs/ORCHESTRATOR_E2E_CHECKLIST.md`](ORCHESTRATOR_E2E_CHECKLIST.md) — детальные проверки оркестратора.
+- [🧪 `docs/TESTING_CONTRACT.md`](TESTING_CONTRACT.md) — автоматизированные backend-тесты.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — инструкции для Deployment Validation.
+- [📋 `docs/E2E_TEST_PLAN.md`](E2E_TEST_PLAN.md) — стратегия, частота, инструменты, критерии приёмки.
+- [🎬 `docs/E2E_SCENARIOS.md`](E2E_SCENARIOS.md) — бизнес-сценарии.
 
 ---
 

@@ -161,7 +161,16 @@
 
 ---
 
-## 11. История изменений
+## 11. Связанные документы
+
+- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — место Prompt Builder в архитектуре Backend.
+- [⚙️ `docs/OPERATIONS.md`](OPERATIONS.md) — управление AI Configuration и Retrieval параметрами в Admin Console.
+- [🧭 `docs/ORCHESTRATOR_USER_GUIDE.md`](ORCHESTRATOR_USER_GUIDE.md) — настройка интентов и token-бюджетов.
+- [📋 `docs/SPEC.md`](SPEC.md) — требования к поведению AI и границы ответа.
+
+---
+
+## 12. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|

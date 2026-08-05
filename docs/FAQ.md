@@ -109,3 +109,5 @@ Read-only токен Moodle Web Services с правами на чтение к�
 - [📖 `docs/USER_GUIDE.md`](USER_GUIDE.md) — руководство студента.
 - [🎛️ `docs/ADMIN_GUIDE.md`](ADMIN_GUIDE.md) — руководство администратора.
 - [🧠 `docs/CURATOR_GUIDE.md`](CURATOR_GUIDE.md) — руководство методиста.
+- [⚙️ `docs/OPERATIONS.md`](OPERATIONS.md) — эксплуатация, retention, KB workflow.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание и интеграция с LMS.

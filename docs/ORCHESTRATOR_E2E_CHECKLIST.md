@@ -6,8 +6,8 @@
 
 ## Предусловия
 
-- Admin Console открыт на вкладке **Orchestrator**: `https://curator-admin.alex-n8n.site`.
-- Web UI студента открыт на отдельной вкладке: `https://curator.alex-n8n.site`.
+- Admin Console открыт на вкладке **Orchestrator**: `https://ai-curator-admin.example.com`.
+- Web UI студента открыт на отдельной вкладке: `https://ai-curator.example.com`.
 - В Knowledge Base загружены материалы по курсу, а в Moodle есть курс с дедлайнами и прогрессом.
 - После каждого изменения конфигурации нажимается **Сохранить**. Кэш чата сбрасывается автоматически.
 - Перед каждым тестом в Web UI чата начинается **новая сессия** (если требуется чистая история).
@@ -511,3 +511,12 @@
 | Fallback сработал? | Да / Нет |
 | Соответствует ожиданию? | PASS / FAIL |
 | Примечания | Ошибки, странности, идеи |
+
+---
+
+## Связанные документы
+
+- [📋 `docs/PRODUCT_E2E_CHECKLIST.md`](PRODUCT_E2E_CHECKLIST.md) — общий чек-лист E2E-проверок.
+- [📋 `docs/E2E_TEST_PLAN.md`](E2E_TEST_PLAN.md) — стратегия и план E2E-тестирования.
+- [🧭 `docs/ORCHESTRATOR_USER_GUIDE.md`](ORCHESTRATOR_USER_GUIDE.md) — руководство по настройке Orchestrator.
+- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — архитектура Orchestrator и интент-классификации.

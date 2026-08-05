@@ -134,3 +134,5 @@ AI Curator не умеет и не будет:
 - [🏠 `README.md`](../README.md) — главная страница проекта.
 - [🎬 `docs/SYSTEM_DEMO.md`](SYSTEM_DEMO.md) — скриншоты и live demo.
 - [🎬 `docs/E2E_SCENARIOS.md`](E2E_SCENARIOS.md) — бизнес-сценарии.
+- [❓ `docs/FAQ.md`](FAQ.md) — ответы на частые вопросы студента.
+- [🌐 `docs/WEB_UI.md`](WEB_UI.md) — component reference Web UI.

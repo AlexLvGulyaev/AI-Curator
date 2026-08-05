@@ -635,6 +635,19 @@ Latency измеряется на серверной стороне и вклю�
 |------|--------|-----------|
 | 2026-07-29 | 1.0 | Первая версия ARCHITECTURE.md |
 | 2026-07-29 | 2.0 | Пересоздана архитектура: C4 Context/Container/Component, Runtime Sequence, Data Flow, Deployment, LMS + Knowledge Base, Backend как единый оркестратор. |
+
+---
+
+## 📚 Связанные документы
+
+- [🏠 `README.md`](../README.md) — главная страница проекта и live demo.
+- [🚀 `docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) — развёртывание системы.
+- [⚙️ `docs/OPERATIONS.md`](OPERATIONS.md) — эксплуатация, KB workflow, retention.
+- [🔌 `docs/API_CONTRACT.md`](API_CONTRACT.md) — API endpoints и payload.
+- [📝 `docs/PROMPT_ARCHITECTURE.md`](PROMPT_ARCHITECTURE.md) — структура промптов.
+- [🧪 `docs/TESTING_CONTRACT.md`](TESTING_CONTRACT.md) — стратегия и NFR-тестирование.
+- [📋 `docs/SPEC.md`](SPEC.md) — продуктовая спецификация.
+- [📍 `docs/PROJECT_STATE.md`](PROJECT_STATE.md) — текущее состояние и roadmap.
 | 2026-07-30 | 2.1 | Добавлены retention, параметризация промптов, latency-разбивка |
 | 2026-07-31 | 2.2 | Добавлены LMS-KB Linking Contract и конфигурируемая маршрутизация запросов через `orchestrator_configs` |
 | 2026-08-01 | 2.3 | Добавлены Execution Tracing (`chat_sessions`, `execution_sessions`, `execution_steps`), обновлена схема аудита с `ip_address`/`user_name` |

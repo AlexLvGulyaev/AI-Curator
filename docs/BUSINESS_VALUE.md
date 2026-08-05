@@ -153,3 +153,5 @@ AI Curator — самостоятельная AI-подсистема образ
 - [📋 `SPEC.md`](SPEC.md) — продуктовая спецификация.
 - [🎬 `SYSTEM_DEMO.md`](SYSTEM_DEMO.md) — скриншоты и демонстрация.
 - [🎬 `E2E_SCENARIOS.md`](E2E_SCENARIOS.md) — бизнес-сценарии.
+- [📖 `docs/USER_GUIDE.md`](USER_GUIDE.md) — руководство студента.
+- [🎛️ `docs/ADMIN_GUIDE.md`](ADMIN_GUIDE.md) — руководство администратора.

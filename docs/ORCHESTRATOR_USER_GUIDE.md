@@ -100,6 +100,9 @@ Orchestrator определяет, как AI Curator обрабатывает в
 ## 🔗 6. Связанные документы
 
 - [🎛️ `docs/ADMIN_GUIDE.md`](ADMIN_GUIDE.md) — общее руководство администратора по Консоли администратора.
+- [⚙️ `docs/OPERATIONS.md`](OPERATIONS.md) — раздел «Orchestrator Configuration» с рекомендациями.
+- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — место Orchestrator в Backend.
+- [🔌 `docs/API_CONTRACT.md`](API_CONTRACT.md) — endpoints конфигурации оркестратора.
 
 ---
 

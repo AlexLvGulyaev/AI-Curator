@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_URL="https://curator-api.alex-n8n.site/api/v1"
+API_URL="https://ai-curator-api.example.com/api/v1"
 TOKEN="YOUR_ADMIN_TOKEN"
 
 # Export operational logs to CSV

@@ -398,7 +398,19 @@ AI Curator предоставляет студенту **отдельный пу
 
 ---
 
-## 9. История изменений
+## 10. Связанные документы
+
+- [🏗️ `docs/ARCHITECTURE.md`](ARCHITECTURE.md) — архитектурные решения, C4-диаграммы, runtime-потоки.
+- [🎬 `docs/E2E_SCENARIOS.md`](E2E_SCENARIOS.md) — бизнес-сценарии на основе этой спецификации.
+- [📖 `docs/USER_GUIDE.md`](USER_GUIDE.md) — руководство студента по Web UI.
+- [🎛️ `docs/ADMIN_GUIDE.md`](ADMIN_GUIDE.md) — руководство администратора AI Curator.
+- [🧠 `docs/CURATOR_GUIDE.md`](CURATOR_GUIDE.md) — руководство методиста по Базе знаний.
+- [📝 `docs/PROMPT_ARCHITECTURE.md`](PROMPT_ARCHITECTURE.md) — структура промптов и few-shot примеры.
+- [📍 `docs/PROJECT_STATE.md`](PROJECT_STATE.md) — текущее состояние проекта и roadmap.
+
+---
+
+## 11. История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
